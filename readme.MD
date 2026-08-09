@@ -1,61 +1,125 @@
 # ThiKorben
 
-ThiKorben is a mobile service marketplace designed to connect local households with trusted informal and skilled workers such as plumbers, electricians, carpenters, cleaners, and other service providers.
+**ThiKorben** is a proposed mobile platform designed to connect local households with informal and skilled service workers such as plumbers, electricians, carpenters, cleaners, and other local professionals.
 
-The platform is designed with simplicity and accessibility in mind, making it easier for customers to find nearby workers while helping workers discover local job opportunities and manage their services.
+The idea is to make it easier for households to find trusted workers nearby while helping workers discover local job opportunities and manage their services through a simple, accessible mobile platform.
 
-## Current Development
+> 🚧 **Project Status: Idea / Early Development**
+>
+> ThiKorben is currently in the planning and design stage. Development of the mobile application and its supporting systems will begin soon.
 
-This repository currently focuses on the **mobile frontend** of ThiKorben.
+## 💡 The Idea
 
-The frontend is being developed using:
+ThiKorben aims to create a local service marketplace where customers can:
 
-- React Native
-- TypeScript
-- Expo
-- React Navigation
-- Leaflet / OpenStreetMap for map-based features
-- Zustand for state management
+- Find nearby service providers
+- Browse different service categories
+- View worker profiles and ratings
+- Request and book services
+- Negotiate service prices
+- Track workers during active bookings
+- Rate and review completed services
 
-At this stage, the application uses mock/local data. Backend services, authentication, payments, and API integration will be implemented in later development phases.
-
-## Main User Types
-
-### 👷 Workers
 Workers will be able to:
 
-- Create and manage their profiles
-- Select their trade/service
-- Set their service area
+- Create a service profile
+- Select their trade
+- Define their service area
 - Set their preferred service rate
 - Receive nearby job requests
-- Accept or negotiate jobs
-- Track completed work and earnings
+- Accept or negotiate service requests
+- Track their jobs and earnings
 - Build their reputation through ratings and reviews
 
-### 🏠 Customers
-Customers will be able to:
+## 🎯 Project Goals
 
-- Search for local services
-- Find nearby verified workers
-- View worker profiles and ratings
-- Request services
-- Negotiate prices
-- Track workers
-- Confirm completed jobs
-- Rate and review workers
+The main goals of ThiKorben are to:
 
-## Project Structure
+- Connect households with local skilled workers
+- Create more accessible job opportunities for informal workers
+- Make finding local services simpler and more transparent
+- Provide a location-based service discovery experience
+- Build trust through worker verification, ratings, and reviews
+- Design an interface that is accessible to users with different levels of digital literacy
 
-The project follows a component-based React Native architecture designed to keep the frontend scalable and easy to integrate with the future backend.
+## 📱 Planned Technology
+
+The planned mobile frontend will use:
+
+- **React Native**
+- **TypeScript**
+- **Expo**
+- **React Navigation**
+- **Leaflet / OpenStreetMap** for map-based functionality
+
+The planned backend will use:
+
+- **NestJS**
+- **PostgreSQL**
+- **TypeORM**
+
+Other planned integrations include authentication, location services, notifications, text-to-speech, and local payment services.
+
+## 🏗️ Planned Development
+
+The project is expected to be developed in stages:
+
+### Phase 1 — Foundation
+- Project setup
+- Mobile UI/UX design
+- Frontend architecture
+- Initial navigation
+- Database and backend planning
+
+### Phase 2 — Core Features
+- User authentication
+- Worker profiles
+- Customer service discovery
+- Job requests
+- Booking interface
+- Worker rate management
+- Map-based functionality
+
+### Phase 3 — Integration
+- Frontend and backend integration
+- Location tracking
+- Notifications
+- Payment integration
+- Other supporting services
+
+### Phase 4 — Testing & Refinement
+- Usability testing
+- Bug fixing
+- Accessibility improvements
+- Performance improvements
+- Final documentation and project preparation
+
+## 🌱 Current Status
+
+ThiKorben is currently an **idea under development**.
+
+The repository will gradually contain the project's:
+
+- UI/UX designs
+- Frontend application
+- Backend services
+- Documentation
+- Research
+- Development work
+
+More features and implementation details will be added as development progresses.
+
+## 🔀 Git Workflow
+
+The project will follow a feature-branch workflow:
 
 ```text
-src/
-├── components/
-├── screens/
-├── navigation/
-├── store/
-├── data/
-├── types/
-├── theme/
-└── utils/
+main
+  │
+  └── dev
+       │
+       ├── feature/mobile-frontend
+       ├── feature/worker-rate
+       ├── feature/leaflet-map
+       ├── feature/booking
+       └── feature/customer-flow
