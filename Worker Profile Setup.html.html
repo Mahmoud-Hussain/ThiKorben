@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Set up your worker profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#e4e1ea",
+                    "outline-variant": "#c7c5d4",
+                    "surface-container-high": "#eae7f0",
+                    "surface-tint": "#4f54b4",
+                    "primary-container": "#2e3192",
+                    "surface-bright": "#fcf8ff",
+                    "surface-variant": "#e4e1ea",
+                    "surface-dim": "#dbd9e1",
+                    "on-secondary-container": "#663800",
+                    "on-tertiary-fixed": "#341100",
+                    "on-primary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "tertiary": "#491a00",
+                    "secondary": "#8c4f00",
+                    "inverse-primary": "#c0c1ff",
+                    "on-secondary-fixed-variant": "#6b3b00",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#e1e0ff",
+                    "outline": "#777683",
+                    "on-background": "#1b1b21",
+                    "primary-fixed-dim": "#c0c1ff",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed": "#04006d",
+                    "primary": "#15157d",
+                    "surface": "#fcf8ff",
+                    "on-primary-container": "#9da1ff",
+                    "on-secondary": "#ffffff",
+                    "surface-container": "#f0ecf5",
+                    "inverse-surface": "#303036",
+                    "on-tertiary-fixed-variant": "#773207",
+                    "on-surface-variant": "#464652",
+                    "on-secondary-fixed": "#2d1600",
+                    "on-surface": "#1b1b21",
+                    "tertiary-fixed-dim": "#ffb692",
+                    "tertiary-container": "#6c2a00",
+                    "secondary-fixed": "#ffdcbf",
+                    "secondary-container": "#fd9923",
+                    "secondary-fixed-dim": "#ffb874",
+                    "surface-container-low": "#f5f2fb",
+                    "background": "#fcf8ff",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdbcb",
+                    "on-primary-fixed-variant": "#373a9b",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#f19160",
+                    "inverse-on-surface": "#f2eff8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "margin-mobile": "20px",
+                    "gutter": "16px",
+                    "xl": "32px",
+                    "2xl": "48px",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "display": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "label-md": ["Inter"],
+                    "label-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-xl": ["16px", {"lineHeight": "24px", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        /* Hide scrollbar for clean UI but keep functionality */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        /* Custom range slider styling */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #15157d;
+            cursor: pointer;
+            margin-top: -10px;
+            box-shadow: 0 4px 12px rgba(21, 21, 125, 0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #dbd9e1;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen font-body-md antialiased selection:bg-primary-fixed selection:text-on-primary-fixed flex flex-col items-center">
+<!-- Main Container - Optimized for Mobile Grid -->
+<main class="w-full max-w-md mx-auto flex flex-col min-h-screen pb-2xl relative">
+<!-- TopAppBar (Minimal for Onboarding) -->
+<header class="w-full px-margin-mobile h-16 flex items-center justify-between sticky top-0 bg-surface z-50">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low active:scale-95 transition-all text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<div class="flex-1"></div>
+<button class="font-label-lg text-label-lg text-primary active:scale-95 transition-all">
+                Help
+            </button>
+</header>
+<!-- Content Canvas -->
+<div class="px-margin-mobile flex flex-col gap-lg flex-1">
+<!-- Header Section -->
+<div class="flex flex-col gap-xs pt-4">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Set up your worker profile</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Help customers understand your services.</p>
+</div>
+<!-- Profile Photo Upload -->
+<div class="flex flex-col items-center gap-md py-4">
+<div class="relative group cursor-pointer active:scale-95 transition-transform">
+<div class="w-28 h-28 rounded-full bg-surface-container border-2 border-dashed border-outline-variant flex flex-col items-center justify-center text-primary group-hover:border-primary group-hover:bg-primary-fixed transition-colors overflow-hidden relative">
+<span class="material-symbols-outlined text-display" style="font-variation-settings: 'FILL' 1;">add_a_photo</span>
+<div class="absolute inset-0 bg-black/5 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+</div>
+<span class="font-label-lg text-label-lg text-primary">Upload Profile Photo</span>
+</div>
+<!-- Form Fields -->
+<form class="flex flex-col gap-lg w-full">
+<!-- Full Name -->
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant pl-1">Full Name</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">person</span>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all placeholder:text-outline-variant" placeholder="e.g. Rahim Uddin" type="text"/>
+</div>
+</div>
+<!-- Phone Number -->
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant pl-1">Phone Number</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">call</span>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all placeholder:text-outline-variant" placeholder="+880 1XX XXX XXXX" type="tel"/>
+</div>
+</div>
+<!-- Trade/Service (Bento Grid Selection) -->
+<div class="flex flex-col gap-sm pt-2">
+<div class="flex justify-between items-end mb-2">
+<label class="font-label-md text-label-md text-on-surface-variant pl-1">Primary Trade/Service</label>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<!-- Option 1: Selected State -->
+<label class="relative cursor-pointer group">
+<input checked="" class="peer sr-only" name="trade" type="radio"/>
+<div class="h-full bg-surface-container-lowest border-2 border-outline-variant peer-checked:border-primary peer-checked:bg-primary-fixed/30 rounded-[1.5rem] p-4 flex flex-col items-center gap-3 transition-all hover:shadow-sm">
+<div class="w-12 h-12 rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary-container">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">plumbing</span>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface peer-checked:text-primary">Plumber</span>
+<div class="absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-outline-variant peer-checked:border-primary flex items-center justify-center bg-surface-container-lowest">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+</div>
+</label>
+<!-- Option 2 -->
+<label class="relative cursor-pointer group">
+<input class="peer sr-only" name="trade" type="radio"/>
+<div class="h-full bg-surface-container-lowest border-2 border-outline-variant peer-checked:border-primary peer-checked:bg-primary-fixed/30 rounded-[1.5rem] p-4 flex flex-col items-center gap-3 transition-all hover:shadow-sm">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">Electrician</span>
+<div class="absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-outline-variant peer-checked:border-primary flex items-center justify-center bg-surface-container-lowest">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+</div>
+</label>
+<!-- Option 3 -->
+<label class="relative cursor-pointer group">
+<input class="peer sr-only" name="trade" type="radio"/>
+<div class="h-full bg-surface-container-lowest border-2 border-outline-variant peer-checked:border-primary peer-checked:bg-primary-fixed/30 rounded-[1.5rem] p-4 flex flex-col items-center gap-3 transition-all hover:shadow-sm">
+<div class="w-12 h-12 rounded-full bg-tertiary-container/20 flex items-center justify-center text-tertiary-container">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">carpenter</span>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">Carpenter</span>
+<div class="absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-outline-variant peer-checked:border-primary flex items-center justify-center bg-surface-container-lowest">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+</div>
+</label>
+<!-- Option 4 -->
+<label class="relative cursor-pointer group">
+<input class="peer sr-only" name="trade" type="radio"/>
+<div class="h-full bg-surface-container-lowest border-2 border-outline-variant peer-checked:border-primary peer-checked:bg-primary-fixed/30 rounded-[1.5rem] p-4 flex flex-col items-center gap-3 transition-all hover:shadow-sm">
+<div class="w-12 h-12 rounded-full bg-surface-tint/20 flex items-center justify-center text-surface-tint">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">cleaning_services</span>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface">Cleaner</span>
+<div class="absolute top-3 right-3 w-5 h-5 rounded-full border-2 border-outline-variant peer-checked:border-primary flex items-center justify-center bg-surface-container-lowest">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+</div>
+</div>
+</label>
+</div>
+</div>
+<!-- Years of Experience & Rate Row -->
+<div class="grid grid-cols-2 gap-md pt-2">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant pl-1">Experience (Years)</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">work_history</span>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" min="0" placeholder="0" type="number"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant pl-1">Preferred Rate (৳)</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 text-outline font-headline-md">৳</span>
+<input class="w-full h-14 pl-10 pr-4 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" min="0" placeholder="500" type="number"/>
+</div>
+</div>
+</div>
+<!-- Service Area (Radius) -->
+<div class="flex flex-col gap-md pt-4">
+<div class="flex justify-between items-center px-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Service Area Radius</label>
+<span class="font-label-lg text-label-lg text-primary bg-primary-fixed px-3 py-1 rounded-full">5 km</span>
+</div>
+<!-- Map Visual Placeholder -->
+<div class="w-full h-40 rounded-[1.5rem] bg-surface-container overflow-hidden relative border border-outline-variant" data-location="Dhaka" style="">
+<div class="bg-cover bg-center w-full h-full absolute inset-0 opacity-80" data-alt="A clean, minimalist digital map of a city street layout, light mode aesthetic, top-down view, soft grey streets on a very light off-white background. The map is overlaid with a subtle translucent circular zone in soft indigo, indicating a geographic service radius. Professional, high-utility modern UI aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBIHY7Vf4bZFvP5SOVXAsVT6n4H0mRzVTyzc5p1Xi6Iii5Q0CCd9JvNLtAXhXMZnRq3FATXd9VJi7e9KnU7yG4AQ3euEM4dSOS2eyo3LUUXm8p-aHo6KWqQy6IXUHNUGxVqfCYV25-8uX---7w2A9nPwDUzP9s22Fcrpgz4KQPG_0M_w1P7zsc1_7uijmaeV6WRrv2mZ-ckCVCpxt89Qs7Z3BnAWP0buUOvXzsXE6fCpdOSG8WM1wM7-Q')"></div>
+<!-- Center Pin & Radius Visual -->
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center relative shadow-[0_0_20px_rgba(21,21,125,0.1)]">
+<div class="w-3 h-3 bg-primary rounded-full shadow-sm absolute"></div>
+<span class="material-symbols-outlined text-primary absolute -mt-8" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+</div>
+</div>
+<!-- Slider -->
+<div class="px-2 pt-2">
+<input class="w-full appearance-none bg-transparent" max="20" min="1" type="range" value="5"/>
+<div class="flex justify-between text-on-surface-variant font-label-md text-label-md mt-2">
+<span>1 km</span>
+<span>20 km</span>
+</div>
+</div>
+</div>
+</form>
+<!-- Spacer for bottom fixed CTA -->
+<div class="h-24"></div>
+</div>
+<!-- Fixed Bottom CTAs -->
+<div class="fixed bottom-0 left-0 w-full bg-surface/90 backdrop-blur-md border-t border-surface-container-highest p-margin-mobile z-50">
+<div class="max-w-md mx-auto flex flex-col gap-3">
+<button class="w-full h-14 bg-primary text-on-primary rounded-[2rem] font-headline-md text-headline-md flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-[0_8px_20px_rgba(21,21,125,0.2)] hover:bg-on-primary-fixed">
+                    Create Worker Profile
+                    <span class="material-symbols-outlined text-xl">arrow_forward</span>
+</button>
+<button class="w-full h-12 bg-transparent text-primary rounded-[2rem] font-label-lg text-label-lg flex items-center justify-center active:scale-95 transition-transform hover:bg-primary-fixed/50">
+                    Skip for now
+                </button>
+</div>
+</div>
+</main>
+</body></html>

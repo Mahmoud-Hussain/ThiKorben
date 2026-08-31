@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ThiKorben - Log Out</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-highest": "#e4e1ea",
+                      "outline-variant": "#c7c5d4",
+                      "surface-container-high": "#eae7f0",
+                      "surface-tint": "#4f54b4",
+                      "primary-container": "#2e3192",
+                      "surface-bright": "#fcf8ff",
+                      "surface-variant": "#e4e1ea",
+                      "surface-dim": "#dbd9e1",
+                      "on-secondary-container": "#663800",
+                      "on-tertiary-fixed": "#341100",
+                      "on-primary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "error": "#ba1a1a",
+                      "tertiary": "#491a00",
+                      "secondary": "#8c4f00",
+                      "inverse-primary": "#c0c1ff",
+                      "on-secondary-fixed-variant": "#6b3b00",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#e1e0ff",
+                      "outline": "#777683",
+                      "on-background": "#1b1b21",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed": "#04006d",
+                      "primary": "#15157d",
+                      "surface": "#fcf8ff",
+                      "on-primary-container": "#9da1ff",
+                      "on-secondary": "#ffffff",
+                      "surface-container": "#f0ecf5",
+                      "inverse-surface": "#303036",
+                      "on-tertiary-fixed-variant": "#773207",
+                      "on-surface-variant": "#464652",
+                      "on-secondary-fixed": "#2d1600",
+                      "on-surface": "#1b1b21",
+                      "tertiary-fixed-dim": "#ffb692",
+                      "tertiary-container": "#6c2a00",
+                      "secondary-fixed": "#ffdcbf",
+                      "secondary-container": "#fd9923",
+                      "secondary-fixed-dim": "#ffb874",
+                      "surface-container-low": "#f5f2fb",
+                      "background": "#fcf8ff",
+                      "on-error": "#ffffff",
+                      "tertiary-fixed": "#ffdbcb",
+                      "on-primary-fixed-variant": "#373a9b",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-container": "#f19160",
+                      "inverse-on-surface": "#f2eff8"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "sm": "8px",
+                      "margin-mobile": "20px",
+                      "gutter": "16px",
+                      "xl": "32px",
+                      "2xl": "48px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "base": "4px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "label-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-lg": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "22px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface antialiased h-screen w-screen overflow-hidden font-body-md">
+<!-- Background Context (Profile Screen, blurred/dimmed) -->
+<div aria-hidden="true" class="absolute inset-0 z-0 pointer-events-none filter blur-sm grayscale-[30%] opacity-80">
+<!-- Mock Top App Bar -->
+<header class="fixed top-0 w-full z-10 bg-surface shadow-sm">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full max-w-md mx-auto">
+<div class="flex items-center gap-md">
+<img alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-outline-variant" data-alt="A small circular avatar placeholder showing a generic user silhouette or face in a professional, modern style. High contrast against a light background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyVrtoBPcPR7X-JnSrQrTcNjQBWXnN9UT1fOV9QLuSkxwxQhnqkgPoOphlloueHFp-yQGIEgRA8IcJNRJL-IU9U-A5ilgfzr_O9IWEm8CURfTFsAe_ozm7xiBj7PAG-ziVxRg_Oyfpem74C-pkq9G73TIqaBKEp54WUPhKswALkA46jmOAftcf5ZwLXUgG-mOXAZTHD-FzxyVRXeul6L3QlgugSn2QbK3klxnV7U3WNTLX4YZsvA_aPQ"/>
+<h1 class="font-display text-display text-primary-container text-xl">ThiKorben</h1>
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<!-- Mock Content -->
+<main class="pt-24 px-margin-mobile max-w-md mx-auto pb-32">
+<div class="bg-surface-container-lowest p-md rounded-lg shadow-sm border border-outline-variant mb-lg">
+<div class="flex items-center gap-md mb-md">
+<div class="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-on-surface-variant">person</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Assalam-o-Alaikum</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Customer Account</p>
+</div>
+</div>
+</div>
+<div class="space-y-sm">
+<div class="h-14 bg-surface-container-lowest rounded-lg border border-outline-variant"></div>
+<div class="h-14 bg-surface-container-lowest rounded-lg border border-outline-variant"></div>
+<div class="h-14 bg-surface-container-lowest rounded-lg border border-outline-variant"></div>
+</div>
+</main>
+<!-- Mock Bottom Nav -->
+<nav class="fixed bottom-0 w-full z-10 rounded-t-lg bg-surface shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+<div class="fixed bottom-0 left-0 w-full flex justify-around items-center pt-2 pb-4 px-2">
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5"><span class="material-symbols-outlined">home</span><span class="font-label-md text-label-md">Home</span></div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5"><span class="material-symbols-outlined">handyman</span><span class="font-label-md text-label-md">Jobs</span></div>
+<div class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-2xl px-4 py-1.5"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span><span class="font-label-md text-label-md">Profile</span></div>
+</div>
+</nav>
+</div>
+<!-- Overlay / Scrim -->
+<div aria-hidden="true" class="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-40 transition-opacity duration-300"></div>
+<!-- Modal Dialog -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-margin-mobile">
+<div aria-labelledby="modal-title" aria-modal="true" class="bg-surface-container-lowest rounded-DEFAULT shadow-xl w-full max-w-sm overflow-hidden transform transition-all scale-100 opacity-100" role="dialog">
+<!-- Modal Header (Icon + Title) -->
+<div class="pt-xl px-lg pb-md flex flex-col items-center text-center">
+<div class="w-12 h-12 rounded-full bg-error-container/30 flex items-center justify-center mb-md">
+<span class="material-symbols-outlined text-error text-2xl" style="font-variation-settings: 'FILL' 1;">logout</span>
+</div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface" id="modal-title">
+                    Log out of ThiKorben?
+                </h2>
+<p class="mt-sm font-body-md text-body-md text-on-surface-variant px-2">
+                    You will need to enter your credentials again to access your account.
+                </p>
+</div>
+<!-- Modal Actions -->
+<div class="px-lg pb-xl pt-sm flex flex-col gap-sm">
+<!-- Primary Action (Destructive) -->
+<button class="w-full h-14 bg-error text-on-error font-label-lg text-label-lg rounded-full flex items-center justify-center hover:bg-on-error-container transition-colors shadow-sm active:scale-[0.98]" type="button">
+                    Log Out
+                </button>
+<!-- Secondary Action (Cancel) -->
+<button class="w-full h-14 bg-surface-container-lowest text-primary-container border border-outline-variant font-label-lg text-label-lg rounded-full flex items-center justify-center hover:bg-surface-container-low transition-colors active:scale-[0.98]" type="button">
+                    Cancel
+                </button>
+</div>
+</div>
+</div>
+</body></html>
