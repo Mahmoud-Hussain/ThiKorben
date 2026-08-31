@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "ThiKorben",
+    "slug": "thikorben",
+    "scheme": "thikorben",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
