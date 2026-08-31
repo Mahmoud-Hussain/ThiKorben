@@ -1,125 +1,50 @@
-# ThiKorben
+# Welcome to your Expo app 👋
 
-**ThiKorben** is a proposed mobile platform designed to connect local households with informal and skilled service workers such as plumbers, electricians, carpenters, cleaners, and other local professionals.
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-The idea is to make it easier for households to find trusted workers nearby while helping workers discover local job opportunities and manage their services through a simple, accessible mobile platform.
+## Get started
 
-> 🚧 **Project Status: Idea / Early Development**
->
-> ThiKorben is currently in the planning and design stage. Development of the mobile application and its supporting systems will begin soon.
+1. Install dependencies
 
-## 💡 The Idea
+   ```bash
+   npm install
+   ```
 
-ThiKorben aims to create a local service marketplace where customers can:
+2. Start the app
 
-- Find nearby service providers
-- Browse different service categories
-- View worker profiles and ratings
-- Request and book services
-- Negotiate service prices
-- Track workers during active bookings
-- Rate and review completed services
+   ```bash
+   npx expo start
+   ```
 
-Workers will be able to:
+In the output, you'll find options to open the app in a
 
-- Create a service profile
-- Select their trade
-- Define their service area
-- Set their preferred service rate
-- Receive nearby job requests
-- Accept or negotiate service requests
-- Track their jobs and earnings
-- Build their reputation through ratings and reviews
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-## 🎯 Project Goals
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-The main goals of ThiKorben are to:
+## Get a fresh project
 
-- Connect households with local skilled workers
-- Create more accessible job opportunities for informal workers
-- Make finding local services simpler and more transparent
-- Provide a location-based service discovery experience
-- Build trust through worker verification, ratings, and reviews
-- Design an interface that is accessible to users with different levels of digital literacy
+When you're ready, run:
 
-## 📱 Planned Technology
+```bash
+npm run reset-project
+```
 
-The planned mobile frontend will use:
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-- **React Native**
-- **TypeScript**
-- **Expo**
-- **React Navigation**
-- **Leaflet / OpenStreetMap** for map-based functionality
+## Learn more
 
-The planned backend will use:
+To learn more about developing your project with Expo, look at the following resources:
 
-- **NestJS**
-- **PostgreSQL**
-- **TypeORM**
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-Other planned integrations include authentication, location services, notifications, text-to-speech, and local payment services.
+## Join the community
 
-## 🏗️ Planned Development
+Join our community of developers creating universal apps.
 
-The project is expected to be developed in stages:
-
-### Phase 1 — Foundation
-- Project setup
-- Mobile UI/UX design
-- Frontend architecture
-- Initial navigation
-- Database and backend planning
-
-### Phase 2 — Core Features
-- User authentication
-- Worker profiles
-- Customer service discovery
-- Job requests
-- Booking interface
-- Worker rate management
-- Map-based functionality
-
-### Phase 3 — Integration
-- Frontend and backend integration
-- Location tracking
-- Notifications
-- Payment integration
-- Other supporting services
-
-### Phase 4 — Testing & Refinement
-- Usability testing
-- Bug fixing
-- Accessibility improvements
-- Performance improvements
-- Final documentation and project preparation
-
-## 🌱 Current Status
-
-ThiKorben is currently an **idea under development**.
-
-The repository will gradually contain the project's:
-
-- UI/UX designs
-- Frontend application
-- Backend services
-- Documentation
-- Research
-- Development work
-
-More features and implementation details will be added as development progresses.
-
-## 🔀 Git Workflow
-
-The project will follow a feature-branch workflow:
-
-```text
-main
-  │
-  └── dev
-       │
-       ├── feature/mobile-frontend
-       ├── feature/worker-rate
-       ├── feature/leaflet-map
-       ├── feature/booking
-       └── feature/customer-flow
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
