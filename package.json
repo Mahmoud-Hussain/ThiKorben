@@ -1,0 +1,13 @@
+{
+  "name": "thikorben-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix ThiKorben start",
+    "web": "npm --prefix ThiKorben run web",
+    "android": "npm --prefix ThiKorben run android",
+    "ios": "npm --prefix ThiKorben run ios",
+    "lint": "npm --prefix ThiKorben run lint",
+    "tsc": "npm --prefix ThiKorben exec tsc --noEmit"
+  }
+}
