@@ -1,126 +1,108 @@
-# ThiKorben
+# ThiKorben (ঠিককরবেন) 🛠️
 
-**ThiKorben** is a proposed mobile platform designed to connect local households with informal and skilled service workers such as plumbers, electricians, carpenters, cleaners, and other local professionals.
+**ThiKorben** is a location-based mobile platform designed for Bangladesh to connect local households with trusted, skilled informal workers such as plumbers, electricians, carpenters, cleaners, and appliance technicians.
 
-The idea is to make it easier for households to find trusted workers nearby while helping workers discover local job opportunities and manage their services through a simple, accessible mobile platform.
+Built with **React Native**, **Expo SDK 57**, and **Expo Router**, ThiKorben offers a bilingual (Bangla / English) user experience tailored for everyday service booking, live tracking, and worker job management.
 
-> 🚧 **Project Status: Idea / Early Development**
->
-> ThiKorben is currently in the planning and design stage. Development of the mobile application and its supporting systems will begin soon.
+---
 
-## 💡 The Idea
+## 📱 Live / Implemented Pages & Features
 
-ThiKorben aims to create a local service marketplace where customers can:
+The mobile frontend UI has been built with an interactive flow across both Customer and Worker journeys:
 
-- Find nearby service providers
-- Browse different service categories
-- View worker profiles and ratings
-- Request and book services
-- Negotiate service prices
-- Track workers during active bookings
-- Rate and review completed services
+| Page / Route | File | Status | Key Features |
+| :--- | :--- | :---: | :--- |
+| **Welcome / Onboarding** | `app/welcome.tsx` | ✅ **Working** | • English & বাংলা language selector<br>• Customer vs. Worker role toggle<br>• Visual feature highlights & trust badges |
+| **Customer Home / Dashboard** | `app/index.tsx` | ✅ **Working** | • Service bento grid (Plumber, Electrician, Carpenter, Cleaner)<br>• Search bar with real-time filtering<br>• Emergency Request modal with instant dispatch simulation<br>• Verified Pros list with ratings, specialty, distance & visiting fees<br>• Active tracking status banner |
+| **Worker Dashboard** | `app/worker-dashboard.tsx` | ✅ **Working** | • Online / Offline availability toggle switch<br>• Today's earnings counter & completed job statistics<br>• Incoming job request cards with Accept / Decline / Counter-offer actions<br>• Active ongoing job status overview |
+| **Worker Profile** | `app/worker-profile.tsx` | ✅ **Working** | • Verified Master Plumber profile (Rahim Uddin)<br>• Ratings breakdown & verified customer reviews<br>• Fixed service price cards (Leak repair, pipe fitting, etc.)<br>• Work history & experience tags<br>• Direct Call, Message, and Book Now actions |
+| **Job Details & Negotiation** | `app/job-details.tsx` | ✅ **Working** | • Customer problem description & media preview<br>• Interactive price negotiation / counter-offer slider<br>• Pickup & job site address with mini-map<br>• Job progress milestones & OTP verification flow |
+| **Live Worker Tracking** | `app/track-worker.tsx` | ✅ **Working** | • Interactive **Leaflet / OpenStreetMap** map with live worker marker & route line<br>• Real-time ETA and distance countdown (e.g., 12 min away in Dhanmondi)<br>• Worker quick contact card (Call / Chat)<br>• Safety SOS button & Cancel options |
 
-Workers will be able to:
+---
 
-- Create a service profile
-- Select their trade
-- Define their service area
-- Set their preferred service rate
-- Receive nearby job requests
-- Accept or negotiate service requests
-- Track their jobs and earnings
-- Build their reputation through ratings and reviews
+## 🧩 Reusable Components
 
-## 🎯 Project Goals
+- **`components/bottom-nav-bar.tsx`**: Persistent bottom navigation bar adapting between Customer and Worker tabs.
+- **`components/leaflet-map.tsx` / `components/leaflet-map.web.tsx`**: Cross-platform Leaflet mapping component using `react-native-webview` on Native and iframe on Web.
+- **`components/page-quick-switcher.tsx`**: Floating quick switcher button allowing instant switching between all 6 screens during review and development.
 
-The main goals of ThiKorben are to:
+---
 
-- Connect households with local skilled workers
-- Create more accessible job opportunities for informal workers
-- Make finding local services simpler and more transparent
-- Provide a location-based service discovery experience
-- Build trust through worker verification, ratings, and reviews
-- Design an interface that is accessible to users with different levels of digital literacy
+## 🛠️ Technology Stack
 
-## 📱 Planned Technology
+### Frontend (Implemented)
+- **Framework**: Expo `v57.0.0` (React Native `0.86.3`, React `19.2.3`)
+- **Navigation / Routing**: Expo Router `v57.0.17` (File-based routing)
+- **Maps**: Leaflet + OpenStreetMap (via WebView / Web)
+- **Icons**: `@expo/vector-icons` (Ionicons, MaterialIcons, MaterialCommunityIcons)
+- **Languages**: TypeScript, Full Bilingual UI (English & Bangla)
 
-The planned mobile frontend will use:
+### Planned Backend & Infrastructure
+- **Server**: NestJS (TypeScript REST & WebSocket API)
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: Firebase Phone Auth / Twilio SMS OTP
+- **Payments**: bKash, Nagad, SSLCommerz, Cash on Delivery
 
-- **React Native**
-- **TypeScript**
-- **Expo**
-- **React Navigation**
-- **Leaflet / OpenStreetMap** for map-based functionality
+---
 
-The planned backend will use:
+## 🚀 Running the Project Locally
 
-- **NestJS**
-- **PostgreSQL**
-- **TypeORM**
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-Other planned integrations include authentication, location services, notifications, text-to-speech, and local payment services.
+2. **Start the Expo development server**:
+   ```bash
+   npx expo start
+   ```
 
-## 🏗️ Planned Development
+3. **Run on target platform**:
+   - Press **`w`** for Web preview in browser (`http://localhost:8081`)
+   - Press **`a`** for Android Emulator / connected device
+   - Press **`i`** for iOS Simulator
+   - Scan the terminal QR code using **Expo Go** on your phone (or press **`s`** to toggle development build)
 
-The project is expected to be developed in stages:
+---
 
-### Phase 1 — Foundation
-- Project setup
-- Mobile UI/UX design
-- Frontend architecture
-- Initial navigation
-- Database and backend planning
+## 📋 What is Left / Roadmap
 
-### Phase 2 — Core Features
-- User authentication
-- Worker profiles
-- Customer service discovery
-- Job requests
-- Booking interface
-- Worker rate management
-- Map-based functionality
+### Phase 2: Authentication & User Profiles
+- [ ] Phone number SMS OTP login / signup (Bangladeshi +880 numbers)
+- [ ] Customer profile setup (Name, saved addresses, emergency contacts)
+- [ ] Worker onboarding flow (NID verification, skill/trade selection, rate configuration)
 
-### Phase 3 — Integration
-- Frontend and backend integration
-- Location tracking
-- Notifications
-- Payment integration
-- Other supporting services
+### Phase 3: Backend & Database Integration
+- [ ] NestJS API setup with PostgreSQL database
+- [ ] Real-time WebSocket connection for instant worker job dispatch
+- [ ] Location radius search (PostGIS / Haversine distance queries)
+- [ ] Job state machine (Requested → Accepted → In-Transit → In-Progress → Completed → Paid)
 
-### Phase 4 — Testing & Refinement
-- Usability testing
-- Bug fixing
-- Accessibility improvements
-- Performance improvements
-- Final documentation and project preparation
+### Phase 4: Real-time Communication & Notifications
+- [ ] In-app chat messaging between customer and worker
+- [ ] Push notifications (Expo Push Notifications / FCM)
+- [ ] Live GPS tracking using device geolocation (`expo-location`)
 
-## 🌱 Current Status
+### Phase 5: Payments & Reviews
+- [ ] Bangladeshi payment gateway integration (bKash, Nagad, Card)
+- [ ] Cash-on-delivery collection & commission tracking
+- [ ] Post-job rating, review submission, and worker tipping system
 
-ThiKorben is currently an **idea under development**.
-
-The repository will gradually contain the project's:
-
-- UI/UX designs
-- Frontend application
-- Backend services
-- Documentation
-- Research
-- Development work
-
-More features and implementation details will be added as development progresses.
+---
 
 ## 🔀 Git Workflow
 
-The project will follow a feature-branch workflow:
-
 ```text
-main
+main (stable releases)
   │
-  └── dev
+  └── dev (active development)
        │
-       ├── feature/mobile-frontend
-       ├── feature/worker-rate
-       ├── feature/leaflet-map
-       ├── feature/booking
-       └── feature/customer-flow
+       ├── feature/welcome-screen
+       ├── feature/customer-home
+       ├── feature/worker-dashboard
+       ├── feature/worker-profile
+       ├── feature/job-details-and-map
+       ├── feature/tracking-ui
+       └── feature/backend-api
 ```
