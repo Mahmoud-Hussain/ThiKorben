@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -465,12 +465,7 @@ function ProposalCard({ proposal, customerMode, onAccept }: ProposalCardProps) {
 
         {customerMode && accepted && (
           <Pressable
-            onPress={() =>
-              Alert.alert(
-                'Private Chat',
-                'Private customer-worker messaging will be connected in the next milestone.',
-              )
-            }
+            onPress={() => router.push('/job-chat')}
             style={styles.messageButton}
           >
             <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
@@ -1063,12 +1058,7 @@ export default function JobBoardScreen() {
                       </View>
 
                       <Pressable
-                        onPress={() =>
-                          Alert.alert(
-                            'Next Milestone',
-                            'Private messaging between customer and worker will be implemented next.',
-                          )
-                        }
+                        onPress={() => router.push('/job-chat')}
                         style={styles.selectedMessageButton}
                       >
                         <Ionicons
