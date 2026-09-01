@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router, Stack } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -14,6 +15,16 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  addToCart,
+  formatShopMoney,
+  getCartCount,
+  getProductById,
+  ShopProduct,
+} from '@/constants/shop-data';
+
+import { recommendProductsFromMessage } from '@/constants/product-recommendation';
 
 const COLORS = {
   orange: '#FF7315',
@@ -37,6 +48,7 @@ const COLORS = {
   warning: '#F5A300',
   warningSoft: '#FFF8E7',
 
+  danger: '#D9485F',
   softGray: '#F1F2F6',
 };
 
@@ -44,44 +56,19 @@ type Role = 'customer' | 'worker';
 
 type Sender = Role | 'system';
 
+type MessageRecommendation = {
+  productId: string;
+  reason: string;
+  confidence: 'high' | 'medium';
+};
+
 type ChatMessage = {
   id: string;
   sender: Sender;
   text: string;
   time: string;
-  materials?: string[];
+  recommendations?: MessageRecommendation[];
 };
-
-const MATERIAL_KEYWORDS = [
-  {
-    keyword: 'connector',
-    label: 'PVC Connector',
-  },
-  {
-    keyword: 'teflon',
-    label: 'Teflon Tape',
-  },
-  {
-    keyword: 'tape',
-    label: 'Teflon Tape',
-  },
-  {
-    keyword: 'washer',
-    label: 'Rubber Washer',
-  },
-  {
-    keyword: 'pipe',
-    label: 'PVC Pipe',
-  },
-  {
-    keyword: 'valve',
-    label: 'Water Valve',
-  },
-  {
-    keyword: 'faucet',
-    label: 'Faucet',
-  },
-];
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -127,16 +114,6 @@ function getCurrentTime() {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function detectMaterials(text: string) {
-  const lowerText = text.toLowerCase();
-
-  const matches = MATERIAL_KEYWORDS.filter(item =>
-    lowerText.includes(item.keyword),
-  ).map(item => item.label);
-
-  return [...new Set(matches)];
 }
 
 type RoleSwitcherProps = {
@@ -193,12 +170,150 @@ function RoleSwitcher({ role, onChange }: RoleSwitcherProps) {
   );
 }
 
-type MessageBubbleProps = {
-  message: ChatMessage;
-  onProductHook: (materials: string[]) => void;
+type ProductRecommendationCardProps = {
+  product: ShopProduct;
+  reason: string;
+  confidence: 'high' | 'medium';
+  added: boolean;
+  onView: () => void;
+  onAdd: () => void;
 };
 
-function MessageBubble({ message, onProductHook }: MessageBubbleProps) {
+function ProductRecommendationCard({
+  product,
+  reason,
+  confidence,
+  added,
+  onView,
+  onAdd,
+}: ProductRecommendationCardProps) {
+  return (
+    <View style={styles.recommendationProductCard}>
+      <View style={styles.recommendationProductTop}>
+        <View style={styles.recommendationProductIcon}>
+          <Ionicons name={product.icon} size={25} color={COLORS.purple} />
+        </View>
+
+        <View style={styles.recommendationProductInfo}>
+          <View style={styles.matchRow}>
+            <View
+              style={[
+                styles.matchBadge,
+                confidence === 'high'
+                  ? styles.highMatchBadge
+                  : styles.mediumMatchBadge,
+              ]}
+            >
+              <Ionicons
+                name="sparkles"
+                size={9}
+                color={confidence === 'high' ? COLORS.success : COLORS.warning}
+              />
+
+              <Text
+                style={[
+                  styles.matchBadgeText,
+                  {
+                    color: confidence === 'high' ? COLORS.success : '#9A6B00',
+                  },
+                ]}
+              >
+                {confidence === 'high' ? 'HIGH MATCH' : 'MATCH'}
+              </Text>
+            </View>
+
+            <Text style={styles.productStock}>{product.stock} in stock</Text>
+          </View>
+
+          <Text numberOfLines={2} style={styles.recommendationProductName}>
+            {product.name}
+          </Text>
+
+          <Text numberOfLines={1} style={styles.matchReason}>
+            {reason}
+          </Text>
+        </View>
+
+        <View style={styles.productPriceArea}>
+          <Text style={styles.productPrice}>
+            {formatShopMoney(product.price)}
+          </Text>
+
+          {product.oldPrice && (
+            <Text style={styles.productOldPrice}>
+              {formatShopMoney(product.oldPrice)}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.productMetaRow}>
+        <View style={styles.productMeta}>
+          <Ionicons name="star" size={11} color={COLORS.warning} />
+
+          <Text style={styles.productMetaText}>{product.rating}</Text>
+        </View>
+
+        <View style={styles.productMeta}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={11}
+            color={product.warrantyMonths ? COLORS.success : COLORS.muted}
+          />
+
+          <Text
+            style={[
+              styles.productMetaText,
+              product.warrantyMonths ? { color: COLORS.success } : undefined,
+            ]}
+          >
+            {product.warrantyMonths
+              ? `${product.warrantyMonths} month warranty`
+              : 'Standard guarantee'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.recommendationActions}>
+        <Pressable onPress={onView} style={styles.viewProductButton}>
+          <Ionicons name="open-outline" size={13} color={COLORS.purple} />
+
+          <Text style={styles.viewProductText}>View Product</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onAdd}
+          disabled={added}
+          style={[styles.inlineAddButton, added && styles.inlineAddButtonAdded]}
+        >
+          <Ionicons
+            name={added ? 'checkmark-circle' : 'cart-outline'}
+            size={13}
+            color="#FFFFFF"
+          />
+
+          <Text style={styles.inlineAddText}>
+            {added ? 'Added' : 'Add to Cart'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+type MessageBubbleProps = {
+  message: ChatMessage;
+  addedProductIds: string[];
+  onViewProduct: (product: ShopProduct) => void;
+  onAddProduct: (product: ShopProduct) => void;
+};
+
+function MessageBubble({
+  message,
+  addedProductIds,
+  onViewProduct,
+  onAddProduct,
+}: MessageBubbleProps) {
   if (message.sender === 'system') {
     return (
       <View style={styles.systemMessage}>
@@ -217,125 +332,180 @@ function MessageBubble({ message, onProductHook }: MessageBubbleProps) {
 
   const isCustomer = message.sender === 'customer';
 
-  const hasMaterials = Boolean(message.materials?.length);
+  const recommendationProducts = (message.recommendations ?? [])
+    .map(recommendation => {
+      const product = getProductById(recommendation.productId);
+
+      if (!product) {
+        return null;
+      }
+
+      return {
+        product,
+        reason: recommendation.reason,
+        confidence: recommendation.confidence,
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        product: ShopProduct;
+        reason: string;
+        confidence: 'high' | 'medium';
+      } => item !== null,
+    );
 
   return (
-    <View
-      style={[
-        styles.messageRow,
-        isCustomer ? styles.messageCustomerRow : styles.messageWorkerRow,
-      ]}
-    >
-      {!isCustomer && (
-        <View style={styles.smallWorkerAvatar}>
-          <Text style={styles.smallAvatarText}>RA</Text>
-        </View>
-      )}
-
+    <View style={styles.messageGroup}>
       <View
         style={[
-          styles.messageBubble,
-          isCustomer ? styles.customerBubble : styles.workerBubble,
+          styles.messageRow,
+          isCustomer ? styles.messageCustomerRow : styles.messageWorkerRow,
         ]}
       >
-        <View style={styles.messageSenderRow}>
+        {!isCustomer && (
+          <View style={styles.smallWorkerAvatar}>
+            <Text style={styles.smallAvatarText}>RA</Text>
+          </View>
+        )}
+
+        <View
+          style={[
+            styles.messageBubble,
+            isCustomer ? styles.customerBubble : styles.workerBubble,
+          ]}
+        >
+          <View style={styles.messageSenderRow}>
+            <Text
+              style={[
+                styles.messageSender,
+                isCustomer
+                  ? styles.customerMessageText
+                  : styles.workerMessageText,
+              ]}
+            >
+              {isCustomer ? 'Nusrat' : 'Rahim'}
+            </Text>
+
+            {!isCustomer && (
+              <Ionicons name="checkmark-circle" size={13} color="#DCD9FF" />
+            )}
+          </View>
+
           <Text
             style={[
-              styles.messageSender,
+              styles.messageText,
               isCustomer
                 ? styles.customerMessageText
                 : styles.workerMessageText,
             ]}
           >
-            {isCustomer ? 'Nusrat' : 'Rahim'}
+            {message.text}
           </Text>
 
-          {!isCustomer && (
-            <Ionicons name="checkmark-circle" size={13} color="#DCD9FF" />
-          )}
-        </View>
+          {recommendationProducts.length > 0 && (
+            <View
+              style={[
+                styles.detectionChip,
+                isCustomer
+                  ? styles.customerDetectionChip
+                  : styles.workerDetectionChip,
+              ]}
+            >
+              <Ionicons
+                name="sparkles"
+                size={12}
+                color={isCustomer ? COLORS.orangeDark : '#FFFFFF'}
+              />
 
-        <Text
-          style={[
-            styles.messageText,
-            isCustomer ? styles.customerMessageText : styles.workerMessageText,
-          ]}
-        >
-          {message.text}
-        </Text>
-
-        {hasMaterials && (
-          <Pressable
-            onPress={() => onProductHook(message.materials ?? [])}
-            style={[
-              styles.materialMention,
-              isCustomer
-                ? styles.customerMaterialMention
-                : styles.workerMaterialMention,
-            ]}
-          >
-            <Ionicons
-              name="sparkles"
-              size={13}
-              color={isCustomer ? COLORS.orangeDark : '#FFFFFF'}
-            />
-
-            <View style={styles.materialMentionText}>
               <Text
                 style={[
-                  styles.materialMentionTitle,
+                  styles.detectionChipText,
                   {
                     color: isCustomer ? COLORS.orangeDark : '#FFFFFF',
                   },
                 ]}
               >
-                Product mention detected
+                {recommendationProducts.length} shop product
+                {recommendationProducts.length > 1 ? 's' : ''} matched
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.messageFooter}>
+            <Text
+              style={[
+                styles.messageTime,
+                {
+                  color: isCustomer ? '#B56D38' : '#CCC8F2',
+                },
+              ]}
+            >
+              {message.time}
+            </Text>
+
+            <Ionicons
+              name="checkmark-done"
+              size={13}
+              color={isCustomer ? COLORS.orangeDark : '#DDD9FF'}
+            />
+          </View>
+        </View>
+
+        {isCustomer && (
+          <View style={styles.smallCustomerAvatar}>
+            <Text style={styles.smallAvatarText}>NJ</Text>
+          </View>
+        )}
+      </View>
+
+      {recommendationProducts.length > 0 && (
+        <View style={styles.recommendationPanel}>
+          <View style={styles.recommendationPanelHeader}>
+            <View style={styles.recommendationAIIcon}>
+              <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+            </View>
+
+            <View style={styles.recommendationHeaderContent}>
+              <Text style={styles.recommendationTitle}>
+                ThiKorben Smart Product Match
               </Text>
 
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.materialMentionItems,
-                  {
-                    color: isCustomer ? '#9A5A2C' : '#DDD9FF',
-                  },
-                ]}
-              >
-                {message.materials?.join(' • ')}
+              <Text style={styles.recommendationSubtitle}>
+                Matching products found from the worker conversation
               </Text>
             </View>
 
-            <Ionicons
-              name="chevron-forward"
-              size={14}
-              color={isCustomer ? COLORS.orangeDark : '#FFFFFF'}
+            <View style={styles.prototypeBadge}>
+              <Text style={styles.prototypeBadgeText}>SMART</Text>
+            </View>
+          </View>
+
+          {recommendationProducts.map(({ product, reason, confidence }) => (
+            <ProductRecommendationCard
+              key={product.id}
+              product={product}
+              reason={reason}
+              confidence={confidence}
+              added={addedProductIds.includes(product.id)}
+              onView={() => onViewProduct(product)}
+              onAdd={() => onAddProduct(product)}
             />
-          </Pressable>
-        )}
+          ))}
 
-        <View style={styles.messageFooter}>
-          <Text
-            style={[
-              styles.messageTime,
-              {
-                color: isCustomer ? '#B56D38' : '#CCC8F2',
-              },
-            ]}
-          >
-            {message.time}
-          </Text>
+          <View style={styles.recommendationDisclaimer}>
+            <Ionicons
+              name="information-circle-outline"
+              size={13}
+              color={COLORS.muted}
+            />
 
-          <Ionicons
-            name="checkmark-done"
-            size={13}
-            color={isCustomer ? COLORS.orangeDark : '#DDD9FF'}
-          />
-        </View>
-      </View>
-
-      {isCustomer && (
-        <View style={styles.smallCustomerAvatar}>
-          <Text style={styles.smallAvatarText}>NJ</Text>
+            <Text style={styles.recommendationDisclaimerText}>
+              Suggestions are based on product terms in the conversation.
+              Confirm suitability before purchase.
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -351,13 +521,23 @@ export default function JobChatScreen() {
 
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
 
-  const [detectedMaterials, setDetectedMaterials] = useState<string[]>([]);
+  const [detectedProductIds, setDetectedProductIds] = useState<string[]>([]);
+
+  const [addedProductIds, setAddedProductIds] = useState<string[]>([]);
+
+  const [cartCount, setCartCount] = useState(getCartCount());
 
   const entranceOpacity = useRef(new Animated.Value(0)).current;
 
   const entranceTranslate = useRef(new Animated.Value(15)).current;
 
   const onlinePulse = useRef(new Animated.Value(1)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      setCartCount(getCartCount());
+    }, []),
+  );
 
   useEffect(() => {
     Animated.parallel([
@@ -415,20 +595,36 @@ export default function JobChatScreen() {
       return;
     }
 
-    const materials = detectMaterials(text);
+    const productMatches = recommendProductsFromMessage(text).filter(
+      recommendation => !detectedProductIds.includes(recommendation.product.id),
+    );
+
+    const recommendations: MessageRecommendation[] | undefined =
+      productMatches.length > 0
+        ? productMatches.map(recommendation => ({
+            productId: recommendation.product.id,
+            reason: recommendation.reason,
+            confidence: recommendation.confidence,
+          }))
+        : undefined;
 
     const message: ChatMessage = {
       id: `${Date.now()}`,
       sender: role,
       text,
       time: getCurrentTime(),
-      materials: materials.length > 0 ? materials : undefined,
+      recommendations,
     };
 
     setMessages(current => [...current, message]);
 
-    if (materials.length > 0) {
-      setDetectedMaterials(current => [...new Set([...current, ...materials])]);
+    if (productMatches.length > 0) {
+      setDetectedProductIds(current => [
+        ...new Set([
+          ...current,
+          ...productMatches.map(recommendation => recommendation.product.id),
+        ]),
+      ]);
     }
 
     setDraft('');
@@ -437,13 +633,25 @@ export default function JobChatScreen() {
   const quickReplies =
     role === 'customer' ? CUSTOMER_QUICK_REPLIES : WORKER_QUICK_REPLIES;
 
-  const openProductHook = (materials: string[]) => {
-    Alert.alert(
-      'AI Product Recommendation',
-      `Detected: ${materials.join(
-        ', ',
-      )}\n\nIn the next milestone, ThiKorben AI will match these terms with exact products from the shop, including price, warranty and Add to Cart.`,
-    );
+  const openProduct = (product: ShopProduct) => {
+    router.push({
+      pathname: '/product-details',
+      params: {
+        id: product.id,
+      },
+    });
+  };
+
+  const addProductFromChat = (product: ShopProduct) => {
+    if (addedProductIds.includes(product.id)) {
+      return;
+    }
+
+    addToCart(product.id);
+
+    setAddedProductIds(current => [...current, product.id]);
+
+    setCartCount(getCartCount());
   };
 
   return (
@@ -460,7 +668,6 @@ export default function JobChatScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.appShell}>
-            {/* Header */}
             <View style={styles.header}>
               <Pressable
                 onPress={() => router.back()}
@@ -512,14 +719,39 @@ export default function JobChatScreen() {
                 </View>
               </View>
 
-              <Pressable
-                onPress={() =>
-                  Alert.alert('Call Worker', 'Calling Rahim Ahmed...')
-                }
-                style={styles.callButton}
-              >
-                <Ionicons name="call-outline" size={18} color={COLORS.purple} />
-              </Pressable>
+              <View style={styles.headerActions}>
+                <Pressable
+                  onPress={() =>
+                    Alert.alert('Call Worker', 'Calling Rahim Ahmed...')
+                  }
+                  style={styles.callButton}
+                >
+                  <Ionicons
+                    name="call-outline"
+                    size={17}
+                    color={COLORS.purple}
+                  />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => router.push('/cart')}
+                  style={styles.cartButton}
+                >
+                  <Ionicons
+                    name="cart-outline"
+                    size={18}
+                    color={COLORS.purple}
+                  />
+
+                  {cartCount > 0 && (
+                    <View style={styles.cartCountBadge}>
+                      <Text style={styles.cartCountText}>
+                        {cartCount > 9 ? '9+' : cartCount}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
             </View>
 
             <Animated.View
@@ -535,7 +767,6 @@ export default function JobChatScreen() {
                 },
               ]}
             >
-              {/* Job context */}
               <View style={styles.jobContext}>
                 <View style={styles.jobContextTop}>
                   <View style={styles.jobContextIcon}>
@@ -606,7 +837,6 @@ export default function JobChatScreen() {
                 </View>
               </View>
 
-              {/* Demo Role */}
               <View style={styles.demoArea}>
                 <View>
                   <Text style={styles.demoLabel}>Demo conversation as</Text>
@@ -619,33 +849,39 @@ export default function JobChatScreen() {
                 <RoleSwitcher role={role} onChange={setRole} />
               </View>
 
-              {/* Detected materials */}
-              {detectedMaterials.length > 0 && (
-                <Pressable
-                  onPress={() => openProductHook(detectedMaterials)}
-                  style={styles.aiDetectionCard}
-                >
+              {detectedProductIds.length > 0 && (
+                <View style={styles.aiDetectionCard}>
                   <View style={styles.aiIcon}>
                     <Ionicons name="sparkles" size={18} color="#FFFFFF" />
                   </View>
 
                   <View style={styles.aiContent}>
                     <Text style={styles.aiTitle}>
-                      Material mention detected
+                      Smart product matches ready
                     </Text>
 
-                    <Text numberOfLines={1} style={styles.aiDescription}>
-                      {detectedMaterials.join(' • ')}
+                    <Text style={styles.aiDescription}>
+                      {detectedProductIds.length} unique shop product
+                      {detectedProductIds.length > 1 ? 's' : ''} detected from
+                      this chat
                     </Text>
                   </View>
 
-                  <View style={styles.aiBadge}>
-                    <Text style={styles.aiBadgeText}>AI READY</Text>
-                  </View>
-                </Pressable>
+                  <Pressable
+                    onPress={() => router.push('/shop')}
+                    style={styles.shopMiniButton}
+                  >
+                    <Ionicons
+                      name="bag-handle-outline"
+                      size={13}
+                      color="#FFFFFF"
+                    />
+
+                    <Text style={styles.shopMiniButtonText}>Shop</Text>
+                  </Pressable>
+                </View>
               )}
 
-              {/* Messages */}
               <ScrollView
                 ref={scrollRef}
                 style={styles.messages}
@@ -665,12 +901,13 @@ export default function JobChatScreen() {
                   <MessageBubble
                     key={message.id}
                     message={message}
-                    onProductHook={openProductHook}
+                    addedProductIds={addedProductIds}
+                    onViewProduct={openProduct}
+                    onAddProduct={addProductFromChat}
                   />
                 ))}
               </ScrollView>
 
-              {/* Quick Replies */}
               <View style={styles.quickReplyArea}>
                 <ScrollView
                   horizontal
@@ -697,7 +934,6 @@ export default function JobChatScreen() {
                 </ScrollView>
               </View>
 
-              {/* Composer */}
               <View style={styles.composer}>
                 <Pressable
                   onPress={() =>
@@ -765,7 +1001,7 @@ const styles = StyleSheet.create({
 
   header: {
     height: 64,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -777,7 +1013,7 @@ const styles = StyleSheet.create({
   },
 
   headerButton: {
-    width: 38,
+    width: 35,
     height: 38,
 
     alignItems: 'center',
@@ -794,9 +1030,9 @@ const styles = StyleSheet.create({
   },
 
   headerAvatar: {
-    width: 39,
-    height: 39,
-    marginRight: 9,
+    width: 38,
+    height: 38,
+    marginRight: 8,
 
     position: 'relative',
 
@@ -856,7 +1092,7 @@ const styles = StyleSheet.create({
   },
 
   workerName: {
-    fontSize: 11.5,
+    fontSize: 10.5,
     fontWeight: '900',
     color: COLORS.text,
   },
@@ -864,20 +1100,66 @@ const styles = StyleSheet.create({
   workerStatus: {
     marginTop: 2,
 
-    fontSize: 8.5,
+    fontSize: 7.8,
     color: COLORS.success,
   },
 
+  headerActions: {
+    flexDirection: 'row',
+
+    gap: 5,
+  },
+
   callButton: {
-    width: 38,
-    height: 38,
+    width: 35,
+    height: 35,
 
     alignItems: 'center',
     justifyContent: 'center',
 
-    borderRadius: 12,
+    borderRadius: 11,
 
     backgroundColor: COLORS.purpleSoft,
+  },
+
+  cartButton: {
+    width: 35,
+    height: 35,
+
+    position: 'relative',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderRadius: 11,
+
+    backgroundColor: COLORS.orangeSoft,
+  },
+
+  cartCountBadge: {
+    minWidth: 15,
+    height: 15,
+
+    position: 'absolute',
+    right: -3,
+    top: -3,
+
+    paddingHorizontal: 2,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderWidth: 2,
+    borderColor: COLORS.card,
+    borderRadius: 8,
+
+    backgroundColor: COLORS.orange,
+  },
+
+  cartCountText: {
+    fontSize: 6,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
 
   content: {
@@ -886,13 +1168,13 @@ const styles = StyleSheet.create({
 
   jobContext: {
     marginHorizontal: 12,
-    marginTop: 10,
+    marginTop: 9,
 
-    padding: 11,
+    padding: 10,
 
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 15,
+    borderRadius: 14,
 
     backgroundColor: COLORS.card,
   },
@@ -903,9 +1185,9 @@ const styles = StyleSheet.create({
   },
 
   jobContextIcon: {
-    width: 38,
-    height: 38,
-    marginRight: 9,
+    width: 36,
+    height: 36,
+    marginRight: 8,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -922,7 +1204,7 @@ const styles = StyleSheet.create({
   jobContextLabel: {
     marginBottom: 2,
 
-    fontSize: 7.5,
+    fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.6,
 
@@ -930,7 +1212,7 @@ const styles = StyleSheet.create({
   },
 
   jobContextTitle: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '900',
     color: COLORS.text,
   },
@@ -948,14 +1230,14 @@ const styles = StyleSheet.create({
   },
 
   jobDetailsText: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: '900',
     color: COLORS.purple,
   },
 
   jobContextStats: {
-    marginTop: 10,
-    paddingTop: 9,
+    marginTop: 9,
+    paddingTop: 8,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -974,21 +1256,21 @@ const styles = StyleSheet.create({
   },
 
   contextStatLabel: {
-    fontSize: 7.5,
+    fontSize: 7,
     color: COLORS.muted,
   },
 
   contextStatValue: {
     marginTop: 1,
 
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '900',
     color: COLORS.text,
   },
 
   contextDivider: {
     width: 1,
-    height: 27,
+    height: 25,
     marginHorizontal: 10,
 
     backgroundColor: COLORS.border,
@@ -996,21 +1278,21 @@ const styles = StyleSheet.create({
 
   demoArea: {
     marginHorizontal: 12,
-    marginTop: 8,
+    marginTop: 7,
 
-    padding: 8,
+    padding: 7,
 
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
 
-    borderRadius: 13,
+    borderRadius: 12,
 
     backgroundColor: '#EEF0F5',
   },
 
   demoLabel: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: '900',
     color: COLORS.text,
   },
@@ -1018,7 +1300,7 @@ const styles = StyleSheet.create({
   demoHint: {
     marginTop: 1,
 
-    fontSize: 7,
+    fontSize: 6.5,
     color: COLORS.muted,
   },
 
@@ -1033,8 +1315,8 @@ const styles = StyleSheet.create({
   },
 
   roleOption: {
-    minHeight: 31,
-    paddingHorizontal: 9,
+    minHeight: 29,
+    paddingHorizontal: 8,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -1054,7 +1336,7 @@ const styles = StyleSheet.create({
   },
 
   roleText: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: '800',
     color: COLORS.muted,
   },
@@ -1065,8 +1347,8 @@ const styles = StyleSheet.create({
 
   aiDetectionCard: {
     marginHorizontal: 12,
-    marginTop: 8,
-    padding: 9,
+    marginTop: 7,
+    padding: 8,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -1077,8 +1359,8 @@ const styles = StyleSheet.create({
   },
 
   aiIcon: {
-    width: 32,
-    height: 32,
+    width: 31,
+    height: 31,
     marginRight: 8,
 
     alignItems: 'center',
@@ -1094,7 +1376,7 @@ const styles = StyleSheet.create({
   },
 
   aiTitle: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '900',
     color: '#FFFFFF',
   },
@@ -1102,28 +1384,33 @@ const styles = StyleSheet.create({
   aiDescription: {
     marginTop: 2,
 
-    fontSize: 7.5,
+    fontSize: 6.8,
     color: '#DDD9FF',
   },
 
-  aiBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 5,
+  shopMiniButton: {
+    minHeight: 29,
+    paddingHorizontal: 8,
 
-    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 4,
+
+    borderRadius: 9,
 
     backgroundColor: COLORS.orange,
   },
 
-  aiBadgeText: {
-    fontSize: 6.5,
+  shopMiniButtonText: {
+    fontSize: 7,
     fontWeight: '900',
     color: '#FFFFFF',
   },
 
   messages: {
     flex: 1,
-    marginTop: 5,
+    marginTop: 4,
   },
 
   messagesContent: {
@@ -1196,9 +1483,11 @@ const styles = StyleSheet.create({
     color: '#799887',
   },
 
-  messageRow: {
-    marginBottom: 9,
+  messageGroup: {
+    marginBottom: 10,
+  },
 
+  messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
@@ -1291,39 +1580,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  materialMention: {
-    marginTop: 8,
-    padding: 7,
+  detectionChip: {
+    marginTop: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
 
     flexDirection: 'row',
     alignItems: 'center',
 
-    gap: 6,
+    gap: 4,
 
-    borderRadius: 9,
+    borderRadius: 8,
   },
 
-  customerMaterialMention: {
+  customerDetectionChip: {
     backgroundColor: '#FFFFFF',
   },
 
-  workerMaterialMention: {
+  workerDetectionChip: {
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
 
-  materialMentionText: {
-    flex: 1,
-  },
-
-  materialMentionTitle: {
-    fontSize: 7.5,
+  detectionChipText: {
+    fontSize: 6.7,
     fontWeight: '900',
-  },
-
-  materialMentionItems: {
-    marginTop: 1,
-
-    fontSize: 6.5,
   },
 
   messageFooter: {
@@ -1338,6 +1618,278 @@ const styles = StyleSheet.create({
 
   messageTime: {
     fontSize: 6.5,
+  },
+
+  recommendationPanel: {
+    marginTop: 7,
+    marginLeft: 33,
+
+    padding: 9,
+
+    borderWidth: 1,
+    borderColor: '#DDD9F3',
+    borderRadius: 15,
+
+    backgroundColor: '#FAF9FF',
+  },
+
+  recommendationPanelHeader: {
+    marginBottom: 8,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  recommendationAIIcon: {
+    width: 31,
+    height: 31,
+    marginRight: 7,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderRadius: 10,
+
+    backgroundColor: COLORS.purple,
+  },
+
+  recommendationHeaderContent: {
+    flex: 1,
+  },
+
+  recommendationTitle: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: COLORS.purpleDark,
+  },
+
+  recommendationSubtitle: {
+    marginTop: 1,
+
+    fontSize: 6.5,
+    color: COLORS.muted,
+  },
+
+  prototypeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+
+    borderRadius: 999,
+
+    backgroundColor: COLORS.orangeSoft,
+  },
+
+  prototypeBadgeText: {
+    fontSize: 6,
+    fontWeight: '900',
+    color: COLORS.orangeDark,
+  },
+
+  recommendationProductCard: {
+    marginTop: 7,
+    padding: 9,
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+
+    backgroundColor: COLORS.card,
+  },
+
+  recommendationProductTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  recommendationProductIcon: {
+    width: 47,
+    height: 47,
+    marginRight: 8,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderRadius: 13,
+
+    backgroundColor: COLORS.purpleSoft,
+  },
+
+  recommendationProductInfo: {
+    flex: 1,
+  },
+
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 5,
+  },
+
+  matchBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 2,
+
+    borderRadius: 999,
+  },
+
+  highMatchBadge: {
+    backgroundColor: COLORS.successSoft,
+  },
+
+  mediumMatchBadge: {
+    backgroundColor: COLORS.warningSoft,
+  },
+
+  matchBadgeText: {
+    fontSize: 5.8,
+    fontWeight: '900',
+  },
+
+  productStock: {
+    fontSize: 6,
+    color: COLORS.success,
+  },
+
+  recommendationProductName: {
+    marginTop: 4,
+
+    fontSize: 8.7,
+    lineHeight: 12,
+    fontWeight: '900',
+
+    color: COLORS.text,
+  },
+
+  matchReason: {
+    marginTop: 2,
+
+    fontSize: 6.2,
+    color: COLORS.muted,
+  },
+
+  productPriceArea: {
+    marginLeft: 6,
+
+    alignItems: 'flex-end',
+  },
+
+  productPrice: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: COLORS.orangeDark,
+  },
+
+  productOldPrice: {
+    marginTop: 2,
+
+    fontSize: 6,
+    textDecorationLine: 'line-through',
+
+    color: '#A0A4AE',
+  },
+
+  productMetaRow: {
+    marginTop: 7,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 10,
+  },
+
+  productMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 3,
+  },
+
+  productMetaText: {
+    fontSize: 6.5,
+    color: COLORS.muted,
+  },
+
+  recommendationActions: {
+    marginTop: 8,
+
+    flexDirection: 'row',
+
+    gap: 6,
+  },
+
+  viewProductButton: {
+    flex: 1,
+    minHeight: 32,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    gap: 4,
+
+    borderWidth: 1,
+    borderColor: '#D8D5F2',
+    borderRadius: 9,
+
+    backgroundColor: COLORS.purpleSoft,
+  },
+
+  viewProductText: {
+    fontSize: 7,
+    fontWeight: '900',
+    color: COLORS.purple,
+  },
+
+  inlineAddButton: {
+    flex: 1,
+    minHeight: 32,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    gap: 4,
+
+    borderRadius: 9,
+
+    backgroundColor: COLORS.orange,
+  },
+
+  inlineAddButtonAdded: {
+    backgroundColor: COLORS.success,
+  },
+
+  inlineAddText: {
+    fontSize: 7,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+
+  recommendationDisclaimer: {
+    marginTop: 8,
+    paddingTop: 7,
+
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+
+    gap: 5,
+
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+
+  recommendationDisclaimerText: {
+    flex: 1,
+
+    fontSize: 6.2,
+    lineHeight: 9,
+
+    color: COLORS.muted,
   },
 
   quickReplyArea: {
@@ -1358,7 +1910,7 @@ const styles = StyleSheet.create({
   },
 
   quickReply: {
-    maxWidth: 200,
+    maxWidth: 220,
     minHeight: 30,
 
     paddingHorizontal: 9,
@@ -1376,7 +1928,7 @@ const styles = StyleSheet.create({
   },
 
   quickReplyText: {
-    maxWidth: 165,
+    maxWidth: 185,
 
     fontSize: 7.5,
     fontWeight: '700',
