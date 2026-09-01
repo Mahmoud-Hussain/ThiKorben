@@ -1,6 +1,6 @@
-import { getCartSubtotal } from './shop-data';
+import { getAcceptedProposal, getSelectedJob } from './community-marketplace';
 
-export const AGREED_LABOR_COST = 700;
+import { getCartSubtotal } from './shop-data';
 
 export const FREE_DELIVERY_THRESHOLD = 1500;
 
@@ -12,16 +12,29 @@ export const SERVICE_PLATFORM_FEE = 35;
 
 export type ServiceCostSummary = {
   laborCost: number;
+
   materialSubtotal: number;
+
   deliveryFee: number;
+
   shopPlatformFee: number;
+
   servicePlatformFee: number;
+
   totalPlatformFees: number;
+
   shopTotal: number;
+
   grandTotal: number;
 };
 
 export function getServiceCostSummary(): ServiceCostSummary {
+  const job = getSelectedJob();
+
+  const accepted = job ? getAcceptedProposal(job.id) : undefined;
+
+  const laborCost = accepted?.price ?? 0;
+
   const materialSubtotal = getCartSubtotal();
 
   const deliveryFee =
@@ -33,16 +46,21 @@ export function getServiceCostSummary(): ServiceCostSummary {
 
   const shopPlatformFee = materialSubtotal > 0 ? SHOP_PLATFORM_FEE : 0;
 
-  const servicePlatformFee = SERVICE_PLATFORM_FEE;
+  const servicePlatformFee = laborCost > 0 ? SERVICE_PLATFORM_FEE : 0;
 
   const totalPlatformFees = shopPlatformFee + servicePlatformFee;
 
   const shopTotal = materialSubtotal + deliveryFee + shopPlatformFee;
 
-  const grandTotal = AGREED_LABOR_COST + shopTotal + servicePlatformFee;
+  const grandTotal =
+    laborCost +
+    materialSubtotal +
+    deliveryFee +
+    shopPlatformFee +
+    servicePlatformFee;
 
   return {
-    laborCost: AGREED_LABOR_COST,
+    laborCost,
     materialSubtotal,
     deliveryFee,
     shopPlatformFee,
