@@ -54,7 +54,7 @@ export default function OtpSuccessScreen() {
         {/* Placeholder CTA — routes to existing dashboard */}
         <TouchableOpacity
           style={styles.continueBtn}
-          onPress={() => router.replace('/')}
+          onPress={() => router.replace('/customer-dashboard')}
           activeOpacity={0.88}
         >
           <Text style={styles.continueBtnText}>Continue to App</Text>

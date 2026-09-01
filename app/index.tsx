@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Alert,
-  Image,
-  Modal,
   Platform,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -24,188 +19,94 @@ import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 const COLORS = {
   primary: '#15157d',
   primaryContainer: '#2e3192',
-  onPrimaryContainer: '#9da1ff',
-  secondaryContainer: '#fd9923',
-  onSecondaryContainer: '#663800',
-  secondaryFixed: '#ffdcbf',
-  primaryFixed: '#e1e0ff',
-  tertiaryFixed: '#ffdbcb',
+  secondary: '#fd9923',
   accentOrange: '#F7941D',
-  background: '#fcf8ff',
+  background: '#f8f7fc',
   surface: '#ffffff',
-  surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#f5f2fb',
+  surfaceContainerLow: '#f4f2fa',
   surfaceContainerHigh: '#eae7f0',
   surfaceDim: '#dbd9e1',
   text: '#1b1b21',
-  onSurfaceVariant: '#464652',
-  outlineVariant: '#c7c5d4',
-  success: '#27AE60',
+  textMuted: '#5b5a68',
+  border: '#e6e3ee',
+  success: '#16a34a',
+  purpleSoft: '#ede9fe',
+  purpleDark: '#4338ca',
 };
-
-const HERO_ILLUSTRATION_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuC3VDnT-CPUdyjnuT4vUh10etA7T5WiPfh63z6V3u33Iqx-_aHnLmrrOrdHQBJaJMuclw05a2r9OIaiMgx01qSfP5N_X_kN4hykB_y8dKMHHDLzZKaznXawhK1G1YmUKmod5mfhTRZjocEJKUpw9Y8pGxh0fKqECqC9Sn_JkZvXQU3KwkLNAlWxLiJsnIF-BGVVvs11NqivfNM-VyV5Vv5cBRMK2X8L9qk-PMZqmMMm39e7ecZoV98nPw';
-
-const RAHIM_AVATAR_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCv3ndAOA1HXwuXdDv15r5Bfc9c_rxhJyNc2SXzQsu7SuF6OtdDXPeZ_jIU-grZ3O9d4VZ7_K9x7qKeOqpqH6pjTZbPPmTSdjJK2MzxOVaSPjgGqHZwJMKC6h6eJKTNV6aRRU_yvgm5w2L60KMcltF2TyjSfzSbC2yqCiwpGsRgeRxwqS44YOdBOJqmW8D0yi0j3Tb7_ZKpDbdft_DBKHGnIrK9nMnGuAhoe6Ym8J1J3OX6K2SLGLPXOg';
 
 const STRINGS = {
   en: {
     appName: 'ThiKorben',
-    heroTitle: 'Need a helping hand?',
-    heroSubtitle: 'Find trusted local workers for your everyday needs.',
-    chooseRole: 'How would you like to use ThiKorben?',
-    customerTitle: "I'm a Customer",
-    customerDesc:
-      'Find trusted local workers to solve your everyday household problems.',
-    workerTitle: "I'm a Worker",
-    workerDesc:
-      'Find local jobs, build your reputation, and earn more on your schedule.',
-    verifiedWorkers: 'Verified Workers',
-    localServices: 'Local Services',
-    trustedRatings: 'Trusted Ratings',
-    plumber: 'Plumber',
-    electrician: 'Electrician',
-    carpenter: 'Carpenter',
-    cleaner: 'Cleaner',
-    emergencyBtn: 'Emergency Request',
-    activeTracking: 'Rahim is on the way (12 min away)',
+    tagline: 'Instant Home Services in Dhaka',
+    heroTitle: 'Fastest Way to Fix Anything at Home',
+    heroSubtitle:
+      'Book verified plumbers, electricians, and technicians in under 2 minutes.',
+    categoriesTitle: 'Popular Services',
+    chooseRole: 'Select How You Want to Continue',
+    customerTitle: 'I Need a Service',
+    customerDesc: 'Find plumbers, electricians & emergency pros near you.',
+    workerTitle: 'I Am a Worker / Pro',
+    workerDesc: 'Accept nearby jobs, track earnings & grow your business.',
+    verifiedBadge: '100% Verified Pros',
+    fastDispatch: '15 Min Fast Dispatch',
+    fairPricing: 'Transparent Pricing',
+    enterCustomer: 'Enter as Customer',
+    enterWorker: 'Enter as Worker',
   },
   bn: {
     appName: 'ঠিককরবেন',
-    heroTitle: 'বাসার যেকোনো কাজে সাহায্য প্রয়োজন?',
-    heroSubtitle: 'আপনার এলাকার বিশ্বস্ত প্লাম্বার, ইলেকট্রিশিয়ান ও কারিগর খুঁজুন।',
-    chooseRole: 'আপনি কীভাবে ঠিককরবেন ব্যবহার করতে চান?',
-    customerTitle: 'আমি একজন কাস্টমার',
-    customerDesc: 'দৈনন্দিন বাসার কাজের জন্য দক্ষ ও যাচাইকৃত কর্মী খুঁজুন।',
-    workerTitle: 'আমি একজন কারিগর / ওয়ার্কার',
-    workerDesc: 'নতুন কাজের অর্ডার গ্রহণ করুন এবং আয় বৃদ্ধি করুন।',
-    verifiedWorkers: 'ভেরিফাইড কারিগর',
-    localServices: 'স্থানীয় সেবা',
-    trustedRatings: 'বিশ্বস্ত রেটিং',
-    plumber: 'প্লাম্বার',
-    electrician: 'ইলেকট্রিশিয়ান',
-    carpenter: 'কার্পেন্টার',
-    cleaner: 'ক্লিনার',
-    emergencyBtn: 'জরুরি রিকোয়েস্ট',
-    activeTracking: 'রহিম আসছেন (১২ মিনিট দূরে)',
+    tagline: 'ঢাকায় দ্রুততম হোম সার্ভিস',
+    heroTitle: 'বাসার যেকোনো সমস্যায় দ্রুত সমাধান',
+    heroSubtitle:
+      'মাত্র ২ মিনিটে বিশ্বস্ত প্লাম্বার, ইলেকট্রিশিয়ান ও টেকনিশিয়ান খুঁজুন।',
+    categoriesTitle: 'জনপ্রিয় সেবা সমূহ',
+    chooseRole: 'আপনি কীভাবে ব্যবহার করতে চান?',
+    customerTitle: 'আমার সার্ভিস প্রয়োজন',
+    customerDesc: 'কাছের অভিজ্ঞ প্লাম্বার ও ইলেকট্রিশিয়ান বুক করুন।',
+    workerTitle: 'আমি একজন টেকনিশিয়ান / কারিগর',
+    workerDesc: 'নতুন কাজের অর্ডার পান ও প্রতিদিন আয় বৃদ্ধি করুন।',
+    verifiedBadge: '১০০% ভেরিফাইড প্রফেশনাল',
+    fastDispatch: '১৫ মিনিটে দ্রুত সেবা',
+    fairPricing: 'স্বচ্ছ মূল্য তালিকা',
+    enterCustomer: 'কাস্টমার হিসেবে প্রবেশ করুন',
+    enterWorker: 'ওয়ার্কার হিসেবে প্রবেশ করুন',
   },
 };
 
-const PROS = [
-  {
-    id: 'rahim',
-    name: 'Rahim Uddin',
-    profession: 'Master Plumber',
-    category: 'plumber',
-    rating: 4.9,
-    reviews: 128,
-    jobs: 450,
-    distance: '1.2 km',
-    price: '৳500',
-    avatar: RAHIM_AVATAR_URL,
-    specialty: 'Pipe leakage, Sanitary & Motor fix',
-  },
-  {
-    id: 'karim',
-    name: 'Karim Mollah',
-    profession: 'Senior Electrician',
-    category: 'electrician',
-    rating: 4.8,
-    reviews: 94,
-    jobs: 320,
-    distance: '2.1 km',
-    price: '৳450',
-    avatar:
-      'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=400&auto=format&fit=crop&q=80',
-    specialty: 'Wiring, Circuit breaker & Fan repair',
-  },
-  {
-    id: 'kamal',
-    name: 'Kamal Hossain',
-    profession: 'Expert Carpenter',
-    category: 'carpenter',
-    rating: 4.7,
-    reviews: 76,
-    jobs: 210,
-    distance: '3.4 km',
-    price: '৳600',
-    avatar:
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-    specialty: 'Door locks, Furniture repair & Woodwork',
-  },
-];
-
-export default function CustomerDashboardScreen() {
+export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [lang, setLang] = useState<'en' | 'bn'>('en');
-  const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
 
   const t = STRINGS[lang];
-
-  const filteredPros = PROS.filter((pro) => {
-    const matchesCategory = !selectedService || pro.category === selectedService;
-    const matchesSearch =
-      pro.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pro.profession.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pro.specialty.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const handleBookEmergency = (serviceName: string) => {
-    setEmergencyModalOpen(false);
-    Alert.alert(
-      'Emergency Dispatch Sent!',
-      `Searching nearest available worker for "${serviceName}" in Dhanmondi... Rahim has accepted!`,
-      [
-        {
-          text: 'Track Rahim Live',
-          onPress: () => router.push('/track-worker'),
-        },
-      ]
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* ── TopAppBar (Header from code.html) ── */}
+      {/* ── Top Header ── */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.logoRow}
-            onPress={() => setSelectedService(null)}
-            activeOpacity={0.8}>
-            <View style={styles.logoIcon}>
-              <MaterialIcons name="handyman" size={22} color={COLORS.primary} />
-            </View>
-            <Text style={styles.logoText}>{t.appName}</Text>
-          </TouchableOpacity>
-
-          <View style={styles.headerRight}>
-            {/* Language Selector */}
-            <View style={styles.langSelector}>
-              <TouchableOpacity
-                onPress={() => setLang('bn')}
-                style={[styles.langBtn, lang === 'bn' && styles.langBtnActive]}>
-                <Text style={[styles.langText, lang === 'bn' && styles.langTextActive]}>
-                  বাংলা
-                </Text>
-              </TouchableOpacity>
-              <Text style={styles.langDivider}>|</Text>
-              <TouchableOpacity
-                onPress={() => setLang('en')}
-                style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}>
-                <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>
-                  English
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.logoRow}>
+          <View style={styles.logoBox}>
+            <MaterialIcons name="handyman" size={20} color="#ffffff" />
           </View>
+          <Text style={styles.appName}>{t.appName}</Text>
+        </View>
+
+        {/* Language Switcher */}
+        <View style={styles.langToggle}>
+          <TouchableOpacity
+            style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
+            onPress={() => setLang('en')}
+            activeOpacity={0.8}>
+            <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>EN</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.langBtn, lang === 'bn' && styles.langBtnActive]}
+            onPress={() => setLang('bn')}
+            activeOpacity={0.8}>
+            <Text style={[styles.langText, lang === 'bn' && styles.langTextActive]}>বাং</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -213,261 +114,99 @@ export default function CustomerDashboardScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, 10) + 80 },
+          { paddingBottom: Math.max(insets.bottom, 20) + 40 },
         ]}
         showsVerticalScrollIndicator={false}>
 
-        {/* ── Active Live Tracking Floating Banner ── */}
-        <TouchableOpacity
-          style={styles.activeTrackingCard}
-          onPress={() => router.push('/track-worker')}
-          activeOpacity={0.9}>
-          <View style={styles.pulseDotWrapper}>
-            <View style={styles.pulseDot} />
-          </View>
-          <View style={styles.activeTrackingTextCol}>
-            <Text style={styles.activeTrackingTitle}>{t.activeTracking}</Text>
-            <Text style={styles.activeTrackingSub}>Tap to view live Leaflet map & status</Text>
-          </View>
-          <Ionicons name="chevron-forward-circle" size={24} color={COLORS.accentOrange} />
-        </TouchableOpacity>
-
-        {/* ── Hero Section ── */}
+        {/* ── Hero Banner ── */}
         <View style={styles.heroSection}>
-          <View style={styles.heroImageWrapper}>
-            <Image
-              source={{ uri: HERO_ILLUSTRATION_URL }}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
+          <View style={styles.brandPill}>
+            <MaterialCommunityIcons name="lightning-bolt" size={14} color={COLORS.accentOrange} />
+            <Text style={styles.brandPillText}>{t.tagline}</Text>
           </View>
           <Text style={styles.heroTitle}>{t.heroTitle}</Text>
           <Text style={styles.heroSubtitle}>{t.heroSubtitle}</Text>
         </View>
 
-        {/* ── Search Bar ── */}
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#6b7280" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search plumber, electrician, repairs..."
-            placeholderTextColor="#9ca3af"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#9ca3af" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Service Bento Grid ── */}
-        <View style={styles.bentoSection}>
-          <View style={styles.bentoGrid}>
-            {/* Plumber */}
-            <TouchableOpacity
-              style={[
-                styles.bentoCard,
-                selectedService === 'plumber' && styles.bentoCardSelected,
-              ]}
-              onPress={() =>
-                setSelectedService(selectedService === 'plumber' ? null : 'plumber')
-              }
-              activeOpacity={0.85}>
-              <View style={[styles.bentoIconBg, { backgroundColor: COLORS.secondaryFixed }]}>
-                <MaterialCommunityIcons
-                  name="pipe-wrench"
-                  size={24}
-                  color={COLORS.onSecondaryContainer}
-                />
+        {/* ── Popular Categories ── */}
+        <View style={styles.bentoGrid}>
+          {[
+            { label: 'Plumber', icon: 'water-pump', color: '#15157d', bg: '#edeaff' },
+            { label: 'Electrician', icon: 'flash', color: '#fd9923', bg: '#fff4e5' },
+            { label: 'Carpenter', icon: 'hammer', color: '#059669', bg: '#e6f7f0' },
+            { label: 'Sanitary', icon: 'pipe-wrench', color: '#7c3aed', bg: '#f5f0ff' },
+          ].map((item) => (
+            <View key={item.label} style={styles.bentoCard}>
+              <View style={[styles.bentoIconBox, { backgroundColor: item.bg }]}>
+                <MaterialCommunityIcons name={item.icon as any} size={22} color={item.color} />
               </View>
-              <Text style={styles.bentoLabel}>{t.plumber}</Text>
-            </TouchableOpacity>
-
-            {/* Electrician */}
-            <TouchableOpacity
-              style={[
-                styles.bentoCard,
-                selectedService === 'electrician' && styles.bentoCardSelected,
-              ]}
-              onPress={() =>
-                setSelectedService(selectedService === 'electrician' ? null : 'electrician')
-              }
-              activeOpacity={0.85}>
-              <View style={[styles.bentoIconBg, { backgroundColor: COLORS.primaryFixed }]}>
-                <MaterialIcons name="bolt" size={24} color={COLORS.primary} />
-              </View>
-              <Text style={styles.bentoLabel}>{t.electrician}</Text>
-            </TouchableOpacity>
-
-            {/* Carpenter */}
-            <TouchableOpacity
-              style={[
-                styles.bentoCard,
-                selectedService === 'carpenter' && styles.bentoCardSelected,
-              ]}
-              onPress={() =>
-                setSelectedService(selectedService === 'carpenter' ? null : 'carpenter')
-              }
-              activeOpacity={0.85}>
-              <View style={[styles.bentoIconBg, { backgroundColor: COLORS.tertiaryFixed }]}>
-                <MaterialIcons name="carpenter" size={24} color="#491a00" />
-              </View>
-              <Text style={styles.bentoLabel}>{t.carpenter}</Text>
-            </TouchableOpacity>
-
-            {/* Cleaner */}
-            <TouchableOpacity
-              style={[
-                styles.bentoCard,
-                selectedService === 'cleaner' && styles.bentoCardSelected,
-              ]}
-              onPress={() =>
-                setSelectedService(selectedService === 'cleaner' ? null : 'cleaner')
-              }
-              activeOpacity={0.85}>
-              <View style={[styles.bentoIconBg, { backgroundColor: COLORS.surfaceContainerHigh }]}>
-                <MaterialIcons
-                  name="cleaning-services"
-                  size={24}
-                  color={COLORS.onSurfaceVariant}
-                />
-              </View>
-              <Text style={styles.bentoLabel}>{t.cleaner}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── User Role Selection Section ── */}
-        <View style={styles.roleSection}>
-          <Text style={styles.sectionHeaderTitle}>{t.chooseRole}</Text>
-          <View style={styles.roleGrid}>
-            {/* Customer Card */}
-            <TouchableOpacity
-              style={styles.roleCard}
-              onPress={() => setEmergencyModalOpen(true)}
-              activeOpacity={0.88}>
-              <View style={styles.roleCardTop}>
-                <View style={[styles.roleIconBox, { backgroundColor: COLORS.primaryFixed }]}>
-                  <MaterialIcons name="person-search" size={26} color={COLORS.primary} />
-                </View>
-                <View style={styles.roleTextCol}>
-                  <Text style={styles.roleCardHeading}>{t.customerTitle}</Text>
-                  <Text style={styles.roleCardDesc}>{t.customerDesc}</Text>
-                </View>
-              </View>
-
-              <View style={styles.roleCardAction}>
-                <Text style={styles.roleCardActionText}>{t.emergencyBtn}</Text>
-                <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
-              </View>
-            </TouchableOpacity>
-
-            {/* Worker Card */}
-            <TouchableOpacity
-              style={styles.roleCard}
-              onPress={() => router.push('/worker-dashboard')}
-              activeOpacity={0.88}>
-              <View style={styles.roleCardTop}>
-                <View style={[styles.roleIconBox, { backgroundColor: COLORS.secondaryFixed }]}>
-                  <MaterialIcons name="work" size={26} color={COLORS.secondaryContainer} />
-                </View>
-                <View style={styles.roleTextCol}>
-                  <Text style={styles.roleCardHeading}>{t.workerTitle}</Text>
-                  <Text style={styles.roleCardDesc}>{t.workerDesc}</Text>
-                </View>
-              </View>
-
-              <View style={styles.roleCardAction}>
-                <Text style={[styles.roleCardActionText, { color: COLORS.accentOrange }]}>
-                  Open Worker Dashboard
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color={COLORS.accentOrange} />
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── Available Pros Near You List ── */}
-        <View style={styles.prosSection}>
-          <View style={styles.prosSectionHeader}>
-            <View>
-              <Text style={styles.prosSectionTitle}>Verified Pros Near You</Text>
-              <Text style={styles.prosSectionSubtitle}>
-                {selectedService ? `Showing ${selectedService}s` : 'All nearby professionals'}
-              </Text>
+              <Text style={styles.bentoLabel}>{item.label}</Text>
             </View>
-            {selectedService && (
-              <TouchableOpacity onPress={() => setSelectedService(null)}>
-                <Text style={styles.clearFilterText}>Show All</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.proList}>
-            {filteredPros.map((pro) => (
-              <TouchableOpacity
-                key={pro.id}
-                style={styles.proCard}
-                onPress={() => router.push('/worker-profile')}
-                activeOpacity={0.88}>
-                <View style={styles.proCardLeft}>
-                  <Image source={{ uri: pro.avatar }} style={styles.proAvatar} />
-                  <View style={styles.proOnlineBadge} />
-                </View>
-
-                <View style={styles.proInfo}>
-                  <View style={styles.proNameRow}>
-                    <Text style={styles.proName}>{pro.name}</Text>
-                    <MaterialIcons name="verified" size={15} color={COLORS.primary} />
-                  </View>
-                  <Text style={styles.proProfession}>{pro.profession}</Text>
-                  <Text style={styles.proSpecialty} numberOfLines={1}>
-                    {pro.specialty}
-                  </Text>
-
-                  <View style={styles.proMetaRow}>
-                    <View style={styles.ratingBadge}>
-                      <MaterialIcons name="star" size={13} color="#eab308" />
-                      <Text style={styles.ratingText}>{pro.rating}</Text>
-                      <Text style={styles.ratingCount}>({pro.reviews})</Text>
-                    </View>
-                    <View style={styles.distBadge}>
-                      <Ionicons name="location-outline" size={12} color="#6b7280" />
-                      <Text style={styles.distText}>{pro.distance}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.proRight}>
-                  <Text style={styles.proPrice}>{pro.price}</Text>
-                  <Text style={styles.proPriceSub}>per visit</Text>
-                  <View style={styles.viewProBtn}>
-                    <Text style={styles.viewProBtnText}>View</Text>
-                    <Ionicons name="chevron-forward" size={12} color="#ffffff" />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+          ))}
         </View>
 
-        {/* ── Trust Badges (from code.html) ── */}
+        {/* ── Role Selection Cards ── */}
+        <Text style={styles.sectionHeading}>{t.chooseRole}</Text>
+
+        <View style={styles.rolesContainer}>
+          {/* Customer Card */}
+          <TouchableOpacity
+            style={styles.roleCardCustomer}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.88}>
+            <View style={styles.roleCardTop}>
+              <View style={styles.roleIconBoxCustomer}>
+                <Ionicons name="person" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.roleTextCol}>
+                <Text style={styles.roleTitle}>{t.customerTitle}</Text>
+                <Text style={styles.roleDesc}>{t.customerDesc}</Text>
+              </View>
+            </View>
+
+            <View style={styles.roleCardActionRow}>
+              <Text style={styles.roleActionTextCustomer}>{t.enterCustomer}</Text>
+              <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Worker Card */}
+          <TouchableOpacity
+            style={styles.roleCardWorker}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.88}>
+            <View style={styles.roleCardTop}>
+              <View style={styles.roleIconBoxWorker}>
+                <MaterialCommunityIcons name="hammer-wrench" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.roleTextCol}>
+                <Text style={styles.roleTitle}>{t.workerTitle}</Text>
+                <Text style={styles.roleDesc}>{t.workerDesc}</Text>
+              </View>
+            </View>
+
+            <View style={styles.roleCardActionRow}>
+              <Text style={styles.roleActionTextWorker}>{t.enterWorker}</Text>
+              <Ionicons name="arrow-forward" size={16} color={COLORS.accentOrange} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Trust Badges ── */}
         <View style={styles.trustSection}>
-          <View style={styles.badgeItem}>
-            <MaterialIcons name="verified" size={18} color={COLORS.success} />
-            <Text style={styles.badgeText}>{t.verifiedWorkers}</Text>
+          <View style={styles.trustBadge}>
+            <MaterialIcons name="verified" size={16} color={COLORS.success} />
+            <Text style={styles.trustBadgeText}>{t.verifiedBadge}</Text>
           </View>
 
-          <View style={styles.badgeItem}>
-            <MaterialIcons name="location-on" size={18} color={COLORS.primaryContainer} />
-            <Text style={styles.badgeText}>{t.localServices}</Text>
+          <View style={styles.trustBadge}>
+            <MaterialIcons name="timer" size={16} color={COLORS.accentOrange} />
+            <Text style={styles.trustBadgeText}>{t.fastDispatch}</Text>
           </View>
 
-          <View style={styles.badgeItem}>
-            <MaterialIcons name="star" size={18} color={COLORS.secondaryContainer} />
-            <Text style={styles.badgeText}>{t.trustedRatings}</Text>
+          <View style={styles.trustBadge}>
+            <MaterialIcons name="price-check" size={16} color={COLORS.primary} />
+            <Text style={styles.trustBadgeText}>{t.fairPricing}</Text>
           </View>
         </View>
 
@@ -478,63 +217,6 @@ export default function CustomerDashboardScreen() {
 
       {/* ── Quick Switcher Floating Button ── */}
       <PageQuickSwitcher />
-
-      {/* ── Emergency Request Modal ── */}
-      <Modal
-        visible={emergencyModalOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setEmergencyModalOpen(false)}>
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setEmergencyModalOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalTopRow}>
-              <View style={styles.modalTitleRow}>
-                <MaterialIcons name="bolt" size={24} color={COLORS.accentOrange} />
-                <Text style={styles.modalTitle}>Request Instant Service</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setEmergencyModalOpen(false)}
-                style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalSub}>
-              Select service needed right now at Dhanmondi:
-            </Text>
-
-            <View style={styles.modalOptions}>
-              {[
-                { title: 'Plumbing Leak Fix', icon: 'pipe-wrench', price: '৳500' },
-                { title: 'Short Circuit & Power Spark', icon: 'flash', price: '৳450' },
-                { title: 'Door Jam / Lock Repair', icon: 'key', price: '৳600' },
-                { title: 'Water Pump / Motor Issue', icon: 'water-pump', price: '৳550' },
-              ].map((opt) => (
-                <TouchableOpacity
-                  key={opt.title}
-                  style={styles.modalOptionCard}
-                  onPress={() => handleBookEmergency(opt.title)}
-                  activeOpacity={0.8}>
-                  <View style={styles.modalOptionIconBox}>
-                    <MaterialCommunityIcons
-                      name={opt.icon as any}
-                      size={22}
-                      color={COLORS.primary}
-                    />
-                  </View>
-                  <View style={styles.modalOptionTextCol}>
-                    <Text style={styles.modalOptionTitle}>{opt.title}</Text>
-                    <Text style={styles.modalOptionPrice}>Fixed visiting fee: {opt.price}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -545,72 +227,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
-    zIndex: 50,
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    height: 60,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  logoIcon: {
-    width: 34,
-    height: 34,
+  logoBox: {
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    backgroundColor: COLORS.primaryFixed,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: {
-    fontSize: 20,
+  appName: {
+    fontSize: 18,
     fontWeight: '900',
     color: COLORS.primary,
-    letterSpacing: -0.5,
   },
-  headerRight: {
+  langToggle: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  langSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderRadius: 20,
+    padding: 3,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: COLORS.border,
   },
   langBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
   langBtnActive: {
     backgroundColor: '#ffffff',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+      android: { elevation: 1 },
+      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    }),
   },
   langText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+    color: COLORS.textMuted,
   },
   langTextActive: {
     color: COLORS.primary,
     fontWeight: '800',
-  },
-  langDivider: {
-    color: COLORS.outlineVariant,
-    fontSize: 11,
-    marginHorizontal: 3,
   },
   scroll: {
     flex: 1,
@@ -618,65 +290,29 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 20,
-  },
-  activeTrackingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.accentOrange,
-    gap: 10,
-    ...Platform.select({
-      ios: { shadowColor: COLORS.accentOrange, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 6 },
-      android: { elevation: 3 },
-      web: { boxShadow: '0 4px 12px rgba(247, 148, 29, 0.15)' },
-    }),
-  },
-  pulseDotWrapper: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(247, 148, 29, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: COLORS.accentOrange,
-  },
-  activeTrackingTextCol: {
-    flex: 1,
-  },
-  activeTrackingTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  activeTrackingSub: {
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 1,
+    paddingTop: 20,
+    gap: 18,
   },
   heroSection: {
     alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
   },
-  heroImageWrapper: {
-    width: '100%',
-    height: 190,
+  brandPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 14,
-    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
   },
-  heroImage: {
-    width: '100%',
-    height: '100%',
+  brandPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.accentOrange,
   },
   heroTitle: {
     fontSize: 24,
@@ -684,61 +320,31 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
     lineHeight: 30,
-    marginBottom: 6,
-    letterSpacing: -0.5,
   },
   heroSubtitle: {
     fontSize: 13,
-    fontWeight: '400',
-    color: COLORS.onSurfaceVariant,
+    color: COLORS.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 320,
+    lineHeight: 19,
+    maxWidth: 340,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13.5,
-    color: COLORS.text,
-  },
-  bentoSection: {},
   bentoGrid: {
     flexDirection: 'row',
     gap: 10,
   },
   bentoCard: {
     flex: 1,
-    backgroundColor: COLORS.surfaceContainerLowest,
+    backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 },
-      android: { elevation: 2 },
-      web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)' },
-    }),
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  bentoCardSelected: {
-    borderColor: COLORS.primaryContainer,
-    backgroundColor: '#f4f4ff',
-  },
-  bentoIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  bentoIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -748,309 +354,114 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
   },
-  roleSection: {},
-  sectionHeaderTitle: {
-    fontSize: 16,
+  sectionHeading: {
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.text,
-    marginBottom: 12,
-    textAlign: 'center',
+    marginTop: 4,
   },
-  roleGrid: {
+  rolesContainer: {
     gap: 12,
   },
-  roleCard: {
-    backgroundColor: COLORS.surfaceContainerLowest,
+  roleCardCustomer: {
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderWidth: 1.5,
+    borderColor: '#d0ccff',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      ios: { shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
       android: { elevation: 2 },
-      web: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)' },
+      web: { boxShadow: '0 4px 12px rgba(21,21,125,0.06)' },
+    }),
+  },
+  roleCardWorker: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#fed7aa',
+    ...Platform.select({
+      ios: { shadowColor: COLORS.accentOrange, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 2 },
+      web: { boxShadow: '0 4px 12px rgba(247,148,29,0.06)' },
     }),
   },
   roleCardTop: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
   },
-  roleIconBox: {
-    width: 46,
-    height: 46,
+  roleIconBoxCustomer: {
+    width: 48,
+    height: 48,
     borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleIconBoxWorker: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: COLORS.accentOrange,
     alignItems: 'center',
     justifyContent: 'center',
   },
   roleTextCol: {
     flex: 1,
   },
-  roleCardHeading: {
-    fontSize: 15.5,
-    fontWeight: '800',
+  roleTitle: {
+    fontSize: 16,
+    fontWeight: '900',
     color: COLORS.text,
-    marginBottom: 3,
   },
-  roleCardDesc: {
-    fontSize: 11.5,
-    lineHeight: 16,
-    color: COLORS.onSurfaceVariant,
+  roleDesc: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 3,
+    lineHeight: 17,
   },
-  roleCardAction: {
+  roleCardActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 4,
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: COLORS.surfaceContainerLow,
   },
-  roleCardActionText: {
-    fontSize: 12,
+  roleActionTextCustomer: {
+    fontSize: 12.5,
     fontWeight: '800',
     color: COLORS.primary,
   },
-  prosSection: {},
-  prosSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  prosSectionTitle: {
-    fontSize: 15.5,
+  roleActionTextWorker: {
+    fontSize: 12.5,
     fontWeight: '800',
-    color: COLORS.text,
-  },
-  prosSectionSubtitle: {
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 1,
-  },
-  clearFilterText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  proList: {
-    gap: 10,
-  },
-  proCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 10,
-  },
-  proCardLeft: {
-    position: 'relative',
-  },
-  proAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: COLORS.surfaceContainerLow,
-  },
-  proOnlineBadge: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-    backgroundColor: COLORS.success,
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  proInfo: {
-    flex: 1,
-  },
-  proNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  proName: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  proProfession: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginTop: 1,
-  },
-  proSpecialty: {
-    fontSize: 10,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
-  },
-  proMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#fef9c3',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  ratingText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#854d0e',
-  },
-  ratingCount: {
-    fontSize: 8.5,
-    color: '#a16207',
-  },
-  distBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  distText: {
-    fontSize: 9.5,
-    color: COLORS.onSurfaceVariant,
-  },
-  proRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    minWidth: 54,
-  },
-  proPrice: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: COLORS.primary,
-  },
-  proPriceSub: {
-    fontSize: 8.5,
-    color: COLORS.onSurfaceVariant,
-    marginBottom: 4,
-  },
-  viewProBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  viewProBtnText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#ffffff',
+    color: COLORS.accentOrange,
   },
   trustSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
     gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceDim,
-    paddingTop: 16,
-    marginBottom: 10,
+    justifyContent: 'center',
+    marginTop: 8,
   },
-  badgeItem: {
+  trustBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: COLORS.border,
   },
-  badgeText: {
+  trustBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.text,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 34,
-    gap: 14,
-  },
-  modalTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.surfaceContainerLow,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalSub: {
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-  },
-  modalOptions: {
-    gap: 8,
-  },
-  modalOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 10,
-  },
-  modalOptionIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalOptionTextCol: {
-    flex: 1,
-  },
-  modalOptionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  modalOptionPrice: {
-    fontSize: 10.5,
-    color: COLORS.primary,
-    fontWeight: '600',
-    marginTop: 2,
   },
 });

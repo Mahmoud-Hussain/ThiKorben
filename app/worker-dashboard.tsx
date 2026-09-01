@@ -123,9 +123,9 @@ export default function WorkerDashboardScreen() {
 
         <View style={styles.headerRight}>
           <TouchableOpacity
-            style={styles.switchModeBtn}
-            onPress={() => router.push('/')}
-            activeOpacity={0.8}>
+              style={styles.switchModeBtn}
+              onPress={() => router.push('/customer-dashboard')}
+              activeOpacity={0.8}>
             <Ionicons name="people" size={16} color={COLORS.accentOrange} />
             <Text style={styles.switchModeText}>Customer Mode</Text>
           </TouchableOpacity>
