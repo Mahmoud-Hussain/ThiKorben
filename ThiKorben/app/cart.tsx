@@ -61,6 +61,7 @@ export default function CartScreen() {
 
   const updateQuantity = (productId: string, quantity: number) => {
     updateCartQuantity(productId, quantity);
+
     refresh();
   };
 
@@ -87,13 +88,20 @@ export default function CartScreen() {
   };
 
   const subtotal = getCartSubtotal();
+
   const deliveryFee = items.length === 0 ? 0 : subtotal >= 1500 ? 0 : 80;
+
   const platformFee = items.length === 0 ? 0 : 20;
+
   const total = subtotal + deliveryFee + platformFee;
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
 
       <SafeAreaView style={styles.screen} edges={['top']}>
         <View style={styles.appShell}>
@@ -109,7 +117,8 @@ export default function CartScreen() {
               <Text style={styles.headerTitle}>Shopping Cart</Text>
 
               <Text style={styles.headerSubtitle}>
-                {getCartCount()} item{getCartCount() === 1 ? '' : 's'}
+                {getCartCount()} item
+                {getCartCount() === 1 ? '' : 's'}
               </Text>
             </View>
 
@@ -173,7 +182,9 @@ export default function CartScreen() {
                     <Text style={styles.deliveryTitle}>
                       {subtotal >= 1500
                         ? 'Free delivery unlocked'
-                        : `${formatShopMoney(1500 - subtotal)} away from free delivery`}
+                        : `${formatShopMoney(
+                            1500 - subtotal,
+                          )} away from free delivery`}
                     </Text>
 
                     <Text style={styles.deliveryText}>
@@ -398,8 +409,8 @@ export default function CartScreen() {
                     </Text>
 
                     <Text style={styles.secureText}>
-                      Product charges will later be included with the complete
-                      job service cost breakdown.
+                      These product charges will be combined with worker labor
+                      and service fees in the final cost breakdown.
                     </Text>
                   </View>
                 </View>
@@ -415,17 +426,10 @@ export default function CartScreen() {
                 </View>
 
                 <Pressable
-                  onPress={() =>
-                    Alert.alert(
-                      'Checkout - Next Milestone',
-                      `Current shop total: ${formatShopMoney(
-                        total,
-                      )}\n\nThe final workflow will combine labor cost, products, delivery and platform fees into the complete ThiKorben service checkout.`,
-                    )
-                  }
+                  onPress={() => router.push('/service-checkout')}
                   style={styles.checkoutButton}
                 >
-                  <Text style={styles.checkoutText}>Continue</Text>
+                  <Text style={styles.checkoutText}>Final Checkout</Text>
 
                   <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
                 </Pressable>
