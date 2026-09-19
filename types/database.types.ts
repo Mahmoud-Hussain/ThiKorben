@@ -14,16 +14,274 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      service_proposals: {
+        Row: {
+          availability_note: string
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          price_amount: number
+          service_request_id: string
+          status: Database["public"]["Enums"]["service_proposal_status"]
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          availability_note: string
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          price_amount: number
+          service_request_id: string
+          status?: Database["public"]["Enums"]["service_proposal_status"]
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          availability_note?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          price_amount?: number
+          service_request_id?: string
+          status?: Database["public"]["Enums"]["service_proposal_status"]
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_proposals_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_request_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          service_request_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          service_request_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          service_request_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_comments_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_request_media: {
+        Row: {
+          capture_source: string
+          created_at: string
+          duration_ms: number | null
+          height: number | null
+          id: string
+          media_type: Database["public"]["Enums"]["service_media_type"]
+          mime_type: string
+          service_request_id: string
+          size_bytes: number | null
+          sort_order: number
+          storage_bucket: string
+          storage_path: string
+          uploaded_by: string
+          width: number | null
+        }
+        Insert: {
+          capture_source?: string
+          created_at?: string
+          duration_ms?: number | null
+          height?: number | null
+          id?: string
+          media_type: Database["public"]["Enums"]["service_media_type"]
+          mime_type: string
+          service_request_id: string
+          size_bytes?: number | null
+          sort_order?: number
+          storage_bucket?: string
+          storage_path: string
+          uploaded_by: string
+          width?: number | null
+        }
+        Update: {
+          capture_source?: string
+          created_at?: string
+          duration_ms?: number | null
+          height?: number | null
+          id?: string
+          media_type?: Database["public"]["Enums"]["service_media_type"]
+          mime_type?: string
+          service_request_id?: string
+          size_bytes?: number | null
+          sort_order?: number
+          storage_bucket?: string
+          storage_path?: string
+          uploaded_by?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_media_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_request_reactions: {
+        Row: {
+          created_at: string
+          service_request_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          service_request_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          service_request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_reactions_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_requests: {
+        Row: {
+          accepted_proposal_id: string | null
+          budget_amount: number
+          category: string
+          comment_count: number
+          created_at: string
+          currency: string
+          customer_id: string
+          description: string
+          id: string
+          last_activity_at: string
+          location_label: string
+          proposal_count: number
+          reaction_count: number
+          requested_start_at: string | null
+          schedule_note: string | null
+          status: Database["public"]["Enums"]["service_request_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_proposal_id?: string | null
+          budget_amount: number
+          category: string
+          comment_count?: number
+          created_at?: string
+          currency?: string
+          customer_id: string
+          description: string
+          id?: string
+          last_activity_at?: string
+          location_label: string
+          proposal_count?: number
+          reaction_count?: number
+          requested_start_at?: string | null
+          schedule_note?: string | null
+          status?: Database["public"]["Enums"]["service_request_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_proposal_id?: string | null
+          budget_amount?: number
+          category?: string
+          comment_count?: number
+          created_at?: string
+          currency?: string
+          customer_id?: string
+          description?: string
+          id?: string
+          last_activity_at?: string
+          location_label?: string
+          proposal_count?: number
+          reaction_count?: number
+          requested_start_at?: string | null
+          schedule_note?: string | null
+          status?: Database["public"]["Enums"]["service_request_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_requests_accepted_proposal_fk"
+            columns: ["accepted_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "service_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_service_proposal: {
+        Args: { p_proposal_id: string }
+        Returns: {
+          accepted_proposal_id: string
+          service_request_id: string
+        }[]
+      }
+      cancel_service_request: {
+        Args: { p_service_request_id: string }
+        Returns: string
+      }
+      withdraw_service_proposal: {
+        Args: { p_proposal_id: string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      service_media_type: "image" | "video"
+      service_proposal_status: "pending" | "accepted" | "declined" | "withdrawn"
+      service_request_status:
+        | "open"
+        | "assigned"
+        | "ordered"
+        | "completed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +408,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      service_media_type: ["image", "video"],
+      service_proposal_status: ["pending", "accepted", "declined", "withdrawn"],
+      service_request_status: [
+        "open",
+        "assigned",
+        "ordered",
+        "completed",
+        "cancelled",
+      ],
+    },
   },
 } as const
