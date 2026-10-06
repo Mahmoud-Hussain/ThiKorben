@@ -1,5 +1,10 @@
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+
+import { useState } from 'react';
+
 import {
+  ActivityIndicator,
   Platform,
   SafeAreaView,
   StyleSheet,
@@ -7,67 +12,147 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+import { getAuthIdentity } from '@/features/auth/auth.service';
+
 const C = {
   primary: '#15157d',
   primaryContainer: '#2e3192',
   brandOrange: '#F7941D',
   success: '#27AE60',
+  error: '#ba1a1a',
+
   surface: '#fcf8ff',
+
   surfaceContainerLowest: '#ffffff',
+
   surfaceContainerLow: '#f5f2fb',
+
   outlineVariant: '#c7c5d4',
+
   onSurface: '#1b1b21',
+
   onSurfaceVariant: '#464652',
 };
 
 export default function OtpSuccessScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone: string; mode: string; name?: string }>();
-  const name = params.name ?? 'User';
-  const mode = params.mode ?? 'login';
+
+  const params = useLocalSearchParams<{
+    phone?: string;
+    mode?: string;
+    name?: string;
+  }>();
+
+  const mode = params.mode === 'signup' ? 'signup' : 'login';
+
+  const name = params.name?.trim() || 'User';
+
+  const [isContinuing, setIsContinuing] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const handleContinue = async () => {
+    if (isContinuing) {
+      return;
+    }
+
+    setError(null);
+    setIsContinuing(true);
+
+    try {
+      const identity = await getAuthIdentity();
+
+      if (!identity) {
+        throw new Error('Authenticated session was not found.');
+      }
+
+      /*
+       * New users choose how they want
+       * to use ThiKorben before profile setup.
+       */
+      if (mode === 'signup') {
+        router.replace('/role-selection');
+
+        return;
+      }
+
+      /*
+       * Existing users return directly
+       * to their last active application role.
+       */
+      if (identity.profile.active_role === 'worker') {
+        router.replace('/worker-dashboard');
+
+        return;
+      }
+
+      router.replace('/customer-dashboard');
+    } catch {
+      setError(
+        'Your phone was verified, but we could not load your account. Please try again.',
+      );
+    } finally {
+      setIsContinuing(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        {/* Success icon */}
         <View style={styles.iconCircle}>
-          <Ionicons name="checkmark-circle" size={64} color={C.success} />
+          <Ionicons name="checkmark-circle" size={72} color={C.success} />
         </View>
 
         <Text style={styles.heading}>
-          {mode === 'signup' ? `Welcome, ${name}!` : 'Verified!'}
+          {mode === 'signup' ? `Welcome, ${name}!` : 'Verified successfully'}
         </Text>
+
         <Text style={styles.subheading}>
           {mode === 'signup'
-            ? 'Your account has been verified successfully.'
-            : 'You have been signed in successfully.'}
+            ? 'Your ThiKorben account is verified. Choose how you want to use the platform.'
+            : 'Your identity has been verified. Continue securely to your account.'}
         </Text>
 
-        <Text style={styles.placeholderNote}>
-          🚧 Role Selection screen will be connected here by your teammate.
-        </Text>
+        <View style={styles.securityCard}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={22}
+            color={C.primaryContainer}
+          />
 
-        {/* Placeholder CTA — routes to existing dashboard */}
+          <Text style={styles.securityText}>
+            Your authenticated session is securely managed by ThiKorben.
+          </Text>
+        </View>
+
+        {error && (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle-outline" size={17} color={C.error} />
+
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         <TouchableOpacity
-          style={styles.continueBtn}
-          onPress={() => router.replace('/customer-dashboard')}
+          style={[styles.continueBtn, isContinuing && styles.disabledButton]}
+          onPress={() => {
+            void handleContinue();
+          }}
+          disabled={isContinuing}
           activeOpacity={0.88}
         >
-          <Text style={styles.continueBtnText}>Continue to App</Text>
-          <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-        </TouchableOpacity>
+          {isContinuing ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <>
+              <Text style={styles.continueBtnText}>
+                {mode === 'signup' ? 'Choose Account Type' : 'Continue to App'}
+              </Text>
 
-        {/* Back to login for testing */}
-        <TouchableOpacity
-          style={styles.backLink}
-          onPress={() => router.replace('/auth/login')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backLinkText}>← Back to Login</Text>
+              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -75,7 +160,11 @@ export default function OtpSuccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.surface },
+  safe: {
+    flex: 1,
+    backgroundColor: C.surface,
+  },
+
   container: {
     flex: 1,
     alignItems: 'center',
@@ -83,61 +172,104 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 48,
   },
+
   iconCircle: {
     marginBottom: 24,
   },
+
   heading: {
-    fontSize: 26,
+    fontSize: 27,
     fontWeight: '700',
     color: C.onSurface,
     textAlign: 'center',
     marginBottom: 10,
   },
+
   subheading: {
+    maxWidth: 360,
     fontSize: 15,
     color: C.onSurfaceVariant,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 28,
+    lineHeight: 23,
+    marginBottom: 24,
   },
-  placeholderNote: {
-    fontSize: 13,
-    color: C.onSurfaceVariant,
-    textAlign: 'center',
+
+  securityCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+
     backgroundColor: C.surfaceContainerLow,
-    borderRadius: 12,
+
+    borderRadius: 14,
+
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 32,
+    paddingVertical: 14,
+
+    marginBottom: 20,
+
     borderWidth: 1,
+
     borderColor: C.outlineVariant,
-    lineHeight: 20,
   },
+
+  securityText: {
+    flex: 1,
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+    lineHeight: 18,
+  },
+
+  errorCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+
+    backgroundColor: '#fff5f4',
+
+    padding: 12,
+    borderRadius: 12,
+
+    marginBottom: 16,
+  },
+
+  errorText: {
+    flex: 1,
+    color: C.error,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+
   continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+
     gap: 8,
+
     width: '100%',
     height: 56,
+
     backgroundColor: C.brandOrange,
-    borderRadius: 9999,
-    marginBottom: 16,
+
+    borderRadius: 999,
+
     ...Platform.select({
-      ios: { shadowColor: C.brandOrange, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 },
-      android: { elevation: 4 },
+      android: {
+        elevation: 4,
+      },
     }),
   },
+
+  disabledButton: {
+    opacity: 0.65,
+  },
+
   continueBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#ffffff',
-    letterSpacing: 0.7,
-  },
-  backLink: { paddingVertical: 8 },
-  backLinkText: {
-    fontSize: 13,
-    color: C.primaryContainer,
-    fontWeight: '500',
   },
 });
