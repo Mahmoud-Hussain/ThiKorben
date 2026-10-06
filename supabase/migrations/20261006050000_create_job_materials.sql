@@ -265,42 +265,82 @@ insert into public.service_products (
 )
 values
   (
-    'braided-basin-hose-18',
-    'Braided Basin Hose 18 inch',
+    'pvc-connector-half',
+    'PVC Connector 1/2 Inch',
     'plumbing',
-    'Flexible braided connector hose for basin and sink water lines.',
-    350,
+    'Durable half-inch PVC connector for household water-line and sink repair.',
+    120,
     'BDT'
   ),
   (
     'teflon-tape',
-    'PTFE Thread Seal Tape',
+    'Professional Teflon Tape',
     'plumbing',
-    'Thread sealing tape for plumbing connections and fittings.',
-    60,
+    'Thread sealing tape for household plumbing connections and leak prevention.',
+    45,
     'BDT'
   ),
   (
-    'pvc-connector-half',
-    'PVC Coupling 1/2 inch',
+    'rubber-washer-set',
+    'Rubber Washer Repair Set',
     'plumbing',
-    'Standard half-inch PVC coupling for water line repair.',
-    90,
-    'BDT'
-  ),
-  (
-    'electrical-insulation-tape',
-    'Electrical Insulation Tape',
-    'electrical',
-    'General purpose insulation tape for protected electrical repair work.',
+    'Multi-size rubber washer set for taps, faucets, and common plumbing repairs.',
     80,
     'BDT'
   ),
   (
-    'modular-switch',
-    '16A Modular Switch',
+    'pvc-pipe-half',
+    'PVC Water Pipe 1/2 Inch - 3ft',
+    'plumbing',
+    'Three-foot household PVC water pipe for repair and replacement work.',
+    180,
+    'BDT'
+  ),
+  (
+    'brass-angle-valve',
+    'Premium Brass Angle Valve',
+    'plumbing',
+    'Heavy-duty brass water control valve for sinks and household plumbing systems.',
+    650,
+    'BDT'
+  ),
+  (
+    'basin-faucet',
+    'Stainless Steel Basin Faucet',
+    'plumbing',
+    'Stainless-steel basin faucet with corrosion-resistant finish for household use.',
+    1450,
+    'BDT'
+  ),
+  (
+    'electrical-wire',
+    'Copper Electrical Wire 2.5mm',
     'electrical',
-    'Replacement modular wall switch rated for common household circuits.',
+    'Insulated copper electrical wire for residential repair and installation.',
+    950,
+    'BDT'
+  ),
+  (
+    'modular-switch',
+    '16A Premium Modular Switch',
+    'electrical',
+    'Residential 16A modular wall switch for repair and replacement.',
     220,
+    'BDT'
+  ),
+  (
+    'adjustable-wrench',
+    'Professional Adjustable Wrench',
+    'tools',
+    'Heavy-duty adjustable wrench for plumbing and household maintenance work.',
+    780,
+    'BDT'
+  ),
+  (
+    'cleaning-kit',
+    'Home Repair Cleaning Kit',
+    'cleaning',
+    'Compact cleaning kit for use after plumbing, electrical, and repair work.',
+    390,
     'BDT'
   );
