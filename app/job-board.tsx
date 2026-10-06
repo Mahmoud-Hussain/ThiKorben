@@ -49,11 +49,11 @@ const COLORS = {
   border: '#e5e2eb',
 };
 
-const CATEGORIES: Array<{
+const CATEGORIES: {
   id: CommunityCategory;
   label: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
-}> = [
+}[] = [
   { id: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
   { id: 'electrical', label: 'Electrical', icon: 'flash-outline' },
   { id: 'carpentry', label: 'Carpentry', icon: 'hammer-outline' },
@@ -142,7 +142,21 @@ export default function JobBoardScreen() {
   }, [createMode, params.requestId]);
 
   useEffect(() => {
-    void loadDetails();
+    let active = true;
+
+    const run = async () => {
+      await Promise.resolve();
+
+      if (active) {
+        await loadDetails();
+      }
+    };
+
+    void run();
+
+    return () => {
+      active = false;
+    };
   }, [loadDetails]);
 
   const submitRequest = async () => {
@@ -1013,7 +1027,7 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 11, fontWeight: '900', color: '#fff' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15,15,25,0.46)',
   },
   modalSheet: {
