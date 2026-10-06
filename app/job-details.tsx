@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -80,6 +80,8 @@ export default function JobDetailsScreen() {
   }, [request]);
 
   const load = useCallback(async () => {
+    await Promise.resolve();
+
     if (!params.requestId) {
       setError('Service request ID is missing.');
       setLoading(false);
@@ -301,7 +303,7 @@ export default function JobDetailsScreen() {
                 router.push({
                   pathname: '/job-materials',
                   params: { requestId: request.id },
-                })
+                } as Href)
               }
             >
               <View style={[styles.actionIcon, { backgroundColor: C.orangeSoft }]}>
