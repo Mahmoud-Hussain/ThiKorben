@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   Platform,
+  ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -32,10 +34,15 @@ interface LogoutModalProps {
 export function LogoutModal({ visible, onClose, onLogout }: LogoutModalProps) {
   const router = useRouter();
   const { clearSession, isLogoutModalVisible, setLogoutModalVisible } = useSession();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isVisible = visible !== undefined ? visible : isLogoutModalVisible;
 
   const handleClose = () => {
+    if (isLoggingOut) {
+      return;
+    }
+
     if (onClose) {
       onClose();
     } else {
@@ -43,13 +50,31 @@ export function LogoutModal({ visible, onClose, onLogout }: LogoutModalProps) {
     }
   };
 
-  const handleConfirmLogout = () => {
-    clearSession();
-    handleClose();
-    if (onLogout) {
-      onLogout();
-    } else {
-      router.replace('/' as any);
+  const handleConfirmLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+
+    try {
+      await clearSession();
+      handleClose();
+
+      if (onLogout) {
+        onLogout();
+      } else {
+        router.replace('/');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not log out. Please try again.';
+
+      Alert.alert('Logout failed', message);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -78,9 +103,13 @@ export function LogoutModal({ visible, onClose, onLogout }: LogoutModalProps) {
             {/* Primary Action (Destructive) */}
             <TouchableOpacity
               style={styles.logoutButton}
-              onPress={handleConfirmLogout}
+              onPress={() => { void handleConfirmLogout(); }}
               activeOpacity={0.9}>
-              <Text style={styles.logoutButtonText}>Log Out</Text>
+              {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          )}
             </TouchableOpacity>
 
             {/* Secondary Action (Cancel) */}

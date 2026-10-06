@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { router, Stack } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -337,7 +336,7 @@ export default function JobChatScreen() {
 
   const [addedProductIds, setAddedProductIds] = useState<string[]>([]);
 
-  const pulse = useRef(new Animated.Value(1)).current;
+  const [pulse] = useState(() => new Animated.Value(1));
 
   useFocusEffect(
     useCallback(() => {

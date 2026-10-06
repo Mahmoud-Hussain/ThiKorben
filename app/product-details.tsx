@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -57,7 +57,7 @@ export default function ProductDetailsScreen() {
   const [cartCount, setCartCount] = useState(getCartCount());
   const [added, setAdded] = useState(false);
 
-  const addScale = useRef(new Animated.Value(1)).current;
+  const [addScale] = useState(() => new Animated.Value(1));
 
   const relatedProducts = useMemo(() => {
     if (!product) {

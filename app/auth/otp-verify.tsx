@@ -1,4 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSession } from '@/contexts/session-context';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -11,124 +15,221 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+import { resendPhoneOtp, verifyPhoneOtp } from '@/features/auth/auth.service';
+
+import type { PhoneOtpMode } from '@/features/auth/types';
+
+const OTP_LENGTH = 6;
+const RESEND_COUNTDOWN = 60;
+
 const C = {
   primary: '#15157d',
   primaryContainer: '#2e3192',
   brandOrange: '#F7941D',
-  brandOrangeHover: '#e68a1a',
   error: '#ba1a1a',
+
   surface: '#fcf8ff',
+
   surfaceContainerLowest: '#ffffff',
+
   surfaceContainerLow: '#f5f2fb',
-  outlineVariant: '#c7c5d4',
+
   outline: '#777683',
+
   onSurface: '#1b1b21',
+
   onSurfaceVariant: '#464652',
-  onPrimary: '#ffffff',
+
   background: '#F8F9FA',
 };
 
-// ─── Demo OTP ─────────────────────────────────────────────────────────────────
-const DEMO_OTP = '1234';
-const OTP_LENGTH = 4;
-const RESEND_COUNTDOWN = 30;
+function getReadableError(error: unknown) {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+
+    if (message.includes('expired')) {
+      return 'This verification code has expired. Please request a new code.';
+    }
+
+    if (message.includes('invalid')) {
+      return 'The verification code is incorrect. Please try again.';
+    }
+
+    if (message.includes('rate')) {
+      return 'Please wait before requesting another verification code.';
+    }
+  }
+
+  return 'We could not verify this code. Please try again.';
+}
 
 export default function OtpVerifyScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone: string; mode: string; name?: string }>();
+  const { refreshAuth } = useSession();
+
+  const params = useLocalSearchParams<{
+    phone?: string;
+    mode?: string;
+    name?: string;
+  }>();
+
   const phone = params.phone ?? '';
-  const mode = params.mode ?? 'login';
+
+  const mode: PhoneOtpMode = params.mode === 'signup' ? 'signup' : 'login';
+
   const name = params.name ?? '';
 
-  const inputRefs = useRef<Array<TextInput | null>>([]);
-  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
-  const [countdown, setCountdown] = useState(RESEND_COUNTDOWN);
-  const [canResend, setCanResend] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [shakeError, setShakeError] = useState(false);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  // ── Countdown timer ──────────────────────────────────────────────────────
+  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+
+  const [countdown, setCountdown] = useState(RESEND_COUNTDOWN);
+
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const [isResending, setIsResending] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     if (countdown <= 0) {
-      setCanResend(true);
       return;
     }
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
+
+    const timer = setTimeout(() => {
+      setCountdown(current => current - 1);
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [countdown]);
 
-  const resetTimer = useCallback(() => {
-    setDigits(['', '', '', '']);
-    setCountdown(RESEND_COUNTDOWN);
-    setCanResend(false);
-    inputRefs.current[0]?.focus();
-  }, []);
-
-  // ── Digit input handler ──────────────────────────────────────────────────
   const handleDigitChange = useCallback((text: string, index: number) => {
     const cleaned = text.replace(/[^0-9]/g, '').slice(-1);
-    setDigits(prev => {
-      const next = [...prev];
+
+    setDigits(current => {
+      const next = [...current];
+
       next[index] = cleaned;
+
       return next;
     });
+
+    setError(null);
+
     if (cleaned && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   }, []);
 
-  const handleKeyPress = useCallback((key: string, index: number) => {
-    if (key === 'Backspace' && digits[index] === '' && index > 0) {
-      setDigits(prev => {
-        const next = [...prev];
-        next[index - 1] = '';
-        return next;
-      });
-      inputRefs.current[index - 1]?.focus();
-    }
-  }, [digits]);
+  const handleKeyPress = useCallback(
+    (key: string, index: number) => {
+      if (key === 'Backspace' && digits[index] === '' && index > 0) {
+        setDigits(current => {
+          const next = [...current];
 
-  // ── Verify ───────────────────────────────────────────────────────────────
-  const handleVerify = useCallback(() => {
-    const code = digits.join('');
-    if (code.length < OTP_LENGTH) {
-      setShakeError(true);
-      setTimeout(() => setShakeError(false), 600);
+          next[index - 1] = '';
+
+          return next;
+        });
+
+        inputRefs.current[index - 1]?.focus();
+      }
+    },
+    [digits],
+  );
+
+  const handleVerify = async () => {
+    if (isVerifying) {
       return;
     }
 
-    setIsVerifying(true);
-    // Simulate a tiny "loading" delay for realism
-    setTimeout(() => {
-      setIsVerifying(false);
-      if (code === DEMO_OTP) {
-        // Success — route to role-select (placeholder for teammate's screen)
-        router.replace({
-          pathname: '/auth/otp-success',
-          params: { phone, mode, name },
-        });
-      } else {
-        // Wrong OTP — show error state
-        router.push({
-          pathname: '/auth/otp-error',
-          params: { phone, mode, name, wrongCode: code },
-        });
-      }
-    }, 800);
-  }, [digits, phone, mode, name, router]);
+    const token = digits.join('');
 
-  const maskedPhone = phone
-    ? `+880 ${phone.slice(0, 2)}XXXXXXXX`
-    : '+880 1XXXXXXXXX';
+    if (token.length !== OTP_LENGTH) {
+      setError('Enter the complete 6-digit verification code.');
+
+      return;
+    }
+
+    setError(null);
+    setIsVerifying(true);
+
+    try {
+      await verifyPhoneOtp({
+        phone,
+        token,
+      });
+      await refreshAuth();
+
+      /*
+       * SessionProvider receives Supabase's
+       * SIGNED_IN event automatically.
+       *
+       * Signup users continue through role
+       * selection/onboarding.
+       *
+       * Existing users can also choose their
+       * active role before entering the app.
+       */
+      router.replace({
+        pathname: '/auth/otp-success',
+
+        params: {
+          phone,
+          mode,
+          name,
+        },
+      });
+    } catch (verifyError) {
+      setError(getReadableError(verifyError));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (countdown > 0 || isResending) {
+      return;
+    }
+
+    setError(null);
+    setIsResending(true);
+
+    try {
+      await resendPhoneOtp({
+        phone,
+        mode,
+
+        ...(mode === 'signup'
+          ? {
+              fullName: name,
+            }
+          : {}),
+      });
+
+      setDigits(Array(OTP_LENGTH).fill(''));
+
+      setCountdown(RESEND_COUNTDOWN);
+
+      inputRefs.current[0]?.focus();
+    } catch (resendError) {
+      setError(getReadableError(resendError));
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const maskedPhone = phone.startsWith('+880')
+    ? `${phone.slice(0, 7)}XXXXXXX`
+    : phone;
 
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
@@ -136,97 +237,115 @@ export default function OtpVerifyScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back button */}
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => router.back()}
-            activeOpacity={0.8}
+            disabled={isVerifying || isResending}
           >
             <Ionicons name="arrow-back" size={22} color={C.onSurface} />
           </TouchableOpacity>
 
-          {/* Card */}
           <View style={styles.card}>
-            {/* Lock icon */}
             <View style={styles.iconCircle}>
-              <Ionicons name="lock-closed" size={32} color={C.primaryContainer} />
+              <Ionicons
+                name="lock-closed"
+                size={32}
+                color={C.primaryContainer}
+              />
             </View>
 
-            {/* Header text */}
             <Text style={styles.heading}>Verify your phone number</Text>
+
             <Text style={styles.subheading}>
-              We sent a verification code to{' '}
+              Enter the 6-digit code sent to{' '}
               <Text style={styles.phoneHighlight}>{maskedPhone}</Text>
             </Text>
 
-            {/* OTP boxes */}
-            <View style={[styles.otpRow, shakeError && styles.shake]}>
-              {digits.map((digit, i) => (
+            <View style={styles.otpRow}>
+              {digits.map((digit, index) => (
                 <TextInput
-                  key={i}
-                  ref={ref => { inputRefs.current[i] = ref; }}
+                  key={index}
+                  ref={ref => {
+                    inputRefs.current[index] = ref;
+                  }}
                   style={[
                     styles.otpBox,
-                    digit ? styles.otpBoxFilled : {},
-                    shakeError && styles.otpBoxError,
+
+                    digit ? styles.otpBoxFilled : null,
+
+                    error ? styles.otpBoxError : null,
                   ]}
                   value={digit}
-                  onChangeText={text => handleDigitChange(text, i)}
-                  onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
+                  onChangeText={text => handleDigitChange(text, index)}
+                  onKeyPress={({ nativeEvent }) =>
+                    handleKeyPress(nativeEvent.key, index)
+                  }
                   keyboardType="number-pad"
                   maxLength={1}
                   textAlign="center"
                   selectTextOnFocus
-                  autoFocus={i === 0}
+                  autoFocus={index === 0}
+                  editable={!isVerifying}
                 />
               ))}
             </View>
 
-            {/* Demo hint */}
-            <TouchableOpacity
-              style={styles.demoHint}
-              onPress={() => {
-                setDigits(['1', '2', '3', '4']);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="information-circle-outline" size={13} color={C.primaryContainer} />
-              <Text style={styles.demoHintText}>Demo OTP: tap to fill 1234</Text>
-            </TouchableOpacity>
+            {error && (
+              <View style={styles.errorRow}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={16}
+                  color={C.error}
+                />
 
-            {/* Verify button */}
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={[styles.verifyBtn, isVerifying && styles.verifyBtnLoading]}
-              onPress={handleVerify}
+              style={[styles.verifyBtn, isVerifying && styles.disabledButton]}
+              onPress={() => {
+                void handleVerify();
+              }}
+              disabled={isVerifying || isResending}
               activeOpacity={0.88}
-              disabled={isVerifying}
             >
               {isVerifying ? (
-                <ActivityIndicator color="#ffffff" size="small" />
+                <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <Text style={styles.verifyBtnText}>Verify</Text>
               )}
             </TouchableOpacity>
 
-            {/* Resend section */}
             <View style={styles.resendRow}>
-              <Text style={styles.resendLabel}>Didn't receive the code? </Text>
-              {canResend ? (
-                <TouchableOpacity onPress={resetTimer} activeOpacity={0.7}>
-                  <Text style={styles.resendLink}>Resend Code</Text>
-                </TouchableOpacity>
-              ) : (
+              <Text style={styles.resendLabel}>
+                Didn&apos;t receive the code?{' '}
+              </Text>
+
+              {countdown > 0 ? (
                 <Text style={styles.countdownText}>
-                  Resend in <Text style={styles.countdownNum}>{countdown}s</Text>
+                  Resend in{' '}
+                  <Text style={styles.countdownNumber}>{countdown}s</Text>
                 </Text>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    void handleResend();
+                  }}
+                  disabled={isResending}
+                >
+                  {isResending ? (
+                    <ActivityIndicator size="small" color={C.primary} />
+                  ) : (
+                    <Text style={styles.resendLink}>Resend Code</Text>
+                  )}
+                </TouchableOpacity>
               )}
             </View>
 
-            {/* Change number */}
             <TouchableOpacity
-              style={styles.changeNumber}
               onPress={() => router.back()}
-              activeOpacity={0.7}
+              disabled={isVerifying || isResending}
             >
               <Text style={styles.changeNumberText}>Change phone number</Text>
             </TouchableOpacity>
@@ -238,150 +357,197 @@ export default function OtpVerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.background },
+  flex: {
+    flex: 1,
+  },
+
+  safe: {
+    flex: 1,
+    backgroundColor: C.background,
+  },
+
   container: {
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingVertical: 24,
-    alignItems: 'stretch',
   },
+
   backBtn: {
-    width: 48, height: 48,
+    width: 48,
+    height: 48,
     borderRadius: 24,
     backgroundColor: C.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10 },
-      android: { elevation: 2 },
+      android: {
+        elevation: 2,
+      },
     }),
   },
+
   card: {
     backgroundColor: C.surfaceContainerLowest,
+
     borderRadius: 32,
+
     paddingHorizontal: 24,
     paddingVertical: 32,
-    alignItems: 'flex-start',
+
+    alignItems: 'center',
+
     ...Platform.select({
-      ios: { shadowColor: '#2e3192', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 20 },
-      android: { elevation: 3 },
+      android: {
+        elevation: 3,
+      },
     }),
   },
+
   iconCircle: {
-    width: 64, height: 64,
+    width: 64,
+    height: 64,
     borderRadius: 32,
+
     backgroundColor: C.surfaceContainerLow,
+
     alignItems: 'center',
     justifyContent: 'center',
+
     marginBottom: 20,
   },
+
   heading: {
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: '700',
     color: C.onSurface,
-    lineHeight: 28,
+    textAlign: 'center',
     marginBottom: 8,
   },
+
   subheading: {
     fontSize: 14,
     color: C.onSurfaceVariant,
-    lineHeight: 22,
+    textAlign: 'center',
+    lineHeight: 21,
     marginBottom: 28,
   },
+
   phoneHighlight: {
     fontWeight: '700',
     color: C.onSurface,
   },
-  // OTP boxes
+
   otpRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
-    alignSelf: 'stretch',
-    justifyContent: 'space-between',
+    gap: 7,
+    width: '100%',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
+
   otpBox: {
     flex: 1,
-    height: 64,
-    borderRadius: 16,
+    maxWidth: 50,
+    height: 60,
+
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
+
+    borderColor: '#eeeeee',
+
     backgroundColor: C.surfaceContainerLowest,
-    fontSize: 24,
+
+    fontSize: 23,
     fontWeight: '700',
     color: C.onSurface,
-    textAlign: 'center',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10 },
-      android: { elevation: 1 },
-    }),
   },
+
   otpBoxFilled: {
     borderColor: C.primaryContainer,
     borderWidth: 2,
-    ...Platform.select({
-      ios: { shadowColor: C.primaryContainer, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 16 },
-      android: { elevation: 2 },
-    }),
   },
+
   otpBoxError: {
     borderColor: C.error,
-    borderWidth: 2,
   },
-  shake: {
-    // Shake is achieved via borderColor change — native animation kept minimal
-  },
-  demoHint: {
+
+  errorRow: {
+    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 24,
-    marginTop: 8,
+    alignItems: 'flex-start',
+    gap: 7,
+    backgroundColor: '#fff5f4',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 16,
   },
-  demoHintText: { fontSize: 11, color: C.primaryContainer, fontWeight: '500' },
-  // Verify button
+
+  errorText: {
+    flex: 1,
+    color: C.error,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+
   verifyBtn: {
     width: '100%',
     height: 56,
+
+    borderRadius: 28,
+
     backgroundColor: C.brandOrange,
-    borderRadius: 32,
+
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
-    ...Platform.select({
-      ios: { shadowColor: C.brandOrange, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
-      android: { elevation: 4 },
-    }),
+
+    marginTop: 8,
+    marginBottom: 22,
   },
-  verifyBtnLoading: { opacity: 0.8 },
+
+  disabledButton: {
+    opacity: 0.65,
+  },
+
   verifyBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#ffffff',
-    letterSpacing: 0.7,
   },
-  // Resend
+
   resendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    marginBottom: 16,
   },
-  resendLabel: { fontSize: 14, color: C.onSurfaceVariant },
-  resendLink: {
-    fontSize: 14,
+
+  resendLabel: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+  },
+
+  countdownText: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+  },
+
+  countdownNumber: {
     fontWeight: '700',
     color: C.primaryContainer,
+  },
+
+  resendLink: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.primary,
     textDecorationLine: 'underline',
   },
-  countdownText: { fontSize: 14, color: C.onSurfaceVariant },
-  countdownNum: { fontWeight: '700', color: C.primaryContainer },
-  changeNumber: { alignSelf: 'center', marginTop: 4 },
+
   changeNumberText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: C.outline,
-    letterSpacing: 0.7,
   },
 });
