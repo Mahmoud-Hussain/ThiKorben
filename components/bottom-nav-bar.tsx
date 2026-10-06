@@ -6,73 +6,141 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { usePathname, useRouter } from 'expo-router';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from '@expo/vector-icons';
+import { type Href, usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export type NavTabKey = 'home' | 'pros' | 'jobs' | 'track' | 'worker';
+import { useSession } from '@/contexts/session-context';
+
+export type NavTabKey =
+  | 'home'
+  | 'community'
+  | 'shop'
+  | 'cart'
+  | 'jobs'
+  | 'passport'
+  | 'notifications'
+  | 'profile';
 
 interface BottomNavBarProps {
   activeTab?: NavTabKey;
 }
 
+type NavItem = {
+  key: NavTabKey;
+  label: string;
+  icon: string;
+  iconType: 'ionicons' | 'materialCommunity' | 'material';
+  route: Href;
+  badge?: string;
+};
+
 export function BottomNavBar({ activeTab }: BottomNavBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { role } = useSession();
 
-  const currentActive =
-    activeTab ||
-    (pathname === '/' || pathname === '/customer-dashboard' || pathname === '/welcome'
-      ? 'home'
-      : pathname === '/worker-profile'
-      ? 'pros'
-      : pathname === '/job-details'
-      ? 'jobs'
-      : pathname === '/track-worker'
-      ? 'track'
-      : pathname === '/worker-dashboard'
-      ? 'worker'
-      : 'home');
-
-  const navItems = [
+  const customerItems: NavItem[] = [
     {
-      key: 'home' as NavTabKey,
+      key: 'home',
       label: 'Home',
       icon: 'home',
-      iconType: 'ionicons' as const,
-      route: '/',
+      iconType: 'ionicons',
+      route: '/customer-dashboard',
     },
     {
-      key: 'pros' as NavTabKey,
-      label: 'Pros',
-      icon: 'account-group',
-      iconType: 'materialCommunity' as const,
-      route: '/worker-profile',
+      key: 'community',
+      label: 'Community',
+      icon: 'people',
+      iconType: 'ionicons',
+      route: '/community',
     },
     {
-      key: 'jobs' as NavTabKey,
-      label: 'Job Flow',
-      icon: 'clipboard-list',
-      iconType: 'materialCommunity' as const,
-      route: '/job-details',
+      key: 'shop',
+      label: 'Shop',
+      icon: 'bag-handle',
+      iconType: 'ionicons',
+      route: '/shop',
     },
     {
-      key: 'track' as NavTabKey,
-      label: 'Track',
-      icon: 'map-marker-path',
-      iconType: 'materialCommunity' as const,
-      route: '/track-worker',
-      badge: 'Live',
+      key: 'cart',
+      label: 'Cart',
+      icon: 'cart',
+      iconType: 'ionicons',
+      route: '/cart',
     },
     {
-      key: 'worker' as NavTabKey,
-      label: 'Worker',
-      icon: 'engineering',
-      iconType: 'material' as const,
-      route: '/worker-dashboard',
+      key: 'notifications',
+      label: 'Updates',
+      icon: 'notifications',
+      iconType: 'ionicons',
+      route: '/notifications',
     },
   ];
+
+  const workerItems: NavItem[] = [
+    {
+      key: 'home',
+      label: 'Home',
+      icon: 'home',
+      iconType: 'ionicons',
+      route: '/worker-dashboard',
+    },
+    {
+      key: 'jobs',
+      label: 'Jobs',
+      icon: 'briefcase',
+      iconType: 'materialCommunity',
+      route: '/community',
+    },
+    {
+      key: 'shop',
+      label: 'Shop',
+      icon: 'bag-handle',
+      iconType: 'ionicons',
+      route: '/shop',
+    },
+    {
+      key: 'passport',
+      label: 'Passport',
+      icon: 'certificate-outline',
+      iconType: 'materialCommunity',
+      route: '/worker-skill-passport',
+    },
+    {
+      key: 'notifications',
+      label: 'Updates',
+      icon: 'notifications',
+      iconType: 'ionicons',
+      route: '/notifications',
+    },
+  ];
+
+  const navItems = role === 'worker' ? workerItems : customerItems;
+
+  const inferredActive: NavTabKey =
+    pathname === '/customer-dashboard' || pathname === '/worker-dashboard'
+      ? 'home'
+      : pathname === '/community' || pathname === '/job-board'
+        ? role === 'worker'
+          ? 'jobs'
+          : 'community'
+        : pathname === '/shop' || pathname === '/product-details'
+          ? 'shop'
+          : pathname === '/cart' || pathname === '/service-checkout'
+            ? 'cart'
+            : pathname === '/worker-skill-passport'
+              ? 'passport'
+              : pathname === '/notifications'
+                ? 'notifications'
+                : 'home';
+
+  const currentActive = activeTab ?? inferredActive;
 
   return (
     <View
@@ -82,8 +150,9 @@ export function BottomNavBar({ activeTab }: BottomNavBarProps) {
           paddingBottom: Math.max(insets.bottom, 10),
           height: 64 + Math.max(insets.bottom, 10),
         },
-      ]}>
-      {navItems.map((item) => {
+      ]}
+    >
+      {navItems.map(item => {
         const isActive = currentActive === item.key;
 
         return (
@@ -92,41 +161,57 @@ export function BottomNavBar({ activeTab }: BottomNavBarProps) {
             style={styles.tabButton}
             onPress={() => {
               if (pathname !== item.route) {
-                // @ts-ignore
                 router.push(item.route);
               }
             }}
             activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel={item.label}>
+            accessibilityLabel={item.label}
+          >
             <View style={styles.iconContainer}>
               <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
                 {item.iconType === 'ionicons' ? (
                   <Ionicons
-                    name={isActive ? (item.icon as any) : `${item.icon}-outline` as any}
+                    name={
+                      (isActive
+                        ? item.icon
+                        : `${item.icon}-outline`) as React.ComponentProps<
+                        typeof Ionicons
+                      >['name']
+                    }
                     size={20}
                     color={isActive ? '#ffffff' : '#64748b'}
                   />
                 ) : item.iconType === 'material' ? (
                   <MaterialIcons
-                    name={item.icon as any}
+                    name={
+                      item.icon as React.ComponentProps<
+                        typeof MaterialIcons
+                      >['name']
+                    }
                     size={20}
                     color={isActive ? '#ffffff' : '#64748b'}
                   />
                 ) : (
                   <MaterialCommunityIcons
-                    name={item.icon as any}
+                    name={
+                      item.icon as React.ComponentProps<
+                        typeof MaterialCommunityIcons
+                      >['name']
+                    }
                     size={20}
                     color={isActive ? '#ffffff' : '#64748b'}
                   />
                 )}
               </View>
-              {item.badge && !isActive && (
+
+              {item.badge && !isActive ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{item.badge}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
+
             <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
               {item.label}
             </Text>
@@ -182,16 +267,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBoxActive: {
-    backgroundColor: '#15157d',
     width: 44,
     height: 30,
     borderRadius: 15,
+    backgroundColor: '#15157d',
   },
   tabLabel: {
-    fontSize: 10,
+    marginTop: 2,
+    fontSize: 9.5,
     fontWeight: '600',
     color: '#64748b',
-    marginTop: 2,
   },
   tabLabelActive: {
     color: '#15157d',
@@ -201,10 +286,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -8,
-    backgroundColor: '#F7941D',
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 6,
+    backgroundColor: '#F7941D',
   },
   badgeText: {
     color: '#ffffff',
