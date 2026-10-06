@@ -19,7 +19,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
 const COLORS = {
   primary: '#15157d',
@@ -243,6 +242,50 @@ export default function CustomerDashboardScreen() {
           </View>
           <Text style={styles.heroTitle}>{t.heroTitle}</Text>
           <Text style={styles.heroSubtitle}>{t.heroSubtitle}</Text>
+        </View>
+
+        {/* ── Problem Choice ── */}
+        <View style={styles.problemChoiceSection}>
+          <View style={styles.problemChoiceHeader}>
+            <View>
+              <Text style={styles.problemChoiceTitle}>What problem are you facing?</Text>
+              <Text style={styles.problemChoiceSub}>
+                Choose how you want to continue.
+              </Text>
+            </View>
+            <View style={styles.problemChoiceBadge}>
+              <Ionicons name="sparkles" size={14} color={COLORS.accentOrange} />
+              <Text style={styles.problemChoiceBadgeText}>AI optional</Text>
+            </View>
+          </View>
+
+          <View style={styles.problemChoiceGrid}>
+            <TouchableOpacity
+              style={styles.problemChoiceCard}
+              onPress={() => router.push('/problem-intake')}
+              activeOpacity={0.88}>
+              <View style={[styles.problemChoiceIcon, { backgroundColor: COLORS.primaryFixed }]}>
+                <Ionicons name="create-outline" size={22} color={COLORS.primary} />
+              </View>
+              <Text style={styles.problemChoiceCardTitle}>Solve it your way</Text>
+              <Text style={styles.problemChoiceCardText}>
+                Post directly to the community and compare worker responses.
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.problemChoiceCard}
+              onPress={() => router.push('/ai-assistant')}
+              activeOpacity={0.88}>
+              <View style={[styles.problemChoiceIcon, { backgroundColor: COLORS.secondaryFixed }]}>
+                <Ionicons name="sparkles" size={22} color={COLORS.accentOrange} />
+              </View>
+              <Text style={styles.problemChoiceCardTitle}>Ask ThiKorben AI</Text>
+              <Text style={styles.problemChoiceCardText}>
+                Describe the problem, attach a photo, and get service guidance.
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Search Bar ── */}
@@ -476,9 +519,6 @@ export default function CustomerDashboardScreen() {
       {/* ── Unified Bottom Navigation Bar ── */}
       <BottomNavBar activeTab="home" />
 
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
-
       {/* ── Emergency Request Modal ── */}
       <Modal
         visible={emergencyModalOpen}
@@ -695,6 +735,77 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     maxWidth: 320,
   },
+  problemChoiceSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  problemChoiceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  problemChoiceTitle: {
+    fontSize: 14.5,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  problemChoiceSub: {
+    marginTop: 2,
+    fontSize: 10.5,
+    color: COLORS.onSurfaceVariant,
+  },
+  problemChoiceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#fff7ed',
+  },
+  problemChoiceBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: COLORS.accentOrange,
+  },
+  problemChoiceGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  problemChoiceCard: {
+    flex: 1,
+    minHeight: 118,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceContainerLowest,
+  },
+  problemChoiceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  problemChoiceCardTitle: {
+    marginTop: 8,
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  problemChoiceCardText: {
+    marginTop: 3,
+    fontSize: 9.2,
+    lineHeight: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
