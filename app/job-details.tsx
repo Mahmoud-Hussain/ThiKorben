@@ -22,6 +22,8 @@ import type {
   CommunityProposal,
   CommunityRequest,
 } from '@/features/community/types';
+import { loadServiceOrder } from '@/features/orders/order.service';
+import type { ServiceOrderRecord } from '@/features/orders/types';
 
 const C = {
   primary: '#15157d',
@@ -59,6 +61,7 @@ export default function JobDetailsScreen() {
 
   const [request, setRequest] = useState<CommunityRequest | null>(null);
   const [proposals, setProposals] = useState<CommunityProposal[]>([]);
+  const [order, setOrder] = useState<ServiceOrderRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,13 +95,15 @@ export default function JobDetailsScreen() {
     setError(null);
 
     try {
-      const [nextRequest, nextProposals] = await Promise.all([
+      const [nextRequest, nextProposals, nextOrder] = await Promise.all([
         getServiceRequest(params.requestId),
         getServiceRequestProposals(params.requestId),
+        loadServiceOrder(params.requestId),
       ]);
 
       setRequest(nextRequest);
       setProposals(nextProposals);
+      setOrder(nextOrder);
     } catch (loadError) {
       setError(messageFrom(loadError));
     } finally {
@@ -321,10 +326,42 @@ export default function JobDetailsScreen() {
           </View>
         ) : null}
 
+        {customer && acceptedProposal ? (
+          <View style={styles.customerActions}>
+            <Pressable
+              style={styles.checkoutAction}
+              onPress={() =>
+                router.push({
+                  pathname: order ? '/track-worker' : '/service-checkout',
+                  params: { requestId: request.id },
+                } as Href)
+              }
+            >
+              <Ionicons
+                name={order ? 'navigate-outline' : 'card-outline'}
+                size={18}
+                color="#fff"
+              />
+              <Text style={styles.checkoutActionText}>
+                {order ? 'Track Service' : 'Confirm Service Order'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {assignedWorker && request.status === 'assigned' && !order ? (
+          <View style={styles.orderRequired}>
+            <Ionicons name="time-outline" size={20} color={C.orange} />
+            <Text style={styles.orderRequiredText}>
+              Waiting for the customer to confirm the service order before work can start.
+            </Text>
+          </View>
+        ) : null}
+
         {assignedWorker && (request.status === 'assigned' || request.status === 'ordered') ? (
           <Pressable
             style={[styles.advanceButton, saving && styles.disabled]}
-            disabled={saving}
+            disabled={saving || (request.status === 'assigned' && !order)}
             onPress={() => void advance()}
           >
             {saving ? (
@@ -485,6 +522,37 @@ const styles = StyleSheet.create({
   },
   actionTitle: { marginTop: 9, fontSize: 11.5, fontWeight: '900', color: C.text },
   actionText: { marginTop: 3, fontSize: 9.5, lineHeight: 14, color: C.muted },
+  customerActions: {
+    gap: 8,
+  },
+  checkoutAction: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 14,
+    backgroundColor: C.orange,
+  },
+  checkoutActionText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  orderRequired: {
+    padding: 13,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 14,
+    backgroundColor: C.orangeSoft,
+  },
+  orderRequiredText: {
+    flex: 1,
+    fontSize: 9.5,
+    lineHeight: 15,
+    color: C.muted,
+  },
   advanceButton: {
     minHeight: 49,
     flexDirection: 'row',
