@@ -128,6 +128,23 @@ export default function WelcomeScreen() {
           <Text style={styles.heroSubtitle}>{t.heroSubtitle}</Text>
         </View>
 
+        <TouchableOpacity
+          style={styles.showcaseCard}
+          onPress={() => router.push('/showcase')}
+          activeOpacity={0.9}>
+          <View style={styles.showcaseIcon}>
+            <Ionicons name="sparkles" size={22} color="#ffffff" />
+          </View>
+          <View style={styles.showcaseTextCol}>
+            <Text style={styles.showcaseEyebrow}>PROJECT SHOWCASE</Text>
+            <Text style={styles.showcaseTitle}>See the complete ThiKorben journey</Text>
+            <Text style={styles.showcaseSubtitle}>
+              Problem → AI → worker matching → chat → materials → tracking → skill passport
+            </Text>
+          </View>
+          <Ionicons name="arrow-forward-circle" size={28} color="#ffffff" />
+        </TouchableOpacity>
+
         {/* ── Popular Categories ── */}
         <View style={styles.bentoGrid}>
           {[
@@ -327,6 +344,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
     maxWidth: 340,
+  },
+  showcaseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+  },
+  showcaseIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  showcaseTextCol: {
+    flex: 1,
+  },
+  showcaseEyebrow: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    color: '#cbcaff',
+  },
+  showcaseTitle: {
+    marginTop: 3,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  showcaseSubtitle: {
+    marginTop: 4,
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: '#e4e3ff',
   },
   bentoGrid: {
     flexDirection: 'row',
