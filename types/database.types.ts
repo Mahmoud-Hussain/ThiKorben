@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      service_products: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          currency: string
+          description: string
+          id: string
+          name: string
+          slug: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          currency?: string
+          description: string
+          id?: string
+          name: string
+          slug: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string
+          id?: string
+          name?: string
+          slug?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      job_material_requests: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          product_id: string
+          quantity: number
+          reason: string
+          resolved_at: string | null
+          service_request_id: string
+          status: Database["public"]["Enums"]["material_request_status"]
+          unit_price_snapshot: number
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency: string
+          id?: string
+          product_id: string
+          quantity: number
+          reason: string
+          resolved_at?: string | null
+          service_request_id: string
+          status?: Database["public"]["Enums"]["material_request_status"]
+          unit_price_snapshot: number
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string
+          resolved_at?: string | null
+          service_request_id?: string
+          status?: Database["public"]["Enums"]["material_request_status"]
+          unit_price_snapshot?: number
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_material_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "service_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_material_requests_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_conversations: {
         Row: {
           created_at: string
@@ -478,6 +574,22 @@ export type Database = {
         Args: { p_service_request_id: string }
         Returns: Database["public"]["Tables"]["job_conversations"]["Row"]
       }
+      request_job_material: {
+        Args: {
+          p_product_id: string
+          p_quantity: number
+          p_reason: string
+          p_service_request_id: string
+        }
+        Returns: Database["public"]["Tables"]["job_material_requests"]["Row"]
+      }
+      resolve_job_material: {
+        Args: {
+          p_material_request_id: string
+          p_status: Database["public"]["Enums"]["material_request_status"]
+        }
+        Returns: Database["public"]["Tables"]["job_material_requests"]["Row"]
+      }
       register_worker_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -511,6 +623,7 @@ export type Database = {
     }
     Enums: {
       app_role: "customer" | "worker"
+      material_request_status: "pending" | "approved" | "rejected"
       service_media_type: "image" | "video"
       worker_verification_status: "unverified" | "pending" | "verified"
       service_proposal_status: "pending" | "accepted" | "declined" | "withdrawn"
@@ -648,6 +761,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["customer", "worker"],
+      material_request_status: ["pending", "approved", "rejected"],
       service_media_type: ["image", "video"],
       worker_verification_status: ["unverified", "pending", "verified"],
       service_proposal_status: ["pending", "accepted", "declined", "withdrawn"],
