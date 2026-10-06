@@ -228,6 +228,19 @@ export default function JobChatScreen() {
             </Text>
           </View>
 
+          <Pressable
+            style={styles.materialButton}
+            onPress={() =>
+              router.push({
+                pathname: '/job-materials',
+                params: { requestId: params.requestId },
+              })
+            }
+          >
+            <Ionicons name="cart-outline" size={15} color={COLORS.primary} />
+            <Text style={styles.materialButtonText}>Materials</Text>
+          </Pressable>
+
           <View style={styles.secureBadge}>
             <Ionicons name="shield-checkmark" size={14} color={COLORS.green} />
             <Text style={styles.secureText}>Private</Text>
@@ -387,6 +400,16 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { fontSize: 13, fontWeight: '900', color: COLORS.text },
   headerSubtitle: { marginTop: 2, fontSize: 9.5, color: COLORS.muted },
+  materialButton: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 10,
+    backgroundColor: COLORS.primarySoft,
+  },
+  materialButtonText: { fontSize: 8.5, fontWeight: '900', color: COLORS.primary },
   secureBadge: {
     paddingHorizontal: 8,
     paddingVertical: 5,
