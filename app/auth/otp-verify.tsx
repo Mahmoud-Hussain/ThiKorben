@@ -64,6 +64,10 @@ function getReadableError(error: unknown) {
     if (message.includes('rate')) {
       return 'Please wait before requesting another verification code.';
     }
+
+    if (message.includes('presentation authentication is disabled')) {
+      return 'Presentation login is disabled in Supabase. Enable Anonymous Sign-Ins for thikorben-dev, then try Verify again.';
+    }
   }
 
   return 'We could not verify this code. Please try again.';
