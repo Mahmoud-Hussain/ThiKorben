@@ -288,7 +288,7 @@ export default function WorkerProfileScreen() {
       </View>
 
       {/* ── Unified Bottom Navigation Bar ── */}
-      <BottomNavBar activeTab="pros" />
+      <BottomNavBar activeTab="profile" />
 
       {/* ── Quick Switcher Floating Button ── */}
       <PageQuickSwitcher />
