@@ -16,6 +16,7 @@ import { useSession } from '@/contexts/session-context';
 
 const C = {
   primary: '#15157d',
+  primarySoft: '#eeedff',
   orange: '#F7941D',
   bg: '#f8f7fc',
   card: '#fff',
