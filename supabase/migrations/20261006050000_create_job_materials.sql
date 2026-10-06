@@ -273,7 +273,7 @@ values
     'BDT'
   ),
   (
-    'ptfe-thread-seal-tape',
+    'teflon-tape',
     'PTFE Thread Seal Tape',
     'plumbing',
     'Thread sealing tape for plumbing connections and fittings.',
@@ -281,7 +281,7 @@ values
     'BDT'
   ),
   (
-    'pvc-coupling-half-inch',
+    'pvc-connector-half',
     'PVC Coupling 1/2 inch',
     'plumbing',
     'Standard half-inch PVC coupling for water line repair.',
@@ -297,7 +297,7 @@ values
     'BDT'
   ),
   (
-    'switch-16a',
+    'modular-switch',
     '16A Modular Switch',
     'electrical',
     'Replacement modular wall switch rated for common household circuits.',
