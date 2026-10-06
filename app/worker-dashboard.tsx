@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNavBar } from '@/components/bottom-nav-bar';
 import { useSession } from '@/contexts/session-context';
@@ -133,7 +133,7 @@ export default function WorkerDashboardScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.notificationBtn}
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push('/notifications' as Href)}
             activeOpacity={0.8}>
             <Ionicons
               name="notifications-outline"
