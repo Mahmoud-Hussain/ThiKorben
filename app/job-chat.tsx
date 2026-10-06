@@ -14,6 +14,11 @@ import {
   View,
 } from 'react-native';
 
+import {
+  addToCart,
+  formatShopMoney,
+} from '@/constants/shop-data';
+import { recommendProductsFromMessage } from '@/constants/product-recommendation';
 import { useSession } from '@/contexts/session-context';
 import {
   getMessages,
@@ -64,6 +69,7 @@ export default function JobChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView | null>(null);
 
@@ -71,6 +77,16 @@ export default function JobChatScreen() {
     () => (role === 'worker' ? 'Customer' : 'Assigned worker'),
     [role],
   );
+
+  const recommendations = useMemo(() => {
+    const latest = [...messages]
+      .reverse()
+      .find(item => item.message_type === 'text' && item.body.trim());
+
+    return latest
+      ? recommendProductsFromMessage(latest.body)
+      : [];
+  }, [messages]);
 
   const hydrate = useCallback(async () => {
     await Promise.resolve();
@@ -320,6 +336,115 @@ export default function JobChatScreen() {
               );
             })
           )}
+
+          {recommendations.length > 0 ? (
+            <View style={styles.recommendationPanel}>
+              <View style={styles.recommendationHeader}>
+                <View style={styles.recommendationIcon}>
+                  <Ionicons name="sparkles" size={17} color="#ffffff" />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.recommendationTitle}>
+                    Product recommendation
+                  </Text>
+                  <Text style={styles.recommendationSub}>
+                    Matched from the latest job conversation.
+                  </Text>
+                </View>
+              </View>
+
+              {recommendations.slice(0, 2).map(item => (
+                <View key={item.product.id} style={styles.productCard}>
+                  <View style={styles.productIcon}>
+                    <Ionicons
+                      name={item.product.icon}
+                      size={23}
+                      color={COLORS.primary}
+                    />
+                  </View>
+
+                  <View style={styles.flex}>
+                    <Text style={styles.productName}>
+                      {item.product.name}
+                    </Text>
+                    <Text style={styles.productReason}>
+                      {item.reason}
+                    </Text>
+                    <Text style={styles.productPrice}>
+                      {formatShopMoney(item.product.price)}
+                    </Text>
+
+                    <View style={styles.productActions}>
+                      <Pressable
+                        style={styles.viewProductButton}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/product-details',
+                            params: { id: item.product.id },
+                          })
+                        }
+                      >
+                        <Text style={styles.viewProductText}>View Product</Text>
+                      </Pressable>
+
+                      {role === 'customer' ? (
+                        <Pressable
+                          style={[
+                            styles.addProductButton,
+                            addedProductId === item.product.id &&
+                              styles.addedProductButton,
+                          ]}
+                          onPress={() => {
+                            addToCart(item.product.id);
+                            setAddedProductId(item.product.id);
+                          }}
+                        >
+                          <Ionicons
+                            name={
+                              addedProductId === item.product.id
+                                ? 'checkmark'
+                                : 'cart'
+                            }
+                            size={14}
+                            color="#ffffff"
+                          />
+                          <Text style={styles.addProductText}>
+                            {addedProductId === item.product.id
+                              ? 'Added'
+                              : 'Add to Cart'}
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable
+                          style={styles.addProductButton}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/job-materials',
+                              params: { requestId: params.requestId },
+                            } as Href)
+                          }
+                        >
+                          <Ionicons
+                            name="shield-checkmark-outline"
+                            size={14}
+                            color="#ffffff"
+                          />
+                          <Text style={styles.addProductText}>
+                            Request Approval
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              <Text style={styles.recommendationDisclaimer}>
+                Worker-side product actions require customer approval before
+                entering the customer purchase flow.
+              </Text>
+            </View>
+          ) : null}
         </ScrollView>
 
         {error ? (
@@ -475,6 +600,117 @@ const styles = StyleSheet.create({
   time: { marginTop: 4, fontSize: 8.5 },
   timeMine: { color: '#c9c8ff', textAlign: 'right' },
   timeOther: { color: COLORS.muted },
+  recommendationPanel: {
+    marginHorizontal: 14,
+    marginBottom: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#dcd9f0',
+    borderRadius: 16,
+    backgroundColor: '#faf9ff',
+  },
+  recommendationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  recommendationIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+  },
+  recommendationTitle: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: COLORS.primary,
+  },
+  recommendationSub: {
+    marginTop: 2,
+    fontSize: 8.5,
+    color: COLORS.muted,
+  },
+  productCard: {
+    marginTop: 10,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 13,
+    backgroundColor: COLORS.card,
+  },
+  productIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
+  },
+  productName: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  productReason: {
+    marginTop: 3,
+    fontSize: 8.3,
+    lineHeight: 12,
+    color: COLORS.muted,
+  },
+  productPrice: {
+    marginTop: 4,
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: COLORS.orange,
+  },
+  productActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  viewProductButton: {
+    flex: 1,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: COLORS.primarySoft,
+  },
+  viewProductText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: COLORS.primary,
+  },
+  addProductButton: {
+    flex: 1,
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 9,
+    backgroundColor: COLORS.orange,
+  },
+  addedProductButton: {
+    backgroundColor: COLORS.green,
+  },
+  addProductText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  recommendationDisclaimer: {
+    marginTop: 9,
+    fontSize: 7.8,
+    lineHeight: 12,
+    color: COLORS.muted,
+  },
+
   inlineError: {
     marginHorizontal: 12,
     marginBottom: 8,
