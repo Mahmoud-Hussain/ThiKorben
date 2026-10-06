@@ -48,7 +48,7 @@ begin
     set status = 'ordered', last_activity_at = clock_timestamp()
     where id = v_request.id;
 
-    return 'ordered';
+    return 'ordered'::public.service_request_status;
   end if;
 
   if v_request.status = 'ordered' and p_status = 'completed' then
@@ -56,7 +56,7 @@ begin
     set status = 'completed', last_activity_at = clock_timestamp()
     where id = v_request.id;
 
-    return 'completed';
+    return 'completed'::public.service_request_status;
   end if;
 
   raise exception 'Invalid job status transition.';
