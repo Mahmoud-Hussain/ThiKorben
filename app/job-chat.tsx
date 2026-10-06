@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -73,6 +73,8 @@ export default function JobChatScreen() {
   );
 
   const hydrate = useCallback(async () => {
+    await Promise.resolve();
+
     if (!params.requestId) {
       setError('Service request ID is missing.');
       setLoading(false);
@@ -234,7 +236,7 @@ export default function JobChatScreen() {
               router.push({
                 pathname: '/job-materials',
                 params: { requestId: params.requestId },
-              })
+              } as Href)
             }
           >
             <Ionicons name="cart-outline" size={15} color={COLORS.primary} />
