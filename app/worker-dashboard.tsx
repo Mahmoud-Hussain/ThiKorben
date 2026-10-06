@@ -15,6 +15,8 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNavBar } from '@/components/bottom-nav-bar';
+import { useSession } from '@/contexts/session-context';
+import { useCommunityFeed } from '@/features/community/community.hooks';
 
 const COLORS = {
   primary: '#15157d',
@@ -37,49 +39,55 @@ const COLORS = {
 const RAHIM_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCv3ndAOA1HXwuXdDv15r5Bfc9c_rxhJyNc2SXzQsu7SuF6OtdDXPeZ_jIU-grZ3O9d4VZ7_K9x7qKeOqpqH6pjTZbPPmTSdjJK2MzxOVaSPjgGqHZwJMKC6h6eJKTNV6aRRU_yvgm5w2L60KMcltF2TyjSfzSbC2yqCiwpGsRgeRxwqS44YOdBOJqmW8D0yi0j3Tb7_ZKpDbdft_DBKHGnIrK9nMnGuAhoe6Ym8J1J3OX6K2SLGLPXOg';
 
-const NEARBY_JOBS = [
-  {
-    id: 'job-1',
-    title: 'Kitchen sink pipe leaking',
-    customer: 'Nusrat Ahmed',
-    location: 'House 42, Road 11/A, Dhanmondi',
-    distance: '1.2 km away',
-    price: '৳500',
-    tag: 'Urgent Fix',
-    tagColor: '#ef4444',
-    time: '2 mins ago',
-    icon: 'pipe-wrench',
-  },
-  {
-    id: 'job-2',
-    title: 'Switchboard spark & power trip',
-    customer: 'Tanvir Hasan',
-    location: 'Road 27, Dhanmondi',
-    distance: '2.4 km away',
-    price: '৳450',
-    tag: 'Electrical',
-    tagColor: '#f59e0b',
-    time: '15 mins ago',
-    icon: 'flash',
-  },
-  {
-    id: 'job-3',
-    title: 'Bathroom water heater connection',
-    customer: 'Farhana Kabir',
-    location: 'Mirpur Road, Lalmatia',
-    distance: '3.1 km away',
-    price: '৳600',
-    tag: 'Sanitary',
-    tagColor: '#3b82f6',
-    time: '28 mins ago',
-    icon: 'water-boiler',
-  },
-];
+function relativeTime(value: string) {
+  const delta = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(0, Math.floor(delta / 60000));
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} mins ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function jobIcon(category: string): React.ComponentProps<typeof MaterialCommunityIcons>['name'] {
+  if (category === 'plumbing') return 'pipe-wrench';
+  if (category === 'electrical') return 'flash';
+  if (category === 'carpentry') return 'hammer-screwdriver';
+  if (category === 'cleaning') return 'broom';
+  if (category === 'painting') return 'format-paint';
+  return 'snowflake';
+}
+
+function categoryLabel(category: string) {
+  return category === 'ac'
+    ? 'AC Service'
+    : category.charAt(0).toUpperCase() + category.slice(1);
+}
 
 export default function WorkerDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { profile, workerProfile } = useSession();
   const [isOnline, setIsOnline] = useState(true);
+
+  const {
+    items: nearbyJobs,
+    isLoading: jobsLoading,
+    refresh: refreshJobs,
+  } = useCommunityFeed({
+    status: 'open',
+    pageSize: 8,
+  });
+
+  const urgentJob = nearbyJobs[0];
+
+  const workerName = profile?.display_name || 'ThiKorben Worker';
+  const workerTrade = workerProfile?.primary_trade
+    ? workerProfile.primary_trade.replace(/_/g, ' ')
+    : 'Service Professional';
 
   const toggleOnline = () => {
     const nextState = !isOnline;
@@ -113,10 +121,12 @@ export default function WorkerDashboardScreen() {
           </TouchableOpacity>
           <View>
             <View style={styles.nameRow}>
-              <Text style={styles.workerName}>Rahim Uddin</Text>
-              <MaterialIcons name="verified" size={16} color={COLORS.primary} />
+              <Text style={styles.workerName}>{workerName}</Text>
+              <MaterialIcons name="verified-user" size={16} color={COLORS.primary} />
             </View>
-            <Text style={styles.workerTitle}>Plumbing Specialist • 4.9 ★</Text>
+            <Text style={styles.workerTitle}>
+              {workerTrade} • ThiKorben Worker
+            </Text>
           </View>
         </View>
 
@@ -135,7 +145,7 @@ export default function WorkerDashboardScreen() {
 
           <TouchableOpacity
               style={styles.switchModeBtn}
-              onPress={() => router.push('/customer-dashboard')}
+              onPress={() => router.push('/role-selection')}
               activeOpacity={0.8}>
             <Ionicons name="people" size={16} color={COLORS.accentOrange} />
             <Text style={styles.switchModeText}>Customer Mode</Text>
@@ -186,67 +196,81 @@ export default function WorkerDashboardScreen() {
         </View>
 
         {/* ── Urgent New Job Request Banner ── */}
-        <View style={styles.urgentBanner}>
-          <View style={styles.urgentHeader}>
-            <View style={styles.urgentTag}>
-              <Ionicons name="alert-circle" size={14} color="#ffffff" />
-              <Text style={styles.urgentTagText}>NEW INCOMING JOB</Text>
-            </View>
-            <Text style={styles.urgentTime}>2 mins ago</Text>
-          </View>
-
-          <Text style={styles.urgentJobTitle}>Kitchen sink pipe leaking</Text>
-          <Text style={styles.urgentJobLocation}>Nusrat Ahmed • House 42, Road 11/A (1.2 km)</Text>
-
-          <View style={styles.urgentFooter}>
-            <View>
-              <Text style={styles.urgentPayoutLabel}>Est. Payout</Text>
-              <Text style={styles.urgentPayoutValue}>৳500</Text>
+        {urgentJob ? (
+          <View style={styles.urgentBanner}>
+            <View style={styles.urgentHeader}>
+              <View style={styles.urgentTag}>
+                <Ionicons name="alert-circle" size={14} color="#ffffff" />
+                <Text style={styles.urgentTagText}>NEW INCOMING JOB</Text>
+              </View>
+              <Text style={styles.urgentTime}>{relativeTime(urgentJob.created_at)}</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.acceptJobBtn}
-              onPress={() => router.push('/community')}
-              activeOpacity={0.85}>
-              <Text style={styles.acceptJobText}>View & Accept</Text>
-              <Ionicons name="arrow-forward" size={15} color="#ffffff" />
-            </TouchableOpacity>
+            <Text style={styles.urgentJobTitle}>{urgentJob.title}</Text>
+            <Text style={styles.urgentJobLocation}>
+              {urgentJob.location_label} • {categoryLabel(urgentJob.category)}
+            </Text>
+
+            <View style={styles.urgentFooter}>
+              <View>
+                <Text style={styles.urgentPayoutLabel}>Customer Budget</Text>
+                <Text style={styles.urgentPayoutValue}>
+                  ৳{Number(urgentJob.budget_amount).toLocaleString()}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.acceptJobBtn}
+                onPress={() =>
+                  router.push({
+                    pathname: '/job-board',
+                    params: {
+                      mode: 'detail',
+                      requestId: urgentJob.id,
+                    },
+                  })
+                }
+                activeOpacity={0.85}>
+                <Text style={styles.acceptJobText}>View & Propose</Text>
+                <Ionicons name="arrow-forward" size={15} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {/* ── Today's Earnings & Stats ── */}
         <View style={styles.statsCard}>
           <View style={styles.statsHeader}>
-            <Text style={styles.statsTitle}>Today&apos;s Earnings</Text>
-            <Text style={styles.statsDate}>Today, 1 Sep</Text>
+            <Text style={styles.statsTitle}>Today&apos;s Marketplace Activity</Text>
+            <Text style={styles.statsDate}>Live</Text>
           </View>
 
           <View style={styles.earningsRow}>
             <View>
-              <Text style={styles.earningsAmount}>৳1,850</Text>
-              <Text style={styles.earningsSub}>4 Jobs Completed</Text>
+              <Text style={styles.earningsAmount}>{nearbyJobs.length}</Text>
+              <Text style={styles.earningsSub}>Open jobs visible now</Text>
             </View>
             <View style={styles.earningsTrend}>
               <Ionicons name="trending-up" size={16} color={COLORS.success} />
-              <Text style={styles.earningsTrendText}>+28% vs yesterday</Text>
+              <Text style={styles.earningsTrendText}>Realtime feed</Text>
             </View>
           </View>
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <MaterialCommunityIcons name="clock-check-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.statBoxVal}>98%</Text>
-              <Text style={styles.statBoxLabel}>On-Time</Text>
+              <Text style={styles.statBoxVal}>{workerProfile?.experience_years ?? 0}y</Text>
+              <Text style={styles.statBoxLabel}>Experience</Text>
             </View>
             <View style={styles.statBox}>
               <MaterialCommunityIcons name="star-outline" size={20} color="#eab308" />
-              <Text style={styles.statBoxVal}>4.9 ★</Text>
-              <Text style={styles.statBoxLabel}>Rating</Text>
+              <Text style={styles.statBoxVal}>{workerProfile?.service_radius_km ?? 0}km</Text>
+              <Text style={styles.statBoxLabel}>Service Radius</Text>
             </View>
             <View style={styles.statBox}>
               <MaterialCommunityIcons name="wallet-outline" size={20} color={COLORS.accentOrange} />
-              <Text style={styles.statBoxVal}>৳12,400</Text>
-              <Text style={styles.statBoxLabel}>This Week</Text>
+              <Text style={styles.statBoxVal}>LIVE</Text>
+              <Text style={styles.statBoxLabel}>Shared Feed</Text>
             </View>
           </View>
         </View>
@@ -257,56 +281,84 @@ export default function WorkerDashboardScreen() {
             <Text style={styles.sectionTitle}>Available Job Requests</Text>
             <Text style={styles.sectionSubtitle}>Tap any job to view map & customer details</Text>
           </View>
-          <Text style={styles.feedCount}>{NEARBY_JOBS.length} Nearby</Text>
+          <TouchableOpacity onPress={() => void refreshJobs()}>
+            <Text style={styles.feedCount}>
+              {jobsLoading ? 'Loading…' : `${nearbyJobs.length} Open`}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.jobsList}>
-          {NEARBY_JOBS.map((job) => (
-            <TouchableOpacity
-              key={job.id}
-              style={styles.jobCard}
-              onPress={() => router.push('/community')}
-              activeOpacity={0.88}>
-              <View style={styles.jobCardHeader}>
-                <View style={styles.jobIconBox}>
-                  <MaterialCommunityIcons
-                    name={job.icon as any}
-                    size={22}
-                    color={COLORS.primary}
-                  />
-                </View>
-                <View style={styles.jobTitleCol}>
-                  <View style={styles.jobTitleRow}>
-                    <Text style={styles.jobTitle}>{job.title}</Text>
+          {nearbyJobs.length === 0 ? (
+            <View style={styles.emptyJobsCard}>
+              <Ionicons name="briefcase-outline" size={28} color={COLORS.textMuted} />
+              <Text style={styles.emptyJobsTitle}>No open requests right now</Text>
+              <Text style={styles.emptyJobsText}>
+                Refresh the feed or check again when a customer posts a new service request.
+              </Text>
+            </View>
+          ) : (
+            nearbyJobs.map(job => (
+              <TouchableOpacity
+                key={job.id}
+                style={styles.jobCard}
+                onPress={() =>
+                  router.push({
+                    pathname: '/job-board',
+                    params: {
+                      mode: 'detail',
+                      requestId: job.id,
+                    },
+                  })
+                }
+                activeOpacity={0.88}>
+                <View style={styles.jobCardHeader}>
+                  <View style={styles.jobIconBox}>
+                    <MaterialCommunityIcons
+                      name={jobIcon(job.category)}
+                      size={22}
+                      color={COLORS.primary}
+                    />
                   </View>
-                  <Text style={styles.jobCustomer}>{job.customer} • {job.location}</Text>
-                </View>
-                <Text style={styles.jobPrice}>{job.price}</Text>
-              </View>
 
-              <View style={styles.jobCardFooter}>
-                <View style={styles.jobMetaBadge}>
-                  <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
-                  <Text style={styles.jobMetaText}>{job.distance}</Text>
-                </View>
+                  <View style={styles.jobTitleCol}>
+                    <View style={styles.jobTitleRow}>
+                      <Text style={styles.jobTitle}>{job.title}</Text>
+                    </View>
+                    <Text style={styles.jobCustomer}>
+                      Customer request • {job.location_label}
+                    </Text>
+                  </View>
 
-                <View style={styles.jobMetaBadge}>
-                  <Ionicons name="time-outline" size={13} color={COLORS.textMuted} />
-                  <Text style={styles.jobMetaText}>{job.time}</Text>
-                </View>
-
-                <View style={[styles.jobTagPill, { backgroundColor: `${job.tagColor}15` }]}>
-                  <Text style={[styles.jobTagPillText, { color: job.tagColor }]}>
-                    {job.tag}
+                  <Text style={styles.jobPrice}>
+                    ৳{Number(job.budget_amount).toLocaleString()}
                   </Text>
                 </View>
 
-                <View style={styles.jobArrow}>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+                <View style={styles.jobCardFooter}>
+                  <View style={styles.jobMetaBadge}>
+                    <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
+                    <Text style={styles.jobMetaText}>{job.location_label}</Text>
+                  </View>
+
+                  <View style={styles.jobMetaBadge}>
+                    <Ionicons name="time-outline" size={13} color={COLORS.textMuted} />
+                    <Text style={styles.jobMetaText}>{relativeTime(job.created_at)}</Text>
+                  </View>
+
+                  <View style={[styles.jobTagPill, { backgroundColor: '#15157d12' }]}>
+                    <Text style={[styles.jobTagPillText, { color: COLORS.primary }]}>
+                      {categoryLabel(job.category)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.jobArrow}>
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
       </ScrollView>
@@ -669,6 +721,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.primary,
   },
+  emptyJobsCard: {
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+  },
+  emptyJobsTitle: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  emptyJobsText: {
+    marginTop: 4,
+    maxWidth: 310,
+    textAlign: 'center',
+    fontSize: 9.5,
+    lineHeight: 14,
+    color: COLORS.textMuted,
+  },
+
   jobsList: {
     gap: 10,
     marginBottom: 10,
