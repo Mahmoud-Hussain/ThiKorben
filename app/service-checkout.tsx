@@ -1,56 +1,58 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
-  Animated,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { formatShopMoney, getDetailedCartItems } from '@/constants/shop-data';
 
 import {
-  getServiceCostSummary,
-  ServiceCostSummary,
-} from '@/constants/service-cost';
-
+  getServiceRequest,
+  getServiceRequestProposals,
+} from '@/features/community/community.service';
+import type {
+  CommunityProposal,
+  CommunityRequest,
+} from '@/features/community/types';
 import {
-  getAcceptedProposal,
-  getSelectedJob,
-  ServiceOrder,
-  submitServiceOrder,
-  useMarketplaceVersion,
-} from '@/constants/community-marketplace';
+  getCatalog,
+  getJobMaterials,
+} from '@/features/materials/materials.service';
+import type {
+  JobMaterialRequest,
+  ServiceProduct,
+} from '@/features/materials/types';
+import {
+  loadServiceOrder,
+  placeServiceOrder,
+} from '@/features/orders/order.service';
+import type {
+  PaymentMethod,
+  ServiceOrderRecord,
+} from '@/features/orders/types';
 
-const COLORS = {
+const C = {
   orange: '#FF7315',
   orangeDark: '#E85D04',
   orangeSoft: '#FFF4EA',
-
   purple: '#4338A8',
   purpleDark: '#2F2877',
   purpleSoft: '#EFEEFF',
-
   text: '#171927',
   muted: '#777C8E',
-
   background: '#F6F7FB',
   card: '#FFFFFF',
   border: '#E7E9F0',
-
   success: '#16A760',
   successSoft: '#ECFDF3',
-
-  warning: '#F5A300',
   warningSoft: '#FFF8E7',
 };
-
-type PaymentMethod = 'bkash' | 'card' | 'cash';
 
 const PAYMENT_METHODS: {
   id: PaymentMethod;
@@ -61,17 +63,15 @@ const PAYMENT_METHODS: {
   {
     id: 'bkash',
     title: 'bKash',
-    subtitle: 'Mobile payment',
+    subtitle: 'Presentation payment choice',
     icon: 'phone-portrait-outline',
   },
-
   {
     id: 'card',
     title: 'Card',
-    subtitle: 'Debit or credit card',
+    subtitle: 'Presentation payment choice',
     icon: 'card-outline',
   },
-
   {
     id: 'cash',
     title: 'Cash',
@@ -80,524 +80,526 @@ const PAYMENT_METHODS: {
   },
 ];
 
+function money(value: number) {
+  return `৳${Number(value).toLocaleString()}`;
+}
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : 'Something went wrong.';
+}
+
 export default function ServiceCheckoutScreen() {
-  useMarketplaceVersion();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ requestId?: string }>();
 
-  const job = getSelectedJob();
-
-  const accepted = job ? getAcceptedProposal(job.id) : undefined;
-
-  const [items, setItems] = useState(getDetailedCartItems());
-
-  const [cost, setCost] = useState<ServiceCostSummary>(getServiceCostSummary());
-
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bkash');
-
+  const [request, setRequest] = useState<CommunityRequest | null>(null);
+  const [accepted, setAccepted] = useState<CommunityProposal | null>(null);
+  const [materials, setMaterials] = useState<JobMaterialRequest[]>([]);
+  const [products, setProducts] = useState<ServiceProduct[]>([]);
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>('bkash');
+  const [existingOrder, setExistingOrder] =
+    useState<ServiceOrderRecord | null>(null);
+  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [order, setOrder] = useState<ServiceOrder | undefined>();
+  const hydrate = useCallback(async () => {
+    await Promise.resolve();
 
-  const [successScale] = useState(() => new Animated.Value(0.7));
-  const [successOpacity] = useState(() => new Animated.Value(0));
-
-  useFocusEffect(
-    useCallback(() => {
-      setItems(getDetailedCartItems());
-
-      setCost(getServiceCostSummary());
-    }, []),
-  );
-
-  const placeOrder = () => {
-    if (!job || !accepted) {
-      Alert.alert(
-        'Worker required',
-        'Please accept a worker proposal before placing the final service order.',
-      );
-
+    if (!params.requestId) {
+      setError('Open checkout from an assigned service request.');
+      setLoading(false);
       return;
     }
 
-    if (processing) {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const nextRequest = await getServiceRequest(params.requestId);
+      const [nextProposals, nextMaterials, nextProducts, order] =
+        await Promise.all([
+          getServiceRequestProposals(params.requestId),
+          getJobMaterials(params.requestId),
+          getCatalog(nextRequest.category),
+          loadServiceOrder(params.requestId),
+        ]);
+
+      setRequest(nextRequest);
+      setAccepted(
+        nextProposals.find(item => item.status === 'accepted') ?? null,
+      );
+      setMaterials(nextMaterials);
+      setProducts(nextProducts);
+      setExistingOrder(order);
+    } catch (loadError) {
+      setError(errorText(loadError));
+    } finally {
+      setLoading(false);
+    }
+  }, [params.requestId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void hydrate();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [hydrate]);
+
+  const productMap = useMemo(
+    () => new Map(products.map(item => [item.id, item])),
+    [products],
+  );
+
+  const approvedMaterials = useMemo(
+    () => materials.filter(item => item.status === 'approved'),
+    [materials],
+  );
+
+  const preview = useMemo(() => {
+    const labor = Number(accepted?.price_amount ?? 0);
+    const materialSubtotal = approvedMaterials.reduce(
+      (sum, item) =>
+        sum + Number(item.unit_price_snapshot) * item.quantity,
+      0,
+    );
+    const deliveryFee =
+      materialSubtotal === 0
+        ? 0
+        : materialSubtotal >= 1500
+          ? 0
+          : 80;
+    const shopFee = materialSubtotal > 0 ? 20 : 0;
+    const serviceFee = accepted ? 35 : 0;
+
+    return {
+      labor,
+      materialSubtotal,
+      deliveryFee,
+      shopFee,
+      serviceFee,
+      grandTotal:
+        labor +
+        materialSubtotal +
+        deliveryFee +
+        shopFee +
+        serviceFee,
+    };
+  }, [accepted, approvedMaterials]);
+
+  const order = existingOrder;
+
+  const submit = async () => {
+    if (!request || !accepted || processing) {
       return;
     }
 
     setProcessing(true);
 
-    setTimeout(() => {
-      const newOrder = submitServiceOrder({
+    try {
+      const created = await placeServiceOrder({
+        serviceRequestId: request.id,
         paymentMethod,
-
-        laborCost: cost.laborCost,
-
-        materialSubtotal: cost.materialSubtotal,
-
-        deliveryFee: cost.deliveryFee,
-
-        shopPlatformFee: cost.shopPlatformFee,
-
-        servicePlatformFee: cost.servicePlatformFee,
-
-        grandTotal: cost.grandTotal,
       });
 
+      setExistingOrder(created);
+    } catch (submitError) {
+      Alert.alert('Checkout failed', errorText(submitError));
+    } finally {
       setProcessing(false);
-
-      if (!newOrder) {
-        return;
-      }
-
-      setOrder(newOrder);
-
-      Animated.parallel([
-        Animated.spring(successScale, {
-          toValue: 1,
-          friction: 6,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-
-        Animated.timing(successOpacity, {
-          toValue: 1,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 650);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.purple} />
+          <Text style={styles.centerText}>Preparing service checkout…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !request || !accepted) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.center}>
+          <View style={styles.emptyIcon}>
+            <Ionicons
+              name="person-add-outline"
+              size={34}
+              color={C.purple}
+            />
+          </View>
+          <Text style={styles.centerTitle}>Checkout not ready</Text>
+          <Text style={styles.centerText}>
+            {error ??
+              'Accept a worker proposal before opening final checkout.'}
+          </Text>
+          <Pressable
+            style={styles.retryButton}
+            onPress={() => router.replace('/community')}
+          >
+            <Text style={styles.retryText}>Return to Community</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (order) {
     return (
-      <>
-        <Stack.Screen
-          options={{
-            headerShown: false,
-          }}
-        />
-
-        <SafeAreaView style={styles.screen}>
-          <View style={styles.appShell}>
-            <Animated.View
-              style={[
-                styles.successScreen,
-                {
-                  opacity: successOpacity,
-
-                  transform: [
-                    {
-                      scale: successScale,
-                    },
-                  ],
-                },
-              ]}
-            >
-              <View style={styles.successIconOuter}>
-                <View style={styles.successIconInner}>
-                  <Ionicons name="checkmark" size={43} color="#FFFFFF" />
-                </View>
-              </View>
-
-              <Text style={styles.successTitle}>Order Submitted</Text>
-
-              <Text style={styles.orderId}>{order.id}</Text>
-
-              <Text style={styles.successText}>
-                Your worker, service and required materials are now connected to
-                one ThiKorben order.
-              </Text>
-
-              <View style={styles.orderSummaryCard}>
-                <Text style={styles.orderJobTitle}>{order.jobTitle}</Text>
-
-                <Text style={styles.orderWorker}>
-                  Worker: {order.workerName}
-                </Text>
-
-                <View style={styles.summaryDivider} />
-
-                <SummaryRow label="Worker Labor" value={order.laborCost} />
-
-                <SummaryRow label="Materials" value={order.materialSubtotal} />
-
-                <SummaryRow label="Delivery" value={order.deliveryFee} />
-
-                <SummaryRow label="Shop Fee" value={order.shopPlatformFee} />
-
-                <SummaryRow
-                  label="Service Fee"
-                  value={order.servicePlatformFee}
-                />
-
-                <View style={styles.summaryDivider} />
-
-                <View style={styles.finalTotalRow}>
-                  <Text style={styles.finalTotalLabel}>Grand Total</Text>
-
-                  <Text style={styles.finalTotalValue}>
-                    {formatShopMoney(order.grandTotal)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.statusCard}>
-                <StatusLine text="Worker Assigned" />
-
-                <StatusLine text="Products Ordered" />
-
-                <StatusLine text="Service Scheduled" />
-              </View>
-
-              <View style={styles.demoNotice}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={16}
-                  color={COLORS.purple}
-                />
-
-                <Text style={styles.demoNoticeText}>
-                  Prototype order submission. No real financial transaction is
-                  processed.
-                </Text>
-              </View>
-
-              <Pressable
-                onPress={() => router.replace('/community')}
-                style={styles.primarySuccessButton}
-              >
-                <Ionicons name="people-outline" size={17} color="#FFFFFF" />
-
-                <Text style={styles.primarySuccessText}>Back to Community</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => router.replace('/job-chat')}
-                style={styles.secondarySuccessButton}
-              >
-                <Text style={styles.secondarySuccessText}>Open Job Chat</Text>
-              </Pressable>
-            </Animated.View>
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
-
-  if (!job || !accepted) {
-    return (
-      <>
-        <Stack.Screen
-          options={{
-            headerShown: false,
-          }}
-        />
-
-        <SafeAreaView style={styles.screen}>
-          <View style={styles.appShell}>
-            <View style={styles.notReadyScreen}>
-              <View style={styles.notReadyIcon}>
-                <Ionicons
-                  name="person-add-outline"
-                  size={34}
-                  color={COLORS.purple}
-                />
-              </View>
-
-              <Text style={styles.notReadyTitle}>Select a Worker First</Text>
-
-              <Text style={styles.notReadyText}>
-                Final billing requires an accepted worker proposal so ThiKorben
-                can combine labor and material costs.
-              </Text>
-
-              <Pressable
-                onPress={() => router.replace('/community')}
-                style={styles.notReadyButton}
-              >
-                <Text style={styles.notReadyButtonText}>
-                  Return to Community
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-
-      <SafeAreaView style={styles.screen} edges={['top']}>
+      <SafeAreaView style={styles.screen}>
         <View style={styles.appShell}>
-          <View style={styles.header}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.headerButton}
-            >
-              <Ionicons name="arrow-back" size={20} color={COLORS.text} />
-            </Pressable>
-
-            <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>Final Checkout</Text>
-
-              <Text style={styles.headerSubtitle}>Full service billing</Text>
-            </View>
-
-            <View style={styles.secureHeader}>
-              <Ionicons
-                name="shield-checkmark"
-                size={18}
-                color={COLORS.success}
-              />
-            </View>
-          </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            <View style={styles.heroCard}>
-              <Text style={styles.heroLabel}>COMPLETE SERVICE TOTAL</Text>
-
-              <Text style={styles.heroTitle}>{job.title}</Text>
-
-              <View style={styles.heroBottom}>
-                <View>
-                  <Text style={styles.heroWorker}>{accepted.workerName}</Text>
-
-                  <Text style={styles.heroWorkerSub}>Assigned worker</Text>
-                </View>
-
-                <Text style={styles.heroTotal}>
-                  {formatShopMoney(cost.grandTotal)}
-                </Text>
+          <View style={styles.successScreen}>
+            <View style={styles.successIconOuter}>
+              <View style={styles.successIconInner}>
+                <Ionicons name="checkmark" size={42} color="#fff" />
               </View>
             </View>
 
-            <SectionTitle
-              title="Purchased Materials"
-              right={`${items.length} products`}
-            />
+            <Text style={styles.successTitle}>Service Order Confirmed</Text>
+            <Text style={styles.orderId}>
+              TK-{order.id.slice(0, 8).toUpperCase()}
+            </Text>
+            <Text style={styles.successText}>
+              The customer, assigned worker, approved materials, and job
+              progress are now connected to one service order.
+            </Text>
 
-            {items.length === 0 ? (
-              <View style={styles.emptyMaterials}>
-                <Text style={styles.emptyMaterialsText}>
-                  No products added.
-                </Text>
+            <View style={styles.orderSummaryCard}>
+              <Text style={styles.orderJobTitle}>{request.title}</Text>
+              <Text style={styles.orderWorker}>
+                Accepted labor: {money(order.labor_cost)}
+              </Text>
 
-                <Pressable onPress={() => router.push('/shop')}>
-                  <Text style={styles.shopLink}>Open Shop</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.materialCard}>
-                {items.map(item => (
-                  <View key={item.productId} style={styles.materialRow}>
-                    <View style={styles.materialIcon}>
-                      <Ionicons
-                        name={item.product.icon}
-                        size={20}
-                        color={COLORS.purple}
-                      />
-                    </View>
+              <View style={styles.summaryDivider} />
 
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.materialName}>
-                        {item.product.name}
-                      </Text>
-
-                      <Text style={styles.materialQty}>
-                        Qty {item.quantity}
-                      </Text>
-                    </View>
-
-                    <Text style={styles.materialPrice}>
-                      {formatShopMoney(item.lineTotal)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <SectionTitle title="Full Cost Breakdown" right="Transparent" />
-
-            <View style={styles.costCard}>
-              <CostRow
-                icon="construct-outline"
-                label="Worker Labor"
-                subtitle="Accepted proposal"
-                value={cost.laborCost}
+              <SummaryRow label="Worker Labor" value={order.labor_cost} />
+              <SummaryRow
+                label="Approved Materials"
+                value={order.material_subtotal}
               />
-
-              <CostRow
-                icon="cube-outline"
-                label="Materials"
-                subtitle="ThiKorben Shop"
-                value={cost.materialSubtotal}
+              <SummaryRow label="Delivery" value={order.delivery_fee} />
+              <SummaryRow
+                label="Shop Fee"
+                value={order.shop_platform_fee}
               />
-
-              <CostRow
-                icon="car-outline"
-                label="Material Delivery"
-                subtitle="Shop delivery"
-                value={cost.deliveryFee}
-                free={cost.deliveryFee === 0}
-              />
-
-              <CostRow
-                icon="bag-handle-outline"
-                label="Shop Processing Fee"
-                subtitle="Product support"
-                value={cost.shopPlatformFee}
-              />
-
-              <CostRow
-                icon="shield-checkmark-outline"
-                label="Service Platform Fee"
-                subtitle="Booking support"
-                value={cost.servicePlatformFee}
+              <SummaryRow
+                label="Service Fee"
+                value={order.service_platform_fee}
               />
 
               <View style={styles.summaryDivider} />
 
               <View style={styles.finalTotalRow}>
                 <Text style={styles.finalTotalLabel}>Grand Total</Text>
-
                 <Text style={styles.finalTotalValue}>
-                  {formatShopMoney(cost.grandTotal)}
+                  {money(order.grand_total)}
                 </Text>
               </View>
             </View>
 
-            <SectionTitle title="Payment Method" right="Demo" />
-
-            <View style={styles.paymentList}>
-              {PAYMENT_METHODS.map(item => {
-                const selected = paymentMethod === item.id;
-
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => setPaymentMethod(item.id)}
-                    style={[
-                      styles.paymentOption,
-                      selected && styles.paymentSelected,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.paymentIcon,
-                        selected && {
-                          backgroundColor: COLORS.purple,
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={item.icon}
-                        size={19}
-                        color={selected ? '#FFFFFF' : COLORS.purple}
-                      />
-                    </View>
-
-                    <View
-                      style={{
-                        flex: 1,
-                      }}
-                    >
-                      <Text style={styles.paymentTitle}>{item.title}</Text>
-
-                      <Text style={styles.paymentSub}>{item.subtitle}</Text>
-                    </View>
-
-                    <Ionicons
-                      name={selected ? 'radio-button-on' : 'radio-button-off'}
-                      size={20}
-                      color={selected ? COLORS.purple : '#C3C6D0'}
-                    />
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={styles.safeCard}>
-              <Ionicons name="eye-outline" size={18} color={COLORS.success} />
-
-              <Text style={styles.safeText}>
-                No hidden charges. Labor, products, delivery and platform fees
-                are shown separately.
-              </Text>
-            </View>
-          </ScrollView>
-
-          <View style={styles.bottomBar}>
-            <View>
-              <Text style={styles.bottomLabel}>Final Total</Text>
-
-              <Text style={styles.bottomTotal}>
-                {formatShopMoney(cost.grandTotal)}
+            <View style={styles.demoNotice}>
+              <Ionicons
+                name="information-circle-outline"
+                size={17}
+                color={C.purple}
+              />
+              <Text style={styles.demoNoticeText}>
+                The order record is real and shared through Supabase. No real
+                financial transaction is processed in presentation mode.
               </Text>
             </View>
 
             <Pressable
-              onPress={placeOrder}
-              disabled={processing}
-              style={[
-                styles.placeOrderButton,
-                processing && {
-                  opacity: 0.65,
-                },
-              ]}
+              style={styles.primarySuccessButton}
+              onPress={() =>
+                router.replace({
+                  pathname: '/track-worker',
+                  params: { requestId: request.id },
+                } as Href)
+              }
             >
-              <Ionicons
-                name={
-                  processing ? 'hourglass-outline' : 'checkmark-circle-outline'
-                }
-                size={17}
-                color="#FFFFFF"
-              />
-
-              <Text style={styles.placeOrderText}>
-                {processing ? 'Submitting...' : 'Place Service Order'}
+              <Ionicons name="navigate" size={17} color="#fff" />
+              <Text style={styles.primarySuccessText}>
+                Track Service Progress
               </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.secondarySuccessButton}
+              onPress={() =>
+                router.replace({
+                  pathname: '/job-chat',
+                  params: { requestId: request.id },
+                })
+              }
+            >
+              <Text style={styles.secondarySuccessText}>Open Job Chat</Text>
             </Pressable>
           </View>
         </View>
       </SafeAreaView>
-    </>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.appShell}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.headerButton}
+          >
+            <Ionicons name="arrow-back" size={20} color={C.text} />
+          </Pressable>
+
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Final Checkout</Text>
+            <Text style={styles.headerSubtitle}>Full service billing</Text>
+          </View>
+
+          <View style={styles.secureHeader}>
+            <Ionicons
+              name="shield-checkmark"
+              size={18}
+              color={C.success}
+            />
+          </View>
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.heroCard}>
+            <Text style={styles.heroLabel}>COMPLETE SERVICE TOTAL</Text>
+            <Text style={styles.heroTitle}>{request.title}</Text>
+
+            <View style={styles.heroBottom}>
+              <View>
+                <Text style={styles.heroWorker}>Assigned worker</Text>
+                <Text style={styles.heroWorkerSub}>
+                  Accepted proposal
+                </Text>
+              </View>
+
+              <Text style={styles.heroTotal}>
+                {money(preview.grandTotal)}
+              </Text>
+            </View>
+          </View>
+
+          <SectionTitle
+            title="Approved Materials"
+            right={`${approvedMaterials.length} items`}
+          />
+
+          {approvedMaterials.length === 0 ? (
+            <View style={styles.emptyMaterials}>
+              <Text style={styles.emptyMaterialsText}>
+                No approved worker materials for this job.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.materialCard}>
+              {approvedMaterials.map(item => (
+                <View key={item.id} style={styles.materialRow}>
+                  <View style={styles.materialIcon}>
+                    <Ionicons
+                      name="cube-outline"
+                      size={20}
+                      color={C.purple}
+                    />
+                  </View>
+
+                  <View style={styles.flex}>
+                    <Text style={styles.materialName}>
+                      {productMap.get(item.product_id)?.name ??
+                        'Approved material'}
+                    </Text>
+                    <Text style={styles.materialQty}>
+                      Qty {item.quantity}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.materialPrice}>
+                    {money(
+                      Number(item.unit_price_snapshot) * item.quantity,
+                    )}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <SectionTitle title="Full Cost Breakdown" right="Transparent" />
+
+          <View style={styles.costCard}>
+            <CostRow
+              icon="construct-outline"
+              label="Worker Labor"
+              subtitle="Accepted proposal"
+              value={preview.labor}
+            />
+            <CostRow
+              icon="cube-outline"
+              label="Materials"
+              subtitle="Customer-approved only"
+              value={preview.materialSubtotal}
+            />
+            <CostRow
+              icon="car-outline"
+              label="Material Delivery"
+              subtitle="Shop delivery"
+              value={preview.deliveryFee}
+              free={preview.deliveryFee === 0}
+            />
+            <CostRow
+              icon="bag-handle-outline"
+              label="Shop Processing Fee"
+              subtitle="Product support"
+              value={preview.shopFee}
+            />
+            <CostRow
+              icon="shield-checkmark-outline"
+              label="Service Platform Fee"
+              subtitle="Booking support"
+              value={preview.serviceFee}
+            />
+
+            <View style={styles.summaryDivider} />
+
+            <View style={styles.finalTotalRow}>
+              <Text style={styles.finalTotalLabel}>Grand Total</Text>
+              <Text style={styles.finalTotalValue}>
+                {money(preview.grandTotal)}
+              </Text>
+            </View>
+          </View>
+
+          <SectionTitle title="Payment Method" right="Presentation" />
+
+          <View style={styles.paymentList}>
+            {PAYMENT_METHODS.map(item => {
+              const selected = paymentMethod === item.id;
+
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setPaymentMethod(item.id)}
+                  style={[
+                    styles.paymentOption,
+                    selected && styles.paymentSelected,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.paymentIcon,
+                      selected && styles.paymentIconSelected,
+                    ]}
+                  >
+                    <Ionicons
+                      name={item.icon}
+                      size={19}
+                      color={selected ? '#fff' : C.purple}
+                    />
+                  </View>
+
+                  <View style={styles.flex}>
+                    <Text style={styles.paymentTitle}>{item.title}</Text>
+                    <Text style={styles.paymentSub}>{item.subtitle}</Text>
+                  </View>
+
+                  <Ionicons
+                    name={
+                      selected
+                        ? 'radio-button-on'
+                        : 'radio-button-off'
+                    }
+                    size={20}
+                    color={selected ? C.purple : '#C3C6D0'}
+                  />
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.safeCard}>
+            <Ionicons name="eye-outline" size={18} color={C.success} />
+            <Text style={styles.safeText}>
+              The backend recalculates labor and approved-material totals when
+              you confirm. Client values are never trusted for the final order.
+            </Text>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomBar}>
+          <View>
+            <Text style={styles.bottomLabel}>Final Total</Text>
+            <Text style={styles.bottomTotal}>
+              {money(preview.grandTotal)}
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => void submit()}
+            disabled={processing}
+            style={[
+              styles.placeOrderButton,
+              processing && styles.disabled,
+            ]}
+          >
+            {processing ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={17}
+                color="#fff"
+              />
+            )}
+
+            <Text style={styles.placeOrderText}>
+              {processing ? 'Confirming…' : 'Confirm Service Order'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-function SectionTitle({ title, right }: { title: string; right: string }) {
+function SectionTitle({
+  title,
+  right,
+}: {
+  title: string;
+  right: string;
+}) {
   return (
     <View style={styles.sectionHeading}>
       <Text style={styles.sectionTitle}>{title}</Text>
-
       <Text style={styles.sectionRight}>{right}</Text>
     </View>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: number }) {
+function SummaryRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
   return (
     <View style={styles.simpleRow}>
       <Text style={styles.simpleLabel}>{label}</Text>
-
-      <Text style={styles.simpleValue}>{formatShopMoney(value)}</Text>
-    </View>
-  );
-}
-
-function StatusLine({ text }: { text: string }) {
-  return (
-    <View style={styles.statusLine}>
-      <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-
-      <Text style={styles.statusLineText}>{text}</Text>
+      <Text style={styles.simpleValue}>{money(value)}</Text>
     </View>
   );
 }
@@ -618,43 +620,36 @@ function CostRow({
   return (
     <View style={styles.costRow}>
       <View style={styles.costIcon}>
-        <Ionicons name={icon} size={15} color={COLORS.purple} />
+        <Ionicons name={icon} size={15} color={C.purple} />
       </View>
 
-      <View style={{ flex: 1 }}>
+      <View style={styles.flex}>
         <Text style={styles.costLabel}>{label}</Text>
-
         <Text style={styles.costSubtitle}>{subtitle}</Text>
       </View>
 
       <Text
         style={[
           styles.costValue,
-          free && {
-            color: COLORS.success,
-          },
+          free && styles.freeValue,
         ]}
       >
-        {free ? 'FREE' : formatShopMoney(value)}
+        {free ? 'FREE' : money(value)}
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#E9ECF3',
-  },
-
+  flex: { flex: 1 },
+  screen: { flex: 1, backgroundColor: '#E9ECF3' },
   appShell: {
     flex: 1,
     width: '100%',
     maxWidth: 480,
     alignSelf: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: C.background,
   },
-
   header: {
     height: 62,
     paddingHorizontal: 11,
@@ -662,67 +657,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderBottomColor: C.border,
+    backgroundColor: C.card,
   },
-
   headerButton: {
     width: 39,
     height: 39,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  headerCenter: {
-    alignItems: 'center',
-  },
-
-  headerTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  headerSubtitle: {
-    marginTop: 2,
-    fontSize: 7,
-    color: COLORS.muted,
-  },
-
+  headerCenter: { alignItems: 'center' },
+  headerTitle: { fontSize: 12, fontWeight: '900', color: C.text },
+  headerSubtitle: { marginTop: 2, fontSize: 7, color: C.muted },
   secureHeader: {
     width: 39,
     height: 39,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: COLORS.successSoft,
+    backgroundColor: C.successSoft,
   },
-
-  scrollContent: {
-    padding: 13,
-    paddingBottom: 110,
-  },
-
+  scrollContent: { padding: 13, paddingBottom: 110 },
   heroCard: {
     padding: 14,
     borderRadius: 17,
-    backgroundColor: COLORS.purple,
+    backgroundColor: C.purple,
   },
-
   heroLabel: {
     fontSize: 6.5,
     fontWeight: '900',
     letterSpacing: 0.7,
     color: '#DCD9FF',
   },
-
   heroTitle: {
     marginTop: 4,
     fontSize: 15,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#fff',
   },
-
   heroBottom: {
     marginTop: 14,
     paddingTop: 11,
@@ -732,25 +704,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.17)',
   },
-
-  heroWorker: {
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
-  heroWorkerSub: {
-    marginTop: 2,
-    fontSize: 6,
-    color: '#C9C5E8',
-  },
-
-  heroTotal: {
-    fontSize: 23,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
+  heroWorker: { fontSize: 8.5, fontWeight: '900', color: '#fff' },
+  heroWorkerSub: { marginTop: 2, fontSize: 6, color: '#C9C5E8' },
+  heroTotal: { fontSize: 23, fontWeight: '900', color: '#fff' },
   sectionHeading: {
     marginTop: 17,
     marginBottom: 8,
@@ -758,208 +714,123 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: COLORS.text,
+  sectionTitle: { fontSize: 12, fontWeight: '900', color: C.text },
+  sectionRight: { fontSize: 6.8, color: C.muted },
+  emptyMaterials: {
+    padding: 13,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 14,
+    backgroundColor: C.card,
   },
-
-  sectionRight: {
-    fontSize: 6.8,
-    color: COLORS.muted,
-  },
-
+  emptyMaterialsText: { fontSize: 9, color: C.muted },
   materialCard: {
     padding: 10,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 15,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
   },
-
   materialRow: {
     minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-
   materialIcon: {
-    width: 40,
-    height: 40,
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36,
+    height: 36,
     borderRadius: 11,
-    backgroundColor: COLORS.purpleSoft,
-  },
-
-  materialName: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  materialQty: {
-    marginTop: 2,
-    fontSize: 6.5,
-    color: COLORS.muted,
-  },
-
-  materialPrice: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: COLORS.orangeDark,
-  },
-
-  emptyMaterials: {
-    padding: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 13,
-    backgroundColor: COLORS.card,
-  },
-
-  emptyMaterialsText: {
-    fontSize: 8,
-    color: COLORS.muted,
-  },
-
-  shopLink: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.purple,
-  },
-
-  costCard: {
-    padding: 11,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 15,
-    backgroundColor: COLORS.card,
-  },
-
-  costRow: {
-    minHeight: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  costIcon: {
-    width: 33,
-    height: 33,
-    marginRight: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: C.purpleSoft,
+  },
+  materialName: { fontSize: 9.5, fontWeight: '800', color: C.text },
+  materialQty: { marginTop: 2, fontSize: 7.5, color: C.muted },
+  materialPrice: { fontSize: 9.5, fontWeight: '900', color: C.orange },
+  costCard: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 15,
+    backgroundColor: C.card,
+  },
+  costRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  costIcon: {
+    width: 31,
+    height: 31,
     borderRadius: 10,
-    backgroundColor: COLORS.purpleSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.purpleSoft,
   },
-
-  costLabel: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  costSubtitle: {
-    marginTop: 2,
-    fontSize: 6,
-    color: COLORS.muted,
-  },
-
-  costValue: {
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
+  costLabel: { fontSize: 9.5, fontWeight: '800', color: C.text },
+  costSubtitle: { marginTop: 1, fontSize: 7, color: C.muted },
+  costValue: { fontSize: 9.5, fontWeight: '900', color: C.text },
+  freeValue: { color: C.success },
   summaryDivider: {
     height: 1,
     marginVertical: 8,
-    backgroundColor: COLORS.border,
+    backgroundColor: C.border,
   },
-
   finalTotalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
-  finalTotalLabel: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  finalTotalValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: COLORS.orangeDark,
-  },
-
-  paymentList: {
-    gap: 7,
-  },
-
+  finalTotalLabel: { fontSize: 11, fontWeight: '900', color: C.text },
+  finalTotalValue: { fontSize: 15, fontWeight: '900', color: C.orange },
+  paymentList: { gap: 8 },
   paymentOption: {
-    minHeight: 61,
-    padding: 9,
+    minHeight: 58,
+    paddingHorizontal: 11,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 9,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 13,
-    backgroundColor: COLORS.card,
+    borderColor: C.border,
+    borderRadius: 14,
+    backgroundColor: C.card,
   },
-
   paymentSelected: {
-    borderColor: COLORS.purple,
+    borderColor: C.purple,
+    backgroundColor: '#FAF9FF',
   },
-
   paymentIcon: {
-    width: 38,
-    height: 38,
-    marginRight: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 11,
-    backgroundColor: COLORS.purpleSoft,
+    backgroundColor: C.purpleSoft,
   },
-
-  paymentTitle: {
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  paymentSub: {
-    marginTop: 2,
-    fontSize: 6.5,
-    color: COLORS.muted,
-  },
-
+  paymentIconSelected: { backgroundColor: C.purple },
+  paymentTitle: { fontSize: 9.5, fontWeight: '900', color: C.text },
+  paymentSub: { marginTop: 2, fontSize: 7.3, color: C.muted },
   safeCard: {
     marginTop: 13,
-    padding: 10,
+    padding: 11,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 7,
     borderRadius: 13,
-    backgroundColor: COLORS.successSoft,
+    backgroundColor: C.successSoft,
   },
-
   safeText: {
     flex: 1,
-    fontSize: 6.8,
-    lineHeight: 10,
+    fontSize: 8,
+    lineHeight: 12,
     color: '#648A75',
   },
-
   bottomBar: {
     minHeight: 80,
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     position: 'absolute',
     left: 0,
     right: 0,
@@ -968,250 +839,160 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderTopColor: C.border,
+    backgroundColor: C.card,
   },
-
-  bottomLabel: {
-    fontSize: 6.5,
-    color: COLORS.muted,
-  },
-
+  bottomLabel: { fontSize: 7, color: C.muted },
   bottomTotal: {
     marginTop: 2,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
-    color: COLORS.text,
+    color: C.text,
   },
-
   placeOrderButton: {
-    minWidth: 175,
-    minHeight: 46,
-    paddingHorizontal: 11,
+    minHeight: 44,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: C.orange,
+  },
+  placeOrderText: { fontSize: 9.5, fontWeight: '900', color: '#fff' },
+  disabled: { opacity: 0.6 },
+  center: {
+    flex: 1,
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerTitle: { marginTop: 10, fontSize: 15, fontWeight: '900', color: C.text },
+  centerText: {
+    marginTop: 7,
+    maxWidth: 330,
+    textAlign: 'center',
+    fontSize: 10.5,
+    lineHeight: 16,
+    color: C.muted,
+  },
+  emptyIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.purpleSoft,
+  },
+  retryButton: {
+    marginTop: 14,
+    paddingHorizontal: 17,
+    paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: COLORS.orange,
+    backgroundColor: C.purple,
   },
-
-  placeOrderText: {
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
+  retryText: { fontSize: 10, fontWeight: '900', color: '#fff' },
   successScreen: {
     flex: 1,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   successIconOuter: {
-    width: 105,
-    height: 105,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 36,
-    backgroundColor: COLORS.successSoft,
+    backgroundColor: C.successSoft,
   },
-
   successIconInner: {
-    width: 69,
-    height: 69,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 23,
-    backgroundColor: COLORS.success,
+    backgroundColor: C.success,
   },
-
   successTitle: {
     marginTop: 16,
     fontSize: 20,
     fontWeight: '900',
-    color: COLORS.text,
+    color: C.text,
   },
-
   orderId: {
     marginTop: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 999,
-    fontSize: 7,
+    fontSize: 9,
     fontWeight: '900',
-    color: COLORS.purple,
-    backgroundColor: COLORS.purpleSoft,
+    letterSpacing: 0.6,
+    color: C.purple,
   },
-
   successText: {
-    maxWidth: 300,
-    marginTop: 7,
+    marginTop: 8,
+    maxWidth: 360,
     textAlign: 'center',
-    fontSize: 8,
-    lineHeight: 12,
-    color: COLORS.muted,
+    fontSize: 10.5,
+    lineHeight: 16,
+    color: C.muted,
   },
-
   orderSummaryCard: {
     width: '100%',
-    marginTop: 15,
-    padding: 13,
+    marginTop: 18,
+    padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 15,
-    backgroundColor: COLORS.card,
+    borderColor: C.border,
+    borderRadius: 16,
+    backgroundColor: C.card,
   },
-
-  orderJobTitle: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  orderWorker: {
-    marginTop: 3,
-    fontSize: 7,
-    color: COLORS.muted,
-  },
-
+  orderJobTitle: { fontSize: 11.5, fontWeight: '900', color: C.text },
+  orderWorker: { marginTop: 3, fontSize: 8.5, color: C.muted },
   simpleRow: {
-    minHeight: 26,
+    minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
-  simpleLabel: {
-    fontSize: 7,
-    color: COLORS.muted,
-  },
-
-  simpleValue: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  statusCard: {
-    width: '100%',
-    marginTop: 10,
-    padding: 10,
-    gap: 7,
-    borderRadius: 13,
-    backgroundColor: COLORS.successSoft,
-  },
-
-  statusLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-
-  statusLineText: {
-    fontSize: 7.5,
-    fontWeight: '800',
-    color: '#39705A',
-  },
-
+  simpleLabel: { fontSize: 8.5, color: C.muted },
+  simpleValue: { fontSize: 8.5, fontWeight: '900', color: C.text },
   demoNotice: {
     width: '100%',
-    marginTop: 9,
-    padding: 9,
+    marginTop: 12,
+    padding: 11,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    borderRadius: 11,
-    backgroundColor: COLORS.warningSoft,
+    gap: 7,
+    borderRadius: 13,
+    backgroundColor: C.warningSoft,
   },
-
   demoNoticeText: {
     flex: 1,
-    fontSize: 6.3,
-    lineHeight: 10,
-    color: '#75694C',
+    fontSize: 8,
+    lineHeight: 12,
+    color: C.muted,
   },
-
   primarySuccessButton: {
     width: '100%',
     minHeight: 46,
-    marginTop: 12,
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: 12,
-    backgroundColor: COLORS.purple,
+    borderRadius: 999,
+    backgroundColor: C.orange,
   },
-
-  primarySuccessText: {
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
+  primarySuccessText: { fontSize: 10, fontWeight: '900', color: '#fff' },
   secondarySuccessButton: {
     width: '100%',
-    minHeight: 42,
-    marginTop: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: COLORS.purpleSoft,
-  },
-
-  secondarySuccessText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.purple,
-  },
-
-  notReadyScreen: {
-    flex: 1,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  notReadyIcon: {
-    width: 80,
-    height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 27,
-    backgroundColor: COLORS.purpleSoft,
-  },
-
-  notReadyTitle: {
-    marginTop: 14,
-    fontSize: 16,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  notReadyText: {
-    maxWidth: 300,
-    marginTop: 6,
-    textAlign: 'center',
-    fontSize: 8,
-    lineHeight: 12,
-    color: COLORS.muted,
-  },
-
-  notReadyButton: {
     minHeight: 44,
-    marginTop: 14,
-    paddingHorizontal: 18,
+    marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: COLORS.purple,
+    borderRadius: 999,
+    backgroundColor: C.purpleSoft,
   },
-
-  notReadyButtonText: {
-    fontSize: 8,
+  secondarySuccessText: {
+    fontSize: 10,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: C.purple,
   },
 });
