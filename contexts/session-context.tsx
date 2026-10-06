@@ -15,6 +15,8 @@ import {
   logoutAllDevices,
   logoutCurrentDevice,
   registerAsWorker,
+  saveCustomerProfile as saveCustomerProfileService,
+  saveWorkerProfile as saveWorkerProfileService,
   switchActiveRole,
   updateMyProfile,
 } from '@/features/auth/auth.service';
@@ -23,30 +25,16 @@ import type {
   AppProfile,
   AppRole,
   AuthIdentity,
+  CustomerProfileRecord,
+  SaveCustomerProfileInput,
+  SaveWorkerProfileInput,
   UpdateMyProfileInput,
+  WorkerProfileRecord,
 } from '@/features/auth/types';
 
 import { supabase } from '@/lib/supabase';
 
 export type { AppRole };
-
-export interface CustomerProfile {
-  name: string;
-  phone: string;
-  location: string;
-  emergencyContact: string;
-  avatar?: string | null;
-}
-
-export interface WorkerProfile {
-  name: string;
-  phone: string;
-  trade: string;
-  experience: string;
-  desiredRate: string;
-  serviceRadius: number;
-  avatar?: string | null;
-}
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'error';
 
@@ -58,68 +46,32 @@ interface AuthState {
 
 interface SessionContextValue {
   status: AuthStatus;
-
   isBootstrapping: boolean;
   isAuthenticated: boolean;
-
   session: Session | null;
   user: User | null;
-
   profile: AppProfile | null;
   roles: AppRole[];
-
   role: AppRole | null;
-
+  customerProfile: CustomerProfileRecord | null;
+  workerProfile: WorkerProfileRecord | null;
   authError: string | null;
-
   refreshAuth: () => Promise<void>;
-
   setRole: (role: AppRole | null) => Promise<void>;
-
   registerWorker: () => Promise<void>;
-
   updatePublicProfile: (input: UpdateMyProfileInput) => Promise<AppProfile>;
-
+  saveCustomerProfile: (
+    input: SaveCustomerProfileInput,
+  ) => Promise<CustomerProfileRecord>;
+  saveWorkerProfile: (
+    input: SaveWorkerProfileInput,
+  ) => Promise<WorkerProfileRecord>;
   logout: () => Promise<void>;
-
   logoutEverywhere: () => Promise<void>;
-
-  customerProfile: CustomerProfile;
-
-  setCustomerProfile: React.Dispatch<React.SetStateAction<CustomerProfile>>;
-
-  updateCustomerProfile: (updates: Partial<CustomerProfile>) => void;
-
-  workerProfile: WorkerProfile;
-
-  setWorkerProfile: React.Dispatch<React.SetStateAction<WorkerProfile>>;
-
-  updateWorkerProfile: (updates: Partial<WorkerProfile>) => void;
-
   clearSession: () => Promise<void>;
-
   isLogoutModalVisible: boolean;
-
   setLogoutModalVisible: (visible: boolean) => void;
 }
-
-const EMPTY_CUSTOMER_PROFILE: CustomerProfile = {
-  name: '',
-  phone: '',
-  location: '',
-  emergencyContact: '',
-  avatar: null,
-};
-
-const EMPTY_WORKER_PROFILE: WorkerProfile = {
-  name: '',
-  phone: '',
-  trade: '',
-  experience: '',
-  desiredRate: '',
-  serviceRadius: 5,
-  avatar: null,
-};
 
 const SessionContext = createContext<SessionContextValue | undefined>(
   undefined,
@@ -140,38 +92,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     error: null,
   });
 
-  /*
-   * These temporary UI models are kept for compatibility
-   * with the existing profile screens.
-   *
-   * They are NOT the authorization source of truth.
-   *
-   * Authentication and role authorization come exclusively
-   * from Supabase Auth + profiles + user_roles.
-   */
-  const [customerProfile, setCustomerProfile] = useState<CustomerProfile>(
-    EMPTY_CUSTOMER_PROFILE,
-  );
-
-  const [workerProfile, setWorkerProfile] =
-    useState<WorkerProfile>(EMPTY_WORKER_PROFILE);
-
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
-
-  /*
-   * Prevent an older authentication request from replacing
-   * newer session state.
-   *
-   * Example:
-   *
-   * session A hydration starts
-   *        ↓
-   * user logs out
-   *        ↓
-   * old session A request finishes
-   *        ↓
-   * ignored
-   */
   const authRequestIdRef = useRef(0);
 
   const applyIdentity = useCallback(
@@ -195,23 +116,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         identity,
         error: null,
       });
-
-      /*
-       * Keep legacy profile screens visually aligned with
-       * the authenticated public profile while they are being
-       * migrated to their dedicated database-backed models.
-       */
-      setCustomerProfile(current => ({
-        ...current,
-        name: identity.profile.display_name || current.name,
-        avatar: identity.profile.avatar_path ?? current.avatar,
-      }));
-
-      setWorkerProfile(current => ({
-        ...current,
-        name: identity.profile.display_name || current.name,
-        avatar: identity.profile.avatar_path ?? current.avatar,
-      }));
     },
     [],
   );
@@ -229,9 +133,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         setAuthState(current => ({
           status: current.identity ? 'authenticated' : 'error',
-
           identity: current.identity,
-
           error: getErrorMessage(error),
         }));
       }
@@ -249,10 +151,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      /*
-       * SIGNED_OUT must invalidate every in-flight
-       * identity request immediately.
-       */
       if (event === 'SIGNED_OUT' || !session) {
         authRequestIdRef.current += 1;
 
@@ -265,11 +163,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      /*
-       * Token refresh does not require another profile
-       * database round trip when identity is already
-       * hydrated.
-       */
       if (event === 'TOKEN_REFRESHED') {
         setAuthState(current => {
           if (!current.identity) {
@@ -278,7 +171,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
           return {
             ...current,
-
             identity: {
               ...current.identity,
               session,
@@ -292,11 +184,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       const requestId = ++authRequestIdRef.current;
 
-      /*
-       * Supabase recommends keeping the auth callback
-       * lightweight. Hydration is deferred outside the
-       * callback's synchronous execution.
-       */
       setTimeout(() => {
         if (!isActive || requestId !== authRequestIdRef.current) {
           return;
@@ -308,9 +195,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isActive = false;
-
       authRequestIdRef.current += 1;
-
       subscription.unsubscribe();
     };
   }, [hydrateAuthenticatedUser]);
@@ -331,15 +216,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       return {
         status: 'authenticated',
-
         identity: {
           ...current.identity,
-
           profile: result.profile,
-
           roles: result.roles,
         },
-
         error: null,
       };
     });
@@ -357,11 +238,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Authentication required.');
       }
 
-      /*
-       * A customer choosing Worker for the first time
-       * receives the worker capability through the
-       * controlled database RPC.
-       */
       if (nextRole === 'worker' && !identity.roles.includes('worker')) {
         const result = await registerAsWorker();
 
@@ -372,15 +248,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
           return {
             status: 'authenticated',
-
             identity: {
               ...current.identity,
-
               profile: result.profile,
-
               roles: result.roles,
             },
-
             error: null,
           };
         });
@@ -397,12 +269,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         return {
           status: 'authenticated',
-
           identity: {
             ...current.identity,
             profile,
           },
-
           error: null,
         };
       });
@@ -421,44 +291,68 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         return {
           status: 'authenticated',
-
           identity: {
             ...current.identity,
             profile,
           },
-
           error: null,
         };
       });
-
-      setCustomerProfile(current => ({
-        ...current,
-
-        name: profile.display_name,
-
-        avatar: profile.avatar_path,
-      }));
-
-      setWorkerProfile(current => ({
-        ...current,
-
-        name: profile.display_name,
-
-        avatar: profile.avatar_path,
-      }));
 
       return profile;
     },
     [],
   );
 
-  const resetLocalUiState = useCallback(() => {
-    setCustomerProfile(EMPTY_CUSTOMER_PROFILE);
+  const saveCustomerProfile = useCallback(
+    async (input: SaveCustomerProfileInput) => {
+      const result = await saveCustomerProfileService(input);
 
-    setWorkerProfile(EMPTY_WORKER_PROFILE);
+      setAuthState(current => {
+        if (!current.identity) {
+          return current;
+        }
 
-    setLogoutModalVisible(false);
-  }, []);
+        return {
+          status: 'authenticated',
+          identity: {
+            ...current.identity,
+            profile: result.profile,
+            customerProfile: result.customerProfile,
+          },
+          error: null,
+        };
+      });
+
+      return result.customerProfile;
+    },
+    [],
+  );
+
+  const saveWorkerProfile = useCallback(
+    async (input: SaveWorkerProfileInput) => {
+      const result = await saveWorkerProfileService(input);
+
+      setAuthState(current => {
+        if (!current.identity) {
+          return current;
+        }
+
+        return {
+          status: 'authenticated',
+          identity: {
+            ...current.identity,
+            profile: result.profile,
+            workerProfile: result.workerProfile,
+          },
+          error: null,
+        };
+      });
+
+      return result.workerProfile;
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     authRequestIdRef.current += 1;
@@ -471,8 +365,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       error: null,
     });
 
-    resetLocalUiState();
-  }, [resetLocalUiState]);
+    setLogoutModalVisible(false);
+  }, []);
 
   const logoutEverywhere = useCallback(async () => {
     authRequestIdRef.current += 1;
@@ -485,26 +379,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       error: null,
     });
 
-    resetLocalUiState();
-  }, [resetLocalUiState]);
-
-  const clearSession = logout;
-
-  const updateCustomerProfile = useCallback(
-    (updates: Partial<CustomerProfile>) => {
-      setCustomerProfile(current => ({
-        ...current,
-        ...updates,
-      }));
-    },
-    [],
-  );
-
-  const updateWorkerProfile = useCallback((updates: Partial<WorkerProfile>) => {
-    setWorkerProfile(current => ({
-      ...current,
-      ...updates,
-    }));
+    setLogoutModalVisible(false);
   }, []);
 
   const identity = authState.identity;
@@ -512,69 +387,41 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<SessionContextValue>(
     () => ({
       status: authState.status,
-
       isBootstrapping: authState.status === 'loading',
-
       isAuthenticated: authState.status === 'authenticated',
-
       session: identity?.session ?? null,
-
       user: identity?.user ?? null,
-
       profile: identity?.profile ?? null,
-
       roles: identity?.roles ?? [],
-
       role: identity?.profile.active_role ?? null,
-
+      customerProfile: identity?.customerProfile ?? null,
+      workerProfile: identity?.workerProfile ?? null,
       authError: authState.error,
-
       refreshAuth,
-
       setRole,
-
       registerWorker,
-
       updatePublicProfile,
-
+      saveCustomerProfile,
+      saveWorkerProfile,
       logout,
-
       logoutEverywhere,
-
-      customerProfile,
-
-      setCustomerProfile,
-
-      updateCustomerProfile,
-
-      workerProfile,
-
-      setWorkerProfile,
-
-      updateWorkerProfile,
-
-      clearSession,
-
+      clearSession: logout,
       isLogoutModalVisible,
-
       setLogoutModalVisible,
     }),
     [
       authState.error,
       authState.status,
-      clearSession,
-      customerProfile,
       identity,
       isLogoutModalVisible,
       logout,
       logoutEverywhere,
       refreshAuth,
       registerWorker,
+      saveCustomerProfile,
+      saveWorkerProfile,
       setRole,
-      updateCustomerProfile,
       updatePublicProfile,
-      updateWorkerProfile,
-      workerProfile,
     ],
   );
 
