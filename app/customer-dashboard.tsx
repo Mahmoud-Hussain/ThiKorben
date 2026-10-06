@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
@@ -234,7 +234,7 @@ export default function CustomerDashboardScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.notificationBtn}
-              onPress={() => router.push('/notifications')}
+              onPress={() => router.push('/notifications' as Href)}
               activeOpacity={0.8}>
               <Ionicons
                 name="notifications-outline"
@@ -373,7 +373,7 @@ export default function CustomerDashboardScreen() {
           <View style={styles.problemChoiceGrid}>
             <TouchableOpacity
               style={styles.problemChoiceCard}
-              onPress={() => router.push('/problem-intake')}
+              onPress={() => router.push('/problem-intake' as Href)}
               activeOpacity={0.88}>
               <View style={[styles.problemChoiceIcon, { backgroundColor: COLORS.primaryFixed }]}>
                 <Ionicons name="create-outline" size={22} color={COLORS.primary} />
@@ -386,7 +386,7 @@ export default function CustomerDashboardScreen() {
 
             <TouchableOpacity
               style={styles.problemChoiceCard}
-              onPress={() => router.push('/ai-assistant')}
+              onPress={() => router.push('/ai-assistant' as Href)}
               activeOpacity={0.88}>
               <View style={[styles.problemChoiceIcon, { backgroundColor: COLORS.secondaryFixed }]}>
                 <Ionicons name="sparkles" size={22} color={COLORS.accentOrange} />
