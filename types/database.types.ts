@@ -562,6 +562,13 @@ export type Database = {
           service_request_id: string
         }[]
       }
+      advance_service_request_status: {
+        Args: {
+          p_service_request_id: string
+          p_status: Database["public"]["Enums"]["service_request_status"]
+        }
+        Returns: Database["public"]["Enums"]["service_request_status"]
+      }
       cancel_service_request: {
         Args: { p_service_request_id: string }
         Returns: string
