@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   Modal,
   Platform,
@@ -19,6 +18,9 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
+import { useSession } from '@/contexts/session-context';
+import { useCommunityFeed } from '@/features/community/community.hooks';
+import type { CommunityCategory } from '@/features/community/types';
 
 const COLORS = {
   primary: '#15157d',
@@ -60,7 +62,7 @@ const STRINGS = {
     workerTitle: "I'm a Worker",
     workerDesc:
       'Find local jobs, build your reputation, and earn more on your schedule.',
-    verifiedWorkers: 'Verified Workers',
+    verifiedWorkers: 'Worker Profiles',
     localServices: 'Local Services',
     trustedRatings: 'Trusted Ratings',
     plumber: 'Plumber',
@@ -79,7 +81,7 @@ const STRINGS = {
     customerDesc: 'দৈনন্দিন বাসার কাজের জন্য দক্ষ ও যাচাইকৃত কর্মী খুঁজুন।',
     workerTitle: 'আমি একজন কারিগর / ওয়ার্কার',
     workerDesc: 'নতুন কাজের অর্ডার গ্রহণ করুন এবং আয় বৃদ্ধি করুন।',
-    verifiedWorkers: 'ভেরিফাইড কারিগর',
+    verifiedWorkers: 'ওয়ার্কার প্রোফাইল',
     localServices: 'স্থানীয় সেবা',
     trustedRatings: 'বিশ্বস্ত রেটিং',
     plumber: 'প্লাম্বার',
@@ -138,12 +140,45 @@ const PROS = [
 export default function CustomerDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useSession();
+
+  const {
+    items: serviceRequests,
+    isLoading: requestsLoading,
+  } = useCommunityFeed({
+    pageSize: 40,
+  });
   const [lang, setLang] = useState<'en' | 'bn'>('en');
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
 
   const t = STRINGS[lang];
+
+  const myRequests = useMemo(
+    () =>
+      serviceRequests.filter(
+        item => item.customer_id === user?.id,
+      ),
+    [serviceRequests, user?.id],
+  );
+
+  const activeRequest = useMemo(
+    () =>
+      myRequests.find(
+        item => item.status === 'ordered',
+      ) ??
+      myRequests.find(
+        item => item.status === 'assigned',
+      ) ??
+      null,
+    [myRequests],
+  );
+
+  const latestOpenRequest = useMemo(
+    () => myRequests.find(item => item.status === 'open') ?? null,
+    [myRequests],
+  );
 
   const filteredPros = PROS.filter((pro) => {
     const matchesCategory = !selectedService || pro.category === selectedService;
@@ -156,16 +191,27 @@ export default function CustomerDashboardScreen() {
 
   const handleBookEmergency = (serviceName: string) => {
     setEmergencyModalOpen(false);
-    Alert.alert(
-      'Emergency Dispatch Sent!',
-      `Searching nearest available worker for "${serviceName}" in Dhanmondi... Rahim has accepted!`,
-      [
-        {
-          text: 'Track Rahim Live',
-          onPress: () => router.push('/track-worker'),
-        },
-      ]
-    );
+
+    const normalized = serviceName.toLowerCase();
+
+    const category: CommunityCategory =
+      normalized.includes('electric')
+        ? 'electrical'
+        : normalized.includes('carpenter')
+          ? 'carpentry'
+          : normalized.includes('clean')
+            ? 'cleaning'
+            : 'plumbing';
+
+    router.push({
+      pathname: '/job-board',
+      params: {
+        mode: 'create',
+        title: `Urgent ${serviceName} service needed`,
+        category,
+        schedule: 'Urgent / as soon as possible',
+      },
+    });
   };
 
   return (
@@ -229,19 +275,72 @@ export default function CustomerDashboardScreen() {
         showsVerticalScrollIndicator={false}>
 
         {/* ── Active Live Tracking Floating Banner ── */}
-        <TouchableOpacity
-          style={styles.activeTrackingCard}
-          onPress={() => router.push('/track-worker')}
-          activeOpacity={0.9}>
-          <View style={styles.pulseDotWrapper}>
-            <View style={styles.pulseDot} />
+        {activeRequest ? (
+          <TouchableOpacity
+            style={styles.activeTrackingCard}
+            onPress={() =>
+              router.push({
+                pathname:
+                  activeRequest.status === 'ordered'
+                    ? '/track-worker'
+                    : '/job-details',
+                params: { requestId: activeRequest.id },
+              })
+            }
+            activeOpacity={0.9}>
+            <View style={styles.pulseDotWrapper}>
+              <View style={styles.pulseDot} />
+            </View>
+            <View style={styles.activeTrackingTextCol}>
+              <Text style={styles.activeTrackingTitle}>
+                {activeRequest.status === 'ordered'
+                  ? 'Your service is in progress'
+                  : 'Worker assigned to your request'}
+              </Text>
+              <Text style={styles.activeTrackingSub} numberOfLines={1}>
+                {activeRequest.title} • Tap to view live status
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward-circle"
+              size={24}
+              color={COLORS.accentOrange}
+            />
+          </TouchableOpacity>
+        ) : latestOpenRequest ? (
+          <TouchableOpacity
+            style={styles.activeTrackingCard}
+            onPress={() =>
+              router.push({
+                pathname: '/job-board',
+                params: {
+                  mode: 'detail',
+                  requestId: latestOpenRequest.id,
+                },
+              })
+            }
+            activeOpacity={0.9}>
+            <View style={styles.pulseDotWrapper}>
+              <View style={[styles.pulseDot, { backgroundColor: COLORS.primary }]} />
+            </View>
+            <View style={styles.activeTrackingTextCol}>
+              <Text style={styles.activeTrackingTitle}>Your request is live</Text>
+              <Text style={styles.activeTrackingSub} numberOfLines={1}>
+                {latestOpenRequest.title} • Waiting for worker proposals
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward-circle"
+              size={24}
+              color={COLORS.primary}
+            />
+          </TouchableOpacity>
+        ) : requestsLoading ? (
+          <View style={styles.requestSyncCard}>
+            <Ionicons name="sync-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.requestSyncText}>Syncing your service activity…</Text>
           </View>
-          <View style={styles.activeTrackingTextCol}>
-            <Text style={styles.activeTrackingTitle}>{t.activeTracking}</Text>
-            <Text style={styles.activeTrackingSub}>Tap to view live Leaflet map & status</Text>
-          </View>
-          <Ionicons name="chevron-forward-circle" size={24} color={COLORS.accentOrange} />
-        </TouchableOpacity>
+        ) : null}
 
         {/* ── Hero Section ── */}
         <View style={styles.heroSection}>
@@ -422,7 +521,7 @@ export default function CustomerDashboardScreen() {
             {/* Worker Card */}
             <TouchableOpacity
               style={styles.roleCard}
-              onPress={() => router.push('/worker-dashboard')}
+              onPress={() => router.push('/role-selection')}
               activeOpacity={0.88}>
               <View style={styles.roleCardTop}>
                 <View style={[styles.roleIconBox, { backgroundColor: COLORS.secondaryFixed }]}>
@@ -448,7 +547,7 @@ export default function CustomerDashboardScreen() {
         <View style={styles.prosSection}>
           <View style={styles.prosSectionHeader}>
             <View>
-              <Text style={styles.prosSectionTitle}>Verified Pros Near You</Text>
+              <Text style={styles.prosSectionTitle}>Suggested Pros Near You</Text>
               <Text style={styles.prosSectionSubtitle}>
                 {selectedService ? `Showing ${selectedService}s` : 'All nearby professionals'}
               </Text>
@@ -694,6 +793,21 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 20,
   },
+  requestSyncCard: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 14,
+    backgroundColor: COLORS.surfaceContainerLow,
+  },
+  requestSyncText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.onSurfaceVariant,
+  },
+
   activeTrackingCard: {
     flexDirection: 'row',
     alignItems: 'center',
