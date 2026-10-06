@@ -17,6 +17,59 @@ type TourStep = {
 };
 
 const TOURS: Record<string, TourStep[]> = {
+  '/problem-intake': [
+    {
+      title: 'Choose your service path',
+      body: 'Create the request yourself or ask the ThiKorben assistant to organize the problem first.',
+      icon: 'git-branch-outline',
+    },
+    {
+      title: 'You stay in control',
+      body: 'AI assistance never publishes a request or selects a worker without your action.',
+      icon: 'shield-checkmark-outline',
+    },
+  ],
+  '/ai-assistant': [
+    {
+      title: 'Describe the problem naturally',
+      body: 'Use Bangla, Banglish, or English and attach a photo when useful.',
+      icon: 'chatbubble-ellipses-outline',
+    },
+    {
+      title: 'Review the likely service',
+      body: 'ThiKorben suggests a service category and worker options, then prepares a draft request.',
+      icon: 'sparkles-outline',
+    },
+    {
+      title: 'Publish only after review',
+      body: 'Open the prepared request and confirm the details before it reaches the community.',
+      icon: 'checkmark-circle-outline',
+    },
+  ],
+  '/notifications': [
+    {
+      title: 'Shared workflow updates',
+      body: 'Proposal, material approval, and job-progress events appear here for the signed-in account.',
+      icon: 'notifications-outline',
+    },
+    {
+      title: 'Jump to the action',
+      body: 'Open a notification to return directly to the related job or material request.',
+      icon: 'arrow-forward-circle-outline',
+    },
+  ],
+  '/job-materials': [
+    {
+      title: 'Worker requests, customer decides',
+      body: 'Workers request catalog-backed materials with a reason. Customers approve or reject each item.',
+      icon: 'cube-outline',
+    },
+    {
+      title: 'Approved items enter checkout',
+      body: 'Approved products move into the customer purchase flow while rejected items stay out.',
+      icon: 'cart-outline',
+    },
+  ],
   '/customer-dashboard': [
     {
       title: 'Your customer home',
