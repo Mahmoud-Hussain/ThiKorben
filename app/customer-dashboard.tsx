@@ -186,6 +186,18 @@ export default function CustomerDashboardScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.notificationBtn}
+              onPress={() => router.push('/notifications')}
+              activeOpacity={0.8}>
+              <Ionicons
+                name="notifications-outline"
+                size={18}
+                color={COLORS.primary}
+              />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+
             {/* Language Selector */}
             <View style={styles.langSelector}>
               <TouchableOpacity
@@ -620,6 +632,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  notificationBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceContainerLow,
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.accentOrange,
+    borderWidth: 1,
+    borderColor: '#ffffff',
+  },
+
   langSelector: {
     flexDirection: 'row',
     alignItems: 'center',
