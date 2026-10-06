@@ -42,6 +42,7 @@ export interface RequestPhoneOtpInput {
 export interface VerifyPhoneOtpInput {
   phone: string;
   token: string;
+  fullName?: string;
 }
 
 export interface SaveCustomerProfileInput {
