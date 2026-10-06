@@ -515,6 +515,18 @@ export default function JobBoardScreen() {
                     Labor proposal {money(acceptedProposal.price_amount, acceptedProposal.currency)} • {acceptedProposal.availability_note}
                   </Text>
                 </View>
+                <Pressable
+                  style={styles.chatButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/job-chat',
+                      params: { requestId: request.id },
+                    })
+                  }
+                >
+                  <Ionicons name="chatbubble-ellipses" size={17} color="#fff" />
+                  <Text style={styles.chatButtonText}>Chat</Text>
+                </Pressable>
               </View>
             ) : null}
 
@@ -841,6 +853,16 @@ const styles = StyleSheet.create({
   },
   assignedTitle: { fontSize: 12, fontWeight: '900', color: COLORS.green },
   assignedText: { marginTop: 3, fontSize: 10, lineHeight: 15, color: COLORS.muted },
+  chatButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 11,
+    backgroundColor: COLORS.primary,
+  },
+  chatButtonText: { fontSize: 10, fontWeight: '900', color: '#fff' },
   workerProposalButton: {
     minHeight: 48,
     marginTop: 12,
