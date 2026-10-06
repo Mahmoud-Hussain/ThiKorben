@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { supabase } from '@/lib/supabase';
+
 import { getCommunityFeed } from './community.service';
 
 import type {
@@ -263,6 +265,63 @@ export function useCommunityFeed(options: CommunityFeedOptions = {}) {
     queryKey,
     status,
   ]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = setTimeout(() => {
+        void refresh();
+      }, 120);
+    };
+
+    const channel = supabase
+      .channel(`community-feed:${queryKey}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_requests',
+        },
+        queueRefresh,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_proposals',
+        },
+        queueRefresh,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_request_comments',
+        },
+        queueRefresh,
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+
+      void supabase.removeChannel(channel);
+    };
+  }, [enabled, queryKey, refresh]);
 
   /*
    * Retry uses the same safe first-page loading behavior
