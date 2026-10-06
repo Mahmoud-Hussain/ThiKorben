@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      customer_profiles: {
+        Row: {
+          completed_at: string
+          created_at: string
+          emergency_contact: string | null
+          home_location: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          emergency_contact?: string | null
+          home_location: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          emergency_contact?: string | null
+          home_location?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worker_profiles: {
+        Row: {
+          completed_at: string
+          created_at: string
+          experience_years: number
+          preferred_rate_bdt: number
+          primary_trade: string
+          service_radius_km: number
+          updated_at: string
+          user_id: string
+          verification_status: Database["public"]["Enums"]["worker_verification_status"]
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          experience_years: number
+          preferred_rate_bdt: number
+          primary_trade: string
+          service_radius_km: number
+          updated_at?: string
+          user_id: string
+          verification_status?: Database["public"]["Enums"]["worker_verification_status"]
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          experience_years?: number
+          preferred_rate_bdt?: number
+          primary_trade?: string
+          service_radius_km?: number
+          updated_at?: string
+          user_id?: string
+          verification_status?: Database["public"]["Enums"]["worker_verification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_role: Database["public"]["Enums"]["app_role"]
@@ -329,6 +408,24 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      save_customer_profile: {
+        Args: {
+          p_display_name: string
+          p_emergency_contact?: string | null
+          p_home_location: string
+        }
+        Returns: Database["public"]["Tables"]["customer_profiles"]["Row"]
+      }
+      save_worker_profile: {
+        Args: {
+          p_display_name: string
+          p_experience_years: number
+          p_preferred_rate_bdt: number
+          p_primary_trade: string
+          p_service_radius_km: number
+        }
+        Returns: Database["public"]["Tables"]["worker_profiles"]["Row"]
+      }
       set_active_role: {
         Args: { p_role: Database["public"]["Enums"]["app_role"] }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -341,6 +438,7 @@ export type Database = {
     Enums: {
       app_role: "customer" | "worker"
       service_media_type: "image" | "video"
+      worker_verification_status: "unverified" | "pending" | "verified"
       service_proposal_status: "pending" | "accepted" | "declined" | "withdrawn"
       service_request_status:
         | "open"
@@ -477,6 +575,7 @@ export const Constants = {
     Enums: {
       app_role: ["customer", "worker"],
       service_media_type: ["image", "video"],
+      worker_verification_status: ["unverified", "pending", "verified"],
       service_proposal_status: ["pending", "accepted", "declined", "withdrawn"],
       service_request_status: [
         "open",
