@@ -334,3 +334,20 @@ export async function acceptCommunityProposal(proposalId: string) {
 
   return data;
 }
+
+
+export async function advanceCommunityRequestStatus(
+  serviceRequestId: string,
+  status: 'ordered' | 'completed',
+) {
+  const { data, error } = await supabase.rpc('advance_service_request_status', {
+    p_service_request_id: serviceRequestId,
+    p_status: status,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
