@@ -436,6 +436,24 @@ export default function JobMaterialsScreen() {
             );
           })
         )}
+
+        {role === 'customer' && approvedTotal > 0 ? (
+          <Pressable
+            style={styles.checkoutButton}
+            onPress={() =>
+              router.push({
+                pathname: '/cart',
+                params: { requestId: request.id },
+              })
+            }
+          >
+            <Ionicons name="cart" size={17} color="#fff" />
+            <Text style={styles.checkoutButtonText}>
+              Review Approved Materials in Cart
+            </Text>
+            <Ionicons name="arrow-forward" size={17} color="#fff" />
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -629,6 +647,24 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.green,
   },
   approveText: { fontSize: 10, fontWeight: '900', color: '#fff' },
+  checkoutButton: {
+    minHeight: 48,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 14,
+    backgroundColor: COLORS.orange,
+  },
+  checkoutButtonText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#fff',
+  },
   center: { flex: 1, padding: 30, alignItems: 'center', justifyContent: 'center' },
   centerTitle: { marginTop: 10, fontSize: 15, fontWeight: '900', color: COLORS.text },
   centerText: {
