@@ -5,6 +5,11 @@ import {
   normalizePhoneOtp,
 } from './phone';
 
+import {
+  PRESENTATION_MODE,
+  normalizePresentationPhone,
+} from '@/lib/presentation-mode';
+
 import type {
   AppProfile,
   AppProfileUpdate,
@@ -132,22 +137,28 @@ function requireUserId(userId: string) {
 export async function requestPhoneOtp(
   input: RequestPhoneOtpInput,
 ): Promise<string> {
-  const phone = normalizeBangladeshPhone(input.phone);
+  const phone = PRESENTATION_MODE
+    ? normalizePresentationPhone(input.phone)
+    : normalizeBangladeshPhone(input.phone);
 
   if (input.mode === 'login') {
-    await authRepository.requestPhoneOtp(phone, {
-      shouldCreateUser: false,
-    });
+    if (!PRESENTATION_MODE) {
+      await authRepository.requestPhoneOtp(phone, {
+        shouldCreateUser: false,
+      });
+    }
 
     return phone;
   }
 
   const fullName = normalizeDisplayName(input.fullName ?? '');
 
-  await authRepository.requestPhoneOtp(phone, {
-    shouldCreateUser: true,
-    fullName,
-  });
+  if (!PRESENTATION_MODE) {
+    await authRepository.requestPhoneOtp(phone, {
+      shouldCreateUser: true,
+      fullName,
+    });
+  }
 
   return phone;
 }
