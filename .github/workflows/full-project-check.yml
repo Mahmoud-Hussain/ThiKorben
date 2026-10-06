@@ -1,0 +1,45 @@
+name: Full Project Check
+
+on:
+  push:
+    branches:
+      - chore/full-project-check-20261006
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "ci-placeholder-key"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Export web bundle
+        run: npm run build:web
