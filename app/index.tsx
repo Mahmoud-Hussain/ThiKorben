@@ -87,7 +87,7 @@ export default function WelcomeScreen() {
       <View style={styles.header}>
         <View style={styles.logoRow}>
           <View style={styles.logoBox}>
-            <MaterialIcons name="handyman" size={20} color="#ffffff" />
+            <MaterialIcons name="home-repair-service" size={20} color="#ffffff" />
           </View>
           <Text style={styles.appName}>{t.appName}</Text>
         </View>
