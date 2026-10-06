@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { requestPhoneOtp } from '@/features/auth/auth.service';
+import { PRESENTATION_MODE } from '@/lib/presentation-mode';
 
 const C = {
   primary: '#15157d',
@@ -71,8 +72,10 @@ export default function SignUpScreen() {
    * The service layer remains authoritative
    * and also accepts other supported formats.
    */
-  const phoneValid =
-    /^01[3-9]\d{8}$/.test(phone.trim()) || /^1[3-9]\d{8}$/.test(phone.trim());
+  const phoneValid = PRESENTATION_MODE
+    ? phone.trim().length > 0
+    : /^01[3-9]\d{8}$/.test(phone.trim()) ||
+      /^1[3-9]\d{8}$/.test(phone.trim());
 
   const nameState: FieldState = !submitted
     ? 'idle'
@@ -271,7 +274,9 @@ export default function SignUpScreen() {
 
             {phoneState === 'error' && (
               <Text style={styles.errorText}>
-                Enter a valid Bangladeshi mobile number.
+                {PRESENTATION_MODE
+                  ? 'Enter any phone number for the presentation.'
+                  : 'Enter a valid Bangladeshi mobile number.'}
               </Text>
             )}
           </View>
