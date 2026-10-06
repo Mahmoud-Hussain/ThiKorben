@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { router, Stack } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -98,9 +97,8 @@ export default function ServiceCheckoutScreen() {
 
   const [order, setOrder] = useState<ServiceOrder | undefined>();
 
-  const successScale = useRef(new Animated.Value(0.7)).current;
-
-  const successOpacity = useRef(new Animated.Value(0)).current;
+  const [successScale] = useState(() => new Animated.Value(0.7));
+  const [successOpacity] = useState(() => new Animated.Value(0));
 
   useFocusEffect(
     useCallback(() => {
