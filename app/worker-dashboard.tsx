@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import {
   Pressable,
@@ -174,7 +174,7 @@ export default function WorkerDashboardScreen() {
 
           <Pressable
             style={styles.actionCard}
-            onPress={() => router.push('/worker-skill-passport')}
+            onPress={() => router.push('/worker-skill-passport' as Href)}
           >
             <View style={[styles.actionIcon, { backgroundColor: C.greenSoft }]}>
               <MaterialCommunityIcons name="certificate-outline" size={22} color={C.green} />
