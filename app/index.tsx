@@ -1,6 +1,4 @@
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Platform,
   SafeAreaView,
@@ -11,467 +9,459 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useSession } from '@/contexts/session-context';
+import { BottomNavBar } from '@/components/bottom-nav-bar';
+import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
-const C = {
+const COLORS = {
   primary: '#15157d',
-  primarySoft: '#eeedff',
-  orange: '#F7941D',
-  bg: '#f8f7fc',
-  card: '#fff',
+  primaryContainer: '#2e3192',
+  secondary: '#fd9923',
+  accentOrange: '#F7941D',
+  background: '#f8f7fc',
+  surface: '#ffffff',
+  surfaceContainerLow: '#f4f2fa',
+  surfaceContainerHigh: '#eae7f0',
+  surfaceDim: '#dbd9e1',
   text: '#1b1b21',
-  muted: '#626171',
+  textMuted: '#5b5a68',
   border: '#e6e3ee',
-  purpleSoft: '#eeedff',
-  orangeSoft: '#fff4e7',
-  green: '#178c4f',
-  greenSoft: '#eaf8f0',
+  success: '#16a34a',
+  purpleSoft: '#ede9fe',
+  purpleDark: '#4338ca',
 };
 
-const COPY = {
+const STRINGS = {
   en: {
-    tagline: 'Service work, organized from request to completion',
-    title: 'Get the right local help with clear decisions at every step',
-    subtitle:
-      'Create a structured service request, compare worker proposals, chat privately, approve materials, and follow job progress in one place.',
-    start: 'Get Started',
-    continue: 'Continue to ThiKorben',
-    login: 'Sign In',
-    customer: 'Customer workflow',
-    worker: 'Worker workflow',
-    community: 'Community marketplace',
+    appName: 'ThiKorben',
+    tagline: 'Instant Home Services in Dhaka',
+    heroTitle: 'Fastest Way to Fix Anything at Home',
+    heroSubtitle:
+      'Book verified plumbers, electricians, and technicians in under 2 minutes.',
+    categoriesTitle: 'Popular Services',
+    chooseRole: 'Select How You Want to Continue',
+    customerTitle: 'I Need a Service',
+    customerDesc: 'Find plumbers, electricians & emergency pros near you.',
+    workerTitle: 'I Am a Worker / Pro',
+    workerDesc: 'Accept nearby jobs, track earnings & grow your business.',
+    verifiedBadge: '100% Verified Pros',
+    fastDispatch: '15 Min Fast Dispatch',
+    fairPricing: 'Transparent Pricing',
+    enterCustomer: 'Enter as Customer',
+    enterWorker: 'Enter as Worker',
   },
   bn: {
-    tagline: 'রিকোয়েস্ট থেকে কাজ শেষ হওয়া পর্যন্ত একটি পরিষ্কার সার্ভিস ফ্লো',
-    title: 'বাসার সমস্যার জন্য সঠিক স্থানীয় কর্মী খুঁজুন, প্রতিটি সিদ্ধান্ত আপনার নিয়ন্ত্রণে',
-    subtitle:
-      'সার্ভিস রিকোয়েস্ট তৈরি করুন, ওয়ার্কারের প্রপোজাল তুলনা করুন, প্রাইভেট চ্যাট করুন, প্রয়োজনীয় উপকরণ অনুমোদন করুন এবং কাজের অগ্রগতি দেখুন।',
-    start: 'শুরু করুন',
-    continue: 'ThiKorben এ যান',
-    login: 'সাইন ইন',
-    customer: 'কাস্টমার ফ্লো',
-    worker: 'ওয়ার্কার ফ্লো',
-    community: 'কমিউনিটি মার্কেটপ্লেস',
+    appName: 'ঠিককরবেন',
+    tagline: 'ঢাকায় দ্রুততম হোম সার্ভিস',
+    heroTitle: 'বাসার যেকোনো সমস্যায় দ্রুত সমাধান',
+    heroSubtitle:
+      'মাত্র ২ মিনিটে বিশ্বস্ত প্লাম্বার, ইলেকট্রিশিয়ান ও টেকনিশিয়ান খুঁজুন।',
+    categoriesTitle: 'জনপ্রিয় সেবা সমূহ',
+    chooseRole: 'আপনি কীভাবে ব্যবহার করতে চান?',
+    customerTitle: 'আমার সার্ভিস প্রয়োজন',
+    customerDesc: 'কাছের অভিজ্ঞ প্লাম্বার ও ইলেকট্রিশিয়ান বুক করুন।',
+    workerTitle: 'আমি একজন টেকনিশিয়ান / কারিগর',
+    workerDesc: 'নতুন কাজের অর্ডার পান ও প্রতিদিন আয় বৃদ্ধি করুন।',
+    verifiedBadge: '১০০% ভেরিফাইড প্রফেশনাল',
+    fastDispatch: '১৫ মিনিটে দ্রুত সেবা',
+    fairPricing: 'স্বচ্ছ মূল্য তালিকা',
+    enterCustomer: 'কাস্টমার হিসেবে প্রবেশ করুন',
+    enterWorker: 'ওয়ার্কার হিসেবে প্রবেশ করুন',
   },
 };
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { isAuthenticated, role, customerProfile, workerProfile } = useSession();
+  const insets = useSafeAreaInsets();
   const [lang, setLang] = useState<'en' | 'bn'>('en');
 
-  const t = COPY[lang];
-
-  const continueRoute =
-    role === 'worker'
-      ? workerProfile
-        ? '/worker-dashboard'
-        : '/worker-profile-setup'
-      : customerProfile
-        ? '/customer-dashboard'
-        : '/customer-profile-setup';
+  const t = STRINGS[lang];
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
+      {/* ── Top Header ── */}
       <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.logo}>
-            <MaterialIcons name="handyman" size={21} color="#fff" />
+        <View style={styles.logoRow}>
+          <View style={styles.logoBox}>
+            <MaterialIcons name="handyman" size={20} color="#ffffff" />
           </View>
-          <View>
-            <Text style={styles.brand}>ThiKorben</Text>
-            <Text style={styles.brandSub}>Shop. Fix. Work. Grow.</Text>
-          </View>
+          <Text style={styles.appName}>{t.appName}</Text>
         </View>
 
-        <View style={styles.language}>
+        {/* Language Switcher */}
+        <View style={styles.langToggle}>
           <TouchableOpacity
-            style={[styles.languageButton, lang === 'en' && styles.languageActive]}
+            style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
             onPress={() => setLang('en')}
-          >
-            <Text style={[styles.languageText, lang === 'en' && styles.languageTextActive]}>
-              EN
-            </Text>
+            activeOpacity={0.8}>
+            <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>EN</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.languageButton, lang === 'bn' && styles.languageActive]}
+            style={[styles.langBtn, lang === 'bn' && styles.langBtnActive]}
             onPress={() => setLang('bn')}
-          >
-            <Text style={[styles.languageText, lang === 'bn' && styles.languageTextActive]}>
-              বাংলা
-            </Text>
+            activeOpacity={0.8}>
+            <Text style={[styles.langText, lang === 'bn' && styles.langTextActive]}>বাং</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.hero}>
-          <View style={styles.heroPill}>
-            <Ionicons name="shield-checkmark" size={14} color={C.orange} />
-            <Text style={styles.heroPillText}>{t.tagline}</Text>
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 40 },
+        ]}
+        showsVerticalScrollIndicator={false}>
+
+        {/* ── Hero Banner ── */}
+        <View style={styles.heroSection}>
+          <View style={styles.brandPill}>
+            <MaterialCommunityIcons name="lightning-bolt" size={14} color={COLORS.accentOrange} />
+            <Text style={styles.brandPillText}>{t.tagline}</Text>
           </View>
-
-          <Text style={styles.heroTitle}>{t.title}</Text>
-          <Text style={styles.heroSubtitle}>{t.subtitle}</Text>
-
-          <View style={styles.heroActions}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() =>
-                router.push(isAuthenticated ? continueRoute : '/auth/signup')
-              }
-              activeOpacity={0.88}
-            >
-              <Text style={styles.primaryButtonText}>
-                {isAuthenticated ? t.continue : t.start}
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
-            </TouchableOpacity>
-
-            {!isAuthenticated ? (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => router.push('/auth/login')}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.secondaryButtonText}>{t.login}</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
+          <Text style={styles.heroTitle}>{t.heroTitle}</Text>
+          <Text style={styles.heroSubtitle}>{t.heroSubtitle}</Text>
         </View>
 
-        <View style={styles.featureGrid}>
-          <View style={styles.featureCard}>
-            <View style={[styles.featureIcon, { backgroundColor: C.purpleSoft }]}>
-              <Ionicons name="document-text-outline" size={23} color={C.primary} />
-            </View>
-            <Text style={styles.featureTitle}>Structured Requests</Text>
-            <Text style={styles.featureText}>
-              Customers publish clear service needs with category, budget, location label, and timing.
-            </Text>
-          </View>
-
-          <View style={styles.featureCard}>
-            <View style={[styles.featureIcon, { backgroundColor: C.orangeSoft }]}>
-              <Ionicons name="people-outline" size={23} color={C.orange} />
-            </View>
-            <Text style={styles.featureTitle}>Worker Proposals</Text>
-            <Text style={styles.featureText}>
-              Workers submit labor price and availability. Customers choose the proposal they want.
-            </Text>
-          </View>
-
-          <View style={styles.featureCard}>
-            <View style={[styles.featureIcon, { backgroundColor: C.greenSoft }]}>
-              <Ionicons name="chatbubbles-outline" size={23} color={C.green} />
-            </View>
-            <Text style={styles.featureTitle}>Private Job Chat</Text>
-            <Text style={styles.featureText}>
-              Accepted customer-worker pairs receive a secure job-specific conversation.
-            </Text>
-          </View>
-
-          <View style={styles.featureCard}>
-            <View style={[styles.featureIcon, { backgroundColor: C.purpleSoft }]}>
-              <Ionicons name="cart-outline" size={23} color={C.primary} />
-            </View>
-            <Text style={styles.featureTitle}>Material Approval</Text>
-            <Text style={styles.featureText}>
-              Workers request catalog items with reasons. Customers approve or reject before purchase.
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.flowCard}>
-          <View style={styles.flowHeader}>
-            <MaterialCommunityIcons name="transit-connection-variant" size={24} color={C.primary} />
-            <View style={styles.flex}>
-              <Text style={styles.flowTitle}>One connected service lifecycle</Text>
-              <Text style={styles.flowText}>Built around real authorization and explicit human decisions.</Text>
-            </View>
-          </View>
-
-          <View style={styles.flowSteps}>
-            {[
-              ['1', 'Post'],
-              ['2', 'Proposal'],
-              ['3', 'Accept'],
-              ['4', 'Chat'],
-              ['5', 'Materials'],
-              ['6', 'Complete'],
-            ].map(([number, label], index) => (
-              <View key={number} style={styles.flowStepWrap}>
-                <View style={styles.flowStep}>
-                  <Text style={styles.flowStepNumber}>{number}</Text>
-                </View>
-                <Text style={styles.flowStepLabel}>{label}</Text>
-                {index < 5 ? <View style={styles.flowLine} /> : null}
+        {/* ── Popular Categories ── */}
+        <View style={styles.bentoGrid}>
+          {[
+            { label: 'Plumber', icon: 'water-pump', color: '#15157d', bg: '#edeaff' },
+            { label: 'Electrician', icon: 'flash', color: '#fd9923', bg: '#fff4e5' },
+            { label: 'Carpenter', icon: 'hammer', color: '#059669', bg: '#e6f7f0' },
+            { label: 'Sanitary', icon: 'pipe-wrench', color: '#7c3aed', bg: '#f5f0ff' },
+          ].map((item) => (
+            <View key={item.label} style={styles.bentoCard}>
+              <View style={[styles.bentoIconBox, { backgroundColor: item.bg }]}>
+                <MaterialCommunityIcons name={item.icon as any} size={22} color={item.color} />
               </View>
-            ))}
+              <Text style={styles.bentoLabel}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Role Selection Cards ── */}
+        <Text style={styles.sectionHeading}>{t.chooseRole}</Text>
+
+        <View style={styles.rolesContainer}>
+          {/* Customer Card */}
+          <TouchableOpacity
+            style={styles.roleCardCustomer}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.88}>
+            <View style={styles.roleCardTop}>
+              <View style={styles.roleIconBoxCustomer}>
+                <Ionicons name="person" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.roleTextCol}>
+                <Text style={styles.roleTitle}>{t.customerTitle}</Text>
+                <Text style={styles.roleDesc}>{t.customerDesc}</Text>
+              </View>
+            </View>
+
+            <View style={styles.roleCardActionRow}>
+              <Text style={styles.roleActionTextCustomer}>{t.enterCustomer}</Text>
+              <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Worker Card */}
+          <TouchableOpacity
+            style={styles.roleCardWorker}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.88}>
+            <View style={styles.roleCardTop}>
+              <View style={styles.roleIconBoxWorker}>
+                <MaterialCommunityIcons name="hammer-wrench" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.roleTextCol}>
+                <Text style={styles.roleTitle}>{t.workerTitle}</Text>
+                <Text style={styles.roleDesc}>{t.workerDesc}</Text>
+              </View>
+            </View>
+
+            <View style={styles.roleCardActionRow}>
+              <Text style={styles.roleActionTextWorker}>{t.enterWorker}</Text>
+              <Ionicons name="arrow-forward" size={16} color={COLORS.accentOrange} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Trust Badges ── */}
+        <View style={styles.trustSection}>
+          <View style={styles.trustBadge}>
+            <MaterialIcons name="verified" size={16} color={COLORS.success} />
+            <Text style={styles.trustBadgeText}>{t.verifiedBadge}</Text>
+          </View>
+
+          <View style={styles.trustBadge}>
+            <MaterialIcons name="timer" size={16} color={COLORS.accentOrange} />
+            <Text style={styles.trustBadgeText}>{t.fastDispatch}</Text>
+          </View>
+
+          <View style={styles.trustBadge}>
+            <MaterialIcons name="price-check" size={16} color={COLORS.primary} />
+            <Text style={styles.trustBadgeText}>{t.fairPricing}</Text>
           </View>
         </View>
 
-        <View style={styles.roles}>
-          <TouchableOpacity
-            style={styles.roleCard}
-            onPress={() =>
-              router.push(isAuthenticated ? '/customer-dashboard' : '/auth/signup')
-            }
-            activeOpacity={0.88}
-          >
-            <View style={[styles.roleIcon, { backgroundColor: C.primary }]}>
-              <Ionicons name="person" size={23} color="#fff" />
-            </View>
-            <View style={styles.flex}>
-              <Text style={styles.roleTitle}>{t.customer}</Text>
-              <Text style={styles.roleText}>
-                Create requests, compare proposals, approve materials, follow progress.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={C.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.roleCard}
-            onPress={() =>
-              router.push(isAuthenticated ? '/worker-dashboard' : '/auth/signup')
-            }
-            activeOpacity={0.88}
-          >
-            <View style={[styles.roleIcon, { backgroundColor: C.orange }]}>
-              <MaterialCommunityIcons name="hammer-wrench" size={23} color="#fff" />
-            </View>
-            <View style={styles.flex}>
-              <Text style={styles.roleTitle}>{t.worker}</Text>
-              <Text style={styles.roleText}>
-                Find suitable jobs, submit proposals, chat, request materials, complete work.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={C.orange} />
-          </TouchableOpacity>
-        </View>
-
-        {isAuthenticated ? (
-          <TouchableOpacity
-            style={styles.communityButton}
-            onPress={() => router.push('/community')}
-          >
-            <Ionicons name="people" size={20} color={C.primary} />
-            <Text style={styles.communityText}>{t.community}</Text>
-            <Ionicons name="arrow-forward" size={18} color={C.primary} />
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.principle}>
-          <Ionicons name="hand-left-outline" size={22} color={C.primary} />
-          <View style={styles.flex}>
-            <Text style={styles.principleTitle}>AI assists. People decide.</Text>
-            <Text style={styles.principleText}>
-              ThiKorben is designed so publishing, worker selection, material approval, and transaction decisions remain explicit human actions.
-            </Text>
-          </View>
-        </View>
       </ScrollView>
+
+      {/* ── Unified Bottom Navigation Bar ── */}
+      <BottomNavBar activeTab="home" />
+
+      {/* ── Quick Switcher Floating Button ── */}
+      <PageQuickSwitcher />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  safe: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    minHeight: 68,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    backgroundColor: '#fff',
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  logo: {
-    width: 39,
-    height: 39,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.primary,
-  },
-  brand: { fontSize: 17, fontWeight: '900', color: C.primary },
-  brandSub: { marginTop: 1, fontSize: 8.5, color: C.muted },
-  language: {
-    padding: 3,
-    flexDirection: 'row',
-    borderRadius: 999,
-    backgroundColor: C.bg,
-  },
-  languageButton: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
-  languageActive: { backgroundColor: '#fff' },
-  languageText: { fontSize: 9.5, fontWeight: '700', color: C.muted },
-  languageTextActive: { color: C.primary },
-  content: {
-    width: '100%',
-    maxWidth: 920,
-    alignSelf: 'center',
-    padding: 20,
-    paddingBottom: 60,
-    gap: 18,
-  },
-  hero: { paddingVertical: 18, alignItems: 'center' },
-  heroPill: {
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderWidth: 1,
-    borderColor: '#f5d7b1',
-    borderRadius: 999,
-    backgroundColor: C.orangeSoft,
-  },
-  heroPillText: { fontSize: 9.5, fontWeight: '800', color: C.orange },
-  heroTitle: {
-    marginTop: 16,
-    maxWidth: 720,
-    fontSize: 32,
-    lineHeight: 40,
-    fontWeight: '900',
-    textAlign: 'center',
-    color: C.text,
-  },
-  heroSubtitle: {
-    marginTop: 10,
-    maxWidth: 650,
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'center',
-    color: C.muted,
-  },
-  heroActions: { marginTop: 20, flexDirection: 'row', gap: 9 },
-  primaryButton: {
-    minHeight: 49,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    borderRadius: 14,
-    backgroundColor: C.primary,
-  },
-  primaryButtonText: { fontSize: 11.5, fontWeight: '900', color: '#fff' },
-  secondaryButton: {
-    minHeight: 49,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-  },
-  secondaryButtonText: { fontSize: 11.5, fontWeight: '900', color: C.primary },
-  featureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  featureCard: {
-    minWidth: 210,
+  safeArea: {
     flex: 1,
-    minHeight: 160,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 18,
-    backgroundColor: '#fff',
-    ...Platform.select({
-      web: { boxShadow: '0 5px 18px rgba(21,21,125,0.04)' },
-    }),
+    backgroundColor: '#ffffff',
   },
-  featureIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureTitle: { marginTop: 11, fontSize: 12.5, fontWeight: '900', color: C.text },
-  featureText: { marginTop: 5, fontSize: 9.5, lineHeight: 15, color: C.muted },
-  flowCard: {
-    padding: 18,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 20,
-    backgroundColor: C.bg,
-  },
-  flowHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  flowTitle: { fontSize: 13.5, fontWeight: '900', color: C.text },
-  flowText: { marginTop: 2, fontSize: 9.5, color: C.muted },
-  flowSteps: {
-    marginTop: 18,
+  header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  flowStepWrap: { flex: 1, alignItems: 'center', position: 'relative' },
-  flowStep: {
-    width: 34,
-    height: 34,
-    zIndex: 2,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.primary,
-  },
-  flowStepNumber: { fontSize: 10, fontWeight: '900', color: '#fff' },
-  flowStepLabel: { marginTop: 6, fontSize: 8.5, fontWeight: '800', color: C.text },
-  flowLine: {
-    position: 'absolute',
-    top: 16,
-    left: '66%',
-    width: '68%',
-    height: 2,
-    backgroundColor: '#d7d3e4',
-  },
-  roles: { gap: 10 },
-  roleCard: {
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 17,
-    backgroundColor: '#fff',
-  },
-  roleIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleTitle: { fontSize: 12.5, fontWeight: '900', color: C.text },
-  roleText: { marginTop: 3, fontSize: 9.5, lineHeight: 14, color: C.muted },
-  communityButton: {
-    minHeight: 50,
-    paddingHorizontal: 15,
+  logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderRadius: 14,
-    backgroundColor: C.primarySoft,
   },
-  communityText: { flex: 1, fontSize: 11, fontWeight: '900', color: C.primary },
-  principle: {
-    padding: 15,
+  logoBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: COLORS.primary,
+  },
+  langToggle: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderRadius: 20,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  langBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  langBtnActive: {
+    backgroundColor: '#ffffff',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+      android: { elevation: 1 },
+      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    }),
+  },
+  langText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  langTextActive: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    gap: 18,
+  },
+  heroSection: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  brandPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  brandPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.accentOrange,
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: COLORS.text,
+    textAlign: 'center',
+    lineHeight: 30,
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 19,
+    maxWidth: 340,
+  },
+  bentoGrid: {
     flexDirection: 'row',
     gap: 10,
-    borderRadius: 16,
-    backgroundColor: C.greenSoft,
   },
-  principleTitle: { fontSize: 11.5, fontWeight: '900', color: C.green },
-  principleText: { marginTop: 3, fontSize: 9.5, lineHeight: 15, color: C.muted },
+  bentoCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  bentoIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  bentoLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginTop: 4,
+  },
+  rolesContainer: {
+    gap: 12,
+  },
+  roleCardCustomer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#d0ccff',
+    ...Platform.select({
+      ios: { shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 2 },
+      web: { boxShadow: '0 4px 12px rgba(21,21,125,0.06)' },
+    }),
+  },
+  roleCardWorker: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#fed7aa',
+    ...Platform.select({
+      ios: { shadowColor: COLORS.accentOrange, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 2 },
+      web: { boxShadow: '0 4px 12px rgba(247,148,29,0.06)' },
+    }),
+  },
+  roleCardTop: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  roleIconBoxCustomer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleIconBoxWorker: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: COLORS.accentOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleTextCol: {
+    flex: 1,
+  },
+  roleTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  roleDesc: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 3,
+    lineHeight: 17,
+  },
+  roleCardActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.surfaceContainerLow,
+  },
+  roleActionTextCustomer: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  roleActionTextWorker: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: COLORS.accentOrange,
+  },
+  trustSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  trustBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  trustBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
 });
