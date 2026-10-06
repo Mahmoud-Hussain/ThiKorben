@@ -82,6 +82,17 @@ export async function signInPresentationUser(
   });
 
   if (error) {
+    const message = error.message.toLowerCase();
+
+    if (
+      message.includes('anonymous') &&
+      (message.includes('disabled') || message.includes('not enabled'))
+    ) {
+      throw new Error(
+        'Presentation authentication is disabled on the connected Supabase project.',
+      );
+    }
+
     throw error;
   }
 
