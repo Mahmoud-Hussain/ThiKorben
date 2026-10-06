@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useSession } from '@/contexts/session-context';
+import { supabase } from '@/lib/supabase';
 import {
   advanceServiceRequestStatus,
   getServiceRequest,
@@ -118,6 +119,54 @@ export default function JobDetailsScreen() {
 
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    if (!params.requestId) {
+      return;
+    }
+
+    const reload = () => {
+      void load();
+    };
+
+    const channel = supabase
+      .channel(`job-progress:${params.requestId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_requests',
+          filter: `id=eq.${params.requestId}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_orders',
+          filter: `service_request_id=eq.${params.requestId}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_proposals',
+          filter: `service_request_id=eq.${params.requestId}`,
+        },
+        reload,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [load, params.requestId]);
 
   const advance = async () => {
     if (!request || !assignedWorker || saving) {
