@@ -46,10 +46,16 @@ create table public.job_material_requests (
     check (currency ~ '^[A-Z]{3}$'),
   status public.material_request_status not null default 'pending',
   created_at timestamptz not null default now(),
-  resolved_at timestamptz,
-  constraint one_open_material_request_per_product
-    unique (service_request_id, worker_id, product_id, status)
+  resolved_at timestamptz
 );
+
+create unique index job_material_requests_one_pending_product_idx
+on public.job_material_requests (
+  service_request_id,
+  worker_id,
+  product_id
+)
+where status = 'pending';
 
 create index job_material_requests_job_idx
 on public.job_material_requests (service_request_id, created_at desc);
@@ -189,15 +195,22 @@ begin
     raise exception 'Material decision must be approved or rejected.';
   end if;
 
-  select material.*, request.customer_id
-  into v_material, v_customer_id
-  from public.job_material_requests as material
-  join public.service_requests as request
-    on request.id = material.service_request_id
-  where material.id = p_material_request_id;
+  select *
+  into v_material
+  from public.job_material_requests
+  where id = p_material_request_id;
 
   if not found then
     raise exception 'Material request not found.';
+  end if;
+
+  select customer_id
+  into v_customer_id
+  from public.service_requests
+  where id = v_material.service_request_id;
+
+  if not found then
+    raise exception 'Service request not found.';
   end if;
 
   if v_customer_id <> v_user_id then
