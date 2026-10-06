@@ -117,7 +117,7 @@ export function BottomNavBar({ activeTab }: BottomNavBarProps) {
       label: 'Updates',
       icon: 'notifications',
       iconType: 'ionicons',
-      route: '/notifications',
+      route: '/notifications' as Href,
     },
   ];
 
