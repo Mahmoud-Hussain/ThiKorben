@@ -171,6 +171,19 @@ export default function WorkerDashboardScreen() {
               Update trade, rate, experience, and service radius.
             </Text>
           </Pressable>
+
+          <Pressable
+            style={styles.actionCard}
+            onPress={() => router.push('/worker-skill-passport')}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: C.greenSoft }]}>
+              <MaterialCommunityIcons name="certificate-outline" size={22} color={C.green} />
+            </View>
+            <Text style={styles.actionTitle}>Skill Passport</Text>
+            <Text style={styles.actionText}>
+              See evidence generated from completed ThiKorben jobs.
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -325,8 +338,9 @@ const styles = StyleSheet.create({
   verificationVerified: { backgroundColor: C.greenSoft },
   verificationPending: { backgroundColor: C.orangeSoft },
   verificationText: { fontSize: 7.5, fontWeight: '900', color: C.text },
-  actionGrid: { flexDirection: 'row', gap: 10 },
+  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionCard: {
+    minWidth: 210,
     flex: 1,
     minHeight: 132,
     padding: 14,
