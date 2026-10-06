@@ -9,6 +9,7 @@ import { SessionProvider, useSession } from '@/contexts/session-context';
 
 const PUBLIC_PATHS = new Set([
   '/',
+  '/showcase',
   '/auth/login',
   '/auth/signup',
   '/auth/otp-verify',
