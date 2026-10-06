@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          material_request_id: string | null
+          notification_type: string
+          read_at: string | null
+          service_request_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          material_request_id?: string | null
+          notification_type: string
+          read_at?: string | null
+          service_request_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          material_request_id?: string | null
+          notification_type?: string
+          read_at?: string | null
+          service_request_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_notifications_material_request_id_fkey"
+            columns: ["material_request_id"]
+            isOneToOne: false
+            referencedRelation: "job_material_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_notifications_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_products: {
         Row: {
           active: boolean
