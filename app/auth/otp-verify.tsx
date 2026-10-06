@@ -16,7 +16,12 @@ import {
   View,
 } from 'react-native';
 
-import { resendPhoneOtp, verifyPhoneOtp } from '@/features/auth/auth.service';
+import {
+  isPresentationAuthEnabled,
+  PRESENTATION_OTP,
+  resendPhoneOtp,
+  verifyPhoneOtp,
+} from '@/features/auth/auth.service';
 
 import type { PhoneOtpMode } from '@/features/auth/types';
 
@@ -79,6 +84,7 @@ export default function OtpVerifyScreen() {
   const mode: PhoneOtpMode = params.mode === 'signup' ? 'signup' : 'login';
 
   const name = params.name ?? '';
+  const presentationMode = isPresentationAuthEnabled();
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
@@ -161,6 +167,7 @@ export default function OtpVerifyScreen() {
       await verifyPhoneOtp({
         phone,
         token,
+        fullName: name,
       });
       await refreshAuth();
 
@@ -260,6 +267,30 @@ export default function OtpVerifyScreen() {
               Enter the 6-digit code sent to{' '}
               <Text style={styles.phoneHighlight}>{maskedPhone}</Text>
             </Text>
+
+            {presentationMode ? (
+              <View style={styles.presentationNotice}>
+                <View style={styles.presentationNoticeIcon}>
+                  <Ionicons
+                    name="notifications"
+                    size={20}
+                    color={C.brandOrange}
+                  />
+                </View>
+                <View style={styles.presentationNoticeText}>
+                  <Text style={styles.presentationNoticeTitle}>
+                    ThiKorben verification code
+                  </Text>
+                  <Text style={styles.presentationNoticeBody}>
+                    Presentation mode is active. Enter{' '}
+                    <Text style={styles.presentationCode}>
+                      {PRESENTATION_OTP}
+                    </Text>
+                    {' '}to continue.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.otpRow}>
               {digits.map((digit, index) => (
@@ -437,6 +468,51 @@ const styles = StyleSheet.create({
   phoneHighlight: {
     fontWeight: '700',
     color: C.onSurface,
+  },
+
+  presentationNotice: {
+    width: '100%',
+    marginBottom: 18,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#f3d2ab',
+    borderRadius: 13,
+    backgroundColor: '#fff7ed',
+  },
+
+  presentationNoticeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+
+  presentationNoticeText: {
+    flex: 1,
+  },
+
+  presentationNoticeTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: C.onSurface,
+  },
+
+  presentationNoticeBody: {
+    marginTop: 2,
+    fontSize: 10.5,
+    lineHeight: 16,
+    color: C.onSurfaceVariant,
+  },
+
+  presentationCode: {
+    fontWeight: '900',
+    color: C.brandOrange,
+    letterSpacing: 1,
   },
 
   otpRow: {
