@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,198 +16,141 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useSession } from '@/contexts/session-context';
 import {
-  acceptProposal,
-  addJobComment,
-  createJob,
-  CURRENT_WORKER,
-  getAcceptedProposal,
-  getDemoRole,
-  getSelectedJob,
-  JobCategory,
-  MarketplaceRole,
-  openJobChat,
-  selectJob,
-  sendWorkerProposal,
-  setDemoRole,
-  useMarketplaceVersion,
-} from '@/constants/community-marketplace';
+  acceptServiceProposal,
+  addServiceRequestComment,
+  createServiceRequest,
+  getServiceRequest,
+  getServiceRequestComments,
+  getServiceRequestProposals,
+  submitServiceProposal,
+} from '@/features/community/community.service';
+import type {
+  CommunityCategory,
+  CommunityComment,
+  CommunityProposal,
+  CommunityRequest,
+} from '@/features/community/types';
 
 const COLORS = {
-  orange: '#FF7315',
-  orangeDark: '#E85D04',
-  orangeSoft: '#FFF4EA',
-
-  purple: '#4338A8',
-  purpleDark: '#2F2877',
-  purpleSoft: '#EFEEFF',
-
-  text: '#171927',
-  muted: '#777C8E',
-
-  background: '#F6F7FB',
-  card: '#FFFFFF',
-  border: '#E7E9F0',
-
-  success: '#16A760',
-  successSoft: '#ECFDF3',
-
-  warning: '#F5A300',
-
-  danger: '#D9485F',
+  primary: '#15157d',
+  purpleSoft: '#eeedff',
+  orange: '#F7941D',
+  orangeSoft: '#fff4e7',
+  green: '#178c4f',
+  greenSoft: '#eaf8f0',
+  red: '#c43d39',
+  redSoft: '#fff0ef',
+  background: '#f7f6fb',
+  card: '#ffffff',
+  text: '#181820',
+  muted: '#6c6c79',
+  border: '#e5e2eb',
 };
 
-const CATEGORIES: {
-  id: JobCategory;
-  title: string;
+const CATEGORIES: Array<{
+  id: CommunityCategory;
+  label: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
-}[] = [
-  {
-    id: 'plumbing',
-    title: 'Plumbing',
-    icon: 'water-outline',
-  },
-
-  {
-    id: 'electrical',
-    title: 'Electrical',
-    icon: 'flash-outline',
-  },
-
-  {
-    id: 'carpentry',
-    title: 'Carpentry',
-    icon: 'hammer-outline',
-  },
-
-  {
-    id: 'cleaning',
-    title: 'Cleaning',
-    icon: 'sparkles-outline',
-  },
-
-  {
-    id: 'painting',
-    title: 'Painting',
-    icon: 'color-palette-outline',
-  },
-
-  {
-    id: 'ac',
-    title: 'AC Repair',
-    icon: 'snow-outline',
-  },
+}> = [
+  { id: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
+  { id: 'electrical', label: 'Electrical', icon: 'flash-outline' },
+  { id: 'carpentry', label: 'Carpentry', icon: 'hammer-outline' },
+  { id: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline' },
+  { id: 'painting', label: 'Painting', icon: 'color-palette-outline' },
+  { id: 'ac', label: 'AC Repair', icon: 'snow-outline' },
 ];
 
-const SCHEDULES = ['Today', 'Tomorrow', 'This Week'];
-
-function formatMoney(value: number) {
-  return `৳${value.toLocaleString()}`;
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Something went wrong.';
 }
 
-function RoleSwitcher({ role }: { role: MarketplaceRole }) {
-  return (
-    <View style={styles.roleSwitcher}>
-      <Pressable
-        onPress={() => setDemoRole('customer')}
-        style={[
-          styles.roleOption,
-          role === 'customer' && styles.customerRoleActive,
-        ]}
-      >
-        <Ionicons
-          name="person-outline"
-          size={15}
-          color={role === 'customer' ? '#FFFFFF' : COLORS.muted}
-        />
+function money(value: number, currency = 'BDT') {
+  return `${currency === 'BDT' ? '৳' : currency + ' '}${Number(value).toLocaleString()}`;
+}
 
-        <Text
-          style={[
-            styles.roleText,
-            role === 'customer' && styles.roleTextActive,
-          ]}
-        >
-          Customer
-        </Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => setDemoRole('worker')}
-        style={[
-          styles.roleOption,
-          role === 'worker' && styles.workerRoleActive,
-        ]}
-      >
-        <Ionicons
-          name="construct-outline"
-          size={15}
-          color={role === 'worker' ? '#FFFFFF' : COLORS.muted}
-        />
-
-        <Text
-          style={[styles.roleText, role === 'worker' && styles.roleTextActive]}
-        >
-          Worker
-        </Text>
-      </Pressable>
-    </View>
-  );
+function initials(value: string) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('');
 }
 
 export default function JobBoardScreen() {
-  useMarketplaceVersion();
-
   const params = useLocalSearchParams<{
     mode?: string;
+    requestId?: string;
   }>();
 
-  const role = getDemoRole();
+  const { role, user, profile } = useSession();
 
-  const selectedJob = getSelectedJob();
+  const createMode = params.mode === 'create';
 
-  const createMode = params.mode === 'create' || !selectedJob;
+  const [request, setRequest] = useState<CommunityRequest | null>(null);
+  const [comments, setComments] = useState<CommunityComment[]>([]);
+  const [proposals, setProposals] = useState<CommunityProposal[]>([]);
+  const [loading, setLoading] = useState(!createMode);
+  const [saving, setSaving] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState('Kitchen Sink Pipe Leakage');
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<CommunityCategory>('plumbing');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [budget, setBudget] = useState('');
+  const [scheduleNote, setScheduleNote] = useState('As soon as possible');
 
-  const [category, setCategory] = useState<JobCategory>('plumbing');
+  const [comment, setComment] = useState('');
 
-  const [description, setDescription] = useState(
-    'Water is leaking from the pipe under my kitchen sink whenever the tap is used. I need someone to inspect and fix it.',
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [proposalPrice, setProposalPrice] = useState('');
+  const [proposalAvailability, setProposalAvailability] = useState('Available today');
+  const [proposalNote, setProposalNote] = useState('');
+
+  const isOwner = request?.customer_id === user?.id;
+  const acceptedProposal = useMemo(
+    () => proposals.find(item => item.status === 'accepted') ?? null,
+    [proposals],
   );
 
-  const [location, setLocation] = useState('Dhanmondi 8/A, Dhaka');
+  const loadDetails = useCallback(async () => {
+    if (createMode || !params.requestId) {
+      return;
+    }
 
-  const [budget, setBudget] = useState('1000');
+    setLoading(true);
+    setDetailError(null);
 
-  const [schedule, setSchedule] = useState('Today');
+    try {
+      const [nextRequest, nextComments, nextProposals] = await Promise.all([
+        getServiceRequest(params.requestId),
+        getServiceRequestComments(params.requestId),
+        getServiceRequestProposals(params.requestId),
+      ]);
 
-  const [photoUri, setPhotoUri] = useState<string | undefined>();
+      setRequest(nextRequest);
+      setComments(nextComments);
+      setProposals(nextProposals);
+    } catch (error) {
+      setDetailError(errorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [createMode, params.requestId]);
 
-  const [commentText, setCommentText] = useState('');
+  useEffect(() => {
+    void loadDetails();
+  }, [loadDetails]);
 
-  const [proposalVisible, setProposalVisible] = useState(false);
+  const submitRequest = async () => {
+    if (role !== 'customer') {
+      Alert.alert('Customer mode required', 'Switch to customer mode to post a service request.');
+      return;
+    }
 
-  const [proposalPrice, setProposalPrice] = useState('700');
-
-  const [proposalAvailability, setProposalAvailability] = useState(
-    'Today, after 5:00 PM',
-  );
-
-  const [proposalNote, setProposalNote] = useState(
-    'I can inspect the problem and complete the repair. Any required materials will be discussed before purchase.',
-  );
-
-  const pickPhoto = async () => {
-    const samplePhotos = [
-      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&auto=format&fit=crop&q=80',
-    ];
-    const randomPhoto = samplePhotos[Math.floor(Math.random() * samplePhotos.length)];
-    setPhotoUri(randomPhoto);
-  };
-
-  const submitJob = () => {
     const numericBudget = Number(budget);
 
     if (
@@ -215,736 +158,544 @@ export default function JobBoardScreen() {
       !description.trim() ||
       !location.trim() ||
       !budget.trim() ||
-      Number.isNaN(numericBudget) ||
-      numericBudget <= 0
+      !Number.isFinite(numericBudget)
     ) {
-      Alert.alert(
-        'Complete the form',
-        'Please provide title, description, location and a valid budget.',
-      );
-
+      Alert.alert('Complete the form', 'Add a title, description, location, and valid budget.');
       return;
     }
 
-    const job = createJob({
-      title: title.trim(),
-      category,
-      description: description.trim(),
-      location: location.trim(),
-      budget: numericBudget,
-      schedule,
-      photoUri,
-    });
+    setSaving(true);
 
-    selectJob(job.id);
+    try {
+      const created = await createServiceRequest({
+        title,
+        category,
+        description,
+        locationLabel: location,
+        budgetAmount: numericBudget,
+        scheduleNote,
+      });
 
-    router.replace('/community');
+      router.replace({
+        pathname: '/job-board',
+        params: {
+          mode: 'detail',
+          requestId: created.id,
+        },
+      });
+    } catch (error) {
+      Alert.alert('Could not post request', errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitComment = async () => {
+    if (!request || !comment.trim() || saving) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await addServiceRequestComment({
+        serviceRequestId: request.id,
+        body: comment,
+      });
+
+      setComment('');
+      await loadDetails();
+    } catch (error) {
+      Alert.alert('Comment failed', errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sendProposal = async () => {
+    if (!request || role !== 'worker' || saving) {
+      return;
+    }
+
+    const price = Number(proposalPrice);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      Alert.alert('Invalid price', 'Enter a valid labor price.');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await submitServiceProposal({
+        serviceRequestId: request.id,
+        priceAmount: price,
+        availabilityNote: proposalAvailability,
+        note: proposalNote,
+      });
+
+      setProposalOpen(false);
+      setProposalPrice('');
+      setProposalNote('');
+      await loadDetails();
+    } catch (error) {
+      Alert.alert('Proposal failed', errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const acceptProposal = async (proposalId: string) => {
+    if (!request || !isOwner || saving) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await acceptServiceProposal(proposalId);
+      await loadDetails();
+
+      Alert.alert(
+        'Worker selected',
+        'Proposal accepted successfully. The job is now assigned.',
+      );
+    } catch (error) {
+      Alert.alert('Could not accept proposal', errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (createMode) {
     return (
       <>
-        <Stack.Screen
-          options={{
-            headerShown: false,
-          }}
-        />
+        <Stack.Screen options={{ headerShown: false }} />
 
         <SafeAreaView style={styles.screen} edges={['top']}>
-          <View style={styles.appShell}>
+          <View style={styles.shell}>
             <View style={styles.header}>
-              <Pressable
-                onPress={() => router.replace('/community')}
-                style={styles.headerButton}
-              >
-                <Ionicons name="arrow-back" size={20} color={COLORS.text} />
+              <Pressable style={styles.headerButton} onPress={() => router.replace('/community')}>
+                <Ionicons name="arrow-back" size={21} color={COLORS.text} />
               </Pressable>
 
               <View style={styles.headerCenter}>
-                <Text style={styles.headerTitle}>Post a Job</Text>
-
-                <Text style={styles.headerSubtitle}>
-                  Community service request
-                </Text>
+                <Text style={styles.headerTitle}>Post a Service Request</Text>
+                <Text style={styles.headerSubtitle}>Real community marketplace</Text>
               </View>
 
               <View style={styles.headerButton} />
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
+            <KeyboardAvoidingView
+              style={styles.flex}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-              <View style={styles.hero}>
-                <View style={styles.heroIcon}>
-                  <Ionicons
-                    name="megaphone-outline"
-                    size={24}
-                    color="#FFFFFF"
-                  />
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.content}
+              >
+                <View style={styles.hero}>
+                  <View style={styles.heroIcon}>
+                    <Ionicons name="megaphone-outline" size={24} color="#fff" />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.heroTitle}>Describe the job clearly</Text>
+                    <Text style={styles.heroText}>
+                      Workers can discover the request, ask questions, and submit real proposals.
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.heroTitle}>
-                    Tell the community what you need
-                  </Text>
-
-                  <Text style={styles.heroText}>
-                    Workers will see your post, comment, send proposals and
-                    contact you privately.
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.label}>Job title</Text>
-
-              <View style={styles.inputWrapper}>
-                <Ionicons
-                  name="create-outline"
-                  size={18}
-                  color={COLORS.muted}
-                />
-
+                <Text style={styles.label}>Job title</Text>
                 <TextInput
+                  style={styles.input}
                   value={title}
                   onChangeText={setTitle}
-                  style={styles.input}
-                  placeholder="Job title"
-                  placeholderTextColor="#A2A6B3"
+                  placeholder="e.g. Kitchen sink pipe leaking"
+                  placeholderTextColor={COLORS.muted}
+                  maxLength={120}
                 />
-              </View>
 
-              <Text style={[styles.label, styles.spacedLabel]}>Category</Text>
+                <Text style={styles.label}>Category</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryRow}
+                >
+                  {CATEGORIES.map(item => {
+                    const selected = item.id === category;
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryRow}
-              >
-                {CATEGORIES.map(item => {
-                  const selected = category === item.id;
-
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => setCategory(item.id)}
-                      style={[
-                        styles.categoryButton,
-                        selected && styles.categoryButtonSelected,
-                      ]}
-                    >
-                      <Ionicons
-                        name={item.icon}
-                        size={16}
-                        color={selected ? '#FFFFFF' : COLORS.purple}
-                      />
-
-                      <Text
-                        style={[
-                          styles.categoryButtonText,
-                          selected && styles.categoryButtonTextSelected,
-                        ]}
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={[styles.category, selected && styles.categoryActive]}
+                        onPress={() => setCategory(item.id)}
                       >
-                        {item.title}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+                        <Ionicons
+                          name={item.icon}
+                          size={16}
+                          color={selected ? '#fff' : COLORS.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.categoryText,
+                            selected && styles.categoryTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
 
-              <Text style={[styles.label, styles.spacedLabel]}>
-                Problem description
-              </Text>
-
-              <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
+                <Text style={styles.label}>Problem description</Text>
                 <TextInput
+                  style={[styles.input, styles.textArea]}
                   value={description}
                   onChangeText={setDescription}
                   multiline
                   textAlignVertical="top"
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Describe the problem"
-                  placeholderTextColor="#A2A6B3"
-                />
-              </View>
-
-              <Text style={[styles.label, styles.spacedLabel]}>
-                Service location
-              </Text>
-
-              <View style={styles.inputWrapper}>
-                <Ionicons
-                  name="location-outline"
-                  size={18}
-                  color={COLORS.muted}
+                  placeholder="Explain what is happening and what help you need."
+                  placeholderTextColor={COLORS.muted}
+                  maxLength={5000}
                 />
 
+                <Text style={styles.label}>Service location</Text>
                 <TextInput
+                  style={styles.input}
                   value={location}
                   onChangeText={setLocation}
-                  style={styles.input}
+                  placeholder="e.g. Dhanmondi, Dhaka"
+                  placeholderTextColor={COLORS.muted}
+                  maxLength={200}
                 />
-              </View>
 
-              <Text style={[styles.label, styles.spacedLabel]}>
-                Expected budget
-              </Text>
-
-              <View style={styles.inputWrapper}>
-                <Text style={styles.currency}>৳</Text>
-
+                <Text style={styles.label}>Budget (BDT)</Text>
                 <TextInput
+                  style={styles.input}
                   value={budget}
                   onChangeText={setBudget}
                   keyboardType="numeric"
-                  style={styles.input}
+                  placeholder="e.g. 800"
+                  placeholderTextColor={COLORS.muted}
                 />
-              </View>
 
-              <Text style={[styles.label, styles.spacedLabel]}>
-                Preferred schedule
-              </Text>
+                <Text style={styles.label}>Schedule note</Text>
+                <TextInput
+                  style={styles.input}
+                  value={scheduleNote}
+                  onChangeText={setScheduleNote}
+                  placeholder="Today, tomorrow morning, this week..."
+                  placeholderTextColor={COLORS.muted}
+                  maxLength={200}
+                />
 
-              <View style={styles.scheduleRow}>
-                {SCHEDULES.map(item => (
-                  <Pressable
-                    key={item}
-                    onPress={() => setSchedule(item)}
-                    style={[
-                      styles.scheduleButton,
-                      schedule === item && styles.scheduleButtonSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.scheduleText,
-                        schedule === item && styles.scheduleTextSelected,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text style={[styles.label, styles.spacedLabel]}>
-                Problem photo
-              </Text>
-
-              {photoUri ? (
-                <View style={styles.selectedImageWrapper}>
-                  <Image
-                    source={{
-                      uri: photoUri,
-                    }}
-                    style={styles.selectedImage}
-                  />
-
-                  <Pressable
-                    onPress={() => setPhotoUri(undefined)}
-                    style={styles.removePhoto}
-                  >
-                    <Ionicons name="close" size={17} color="#FFFFFF" />
-                  </Pressable>
+                <View style={styles.privacyCard}>
+                  <Ionicons name="shield-checkmark" size={20} color={COLORS.green} />
+                  <Text style={styles.privacyText}>
+                    Only a location label is posted publicly. Keep apartment, phone, and other sensitive details out of the description.
+                  </Text>
                 </View>
-              ) : (
-                <Pressable onPress={pickPhoto} style={styles.photoPicker}>
-                  <Ionicons
-                    name="images-outline"
-                    size={30}
-                    color={COLORS.orange}
-                  />
 
-                  <Text style={styles.photoPickerTitle}>
-                    Upload job picture
-                  </Text>
-
-                  <Text style={styles.photoPickerText}>
-                    Select a real image from your device
-                  </Text>
+                <Pressable
+                  style={[styles.primaryButton, saving && styles.disabled]}
+                  disabled={saving}
+                  onPress={() => void submitRequest()}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={17} color="#fff" />
+                      <Text style={styles.primaryButtonText}>Publish Request</Text>
+                    </>
+                  )}
                 </Pressable>
-              )}
-
-              {photoUri && (
-                <Pressable onPress={pickPhoto} style={styles.changePhotoButton}>
-                  <Ionicons
-                    name="image-outline"
-                    size={15}
-                    color={COLORS.purple}
-                  />
-
-                  <Text style={styles.changePhotoText}>Change photo</Text>
-                </Pressable>
-              )}
-
-              <Pressable onPress={submitJob} style={styles.primaryButton}>
-                <Ionicons name="paper-plane" size={17} color="#FFFFFF" />
-
-                <Text style={styles.primaryButtonText}>Post to Community</Text>
-              </Pressable>
-            </ScrollView>
+              </ScrollView>
+            </KeyboardAvoidingView>
           </View>
         </SafeAreaView>
       </>
     );
   }
 
-  const job = selectedJob!;
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.centerText}>Loading job details…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const accepted = getAcceptedProposal(job.id);
-
-  const categoryMeta =
-    CATEGORIES.find(item => item.id === job.category) ?? CATEGORIES[0];
-
-  const addComment = () => {
-    if (!commentText.trim()) {
-      return;
-    }
-
-    addJobComment(job.id, commentText, role);
-
-    setCommentText('');
-  };
-
-  const submitProposal = () => {
-    const numericPrice = Number(proposalPrice);
-
-    if (
-      Number.isNaN(numericPrice) ||
-      numericPrice <= 0 ||
-      !proposalAvailability.trim()
-    ) {
-      Alert.alert(
-        'Invalid proposal',
-        'Please provide valid labor cost and availability.',
-      );
-
-      return;
-    }
-
-    sendWorkerProposal(job.id, {
-      price: numericPrice,
-      availability: proposalAvailability.trim(),
-      note: proposalNote.trim() || 'Available for this job.',
-    });
-
-    setProposalVisible(false);
-  };
-
-  const messageCustomer = () => {
-    openJobChat(job.id, CURRENT_WORKER.id);
-
-    router.push('/job-chat');
-  };
-
-  const messageAcceptedWorker = () => {
-    if (!accepted) {
-      return;
-    }
-
-    openJobChat(job.id, accepted.workerId);
-
-    router.push('/job-chat');
-  };
+  if (detailError || !request) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.centerState}>
+          <Ionicons name="alert-circle-outline" size={36} color={COLORS.red} />
+          <Text style={styles.centerTitle}>Unable to open request</Text>
+          <Text style={styles.centerText}>{detailError ?? 'Request not found.'}</Text>
+          <Pressable style={styles.retryButton} onPress={() => void loadDetails()}>
+            <Text style={styles.retryText}>Try Again</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <SafeAreaView style={styles.screen} edges={['top']}>
-        <View style={styles.appShell}>
+        <View style={styles.shell}>
           <View style={styles.header}>
-            <Pressable
-              onPress={() => router.replace('/community')}
-              style={styles.headerButton}
-            >
-              <Ionicons name="arrow-back" size={20} color={COLORS.text} />
+            <Pressable style={styles.headerButton} onPress={() => router.replace('/community')}>
+              <Ionicons name="arrow-back" size={21} color={COLORS.text} />
             </Pressable>
 
             <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>Job Details</Text>
-
-              <Text style={styles.headerSubtitle}>Community marketplace</Text>
+              <Text style={styles.headerTitle}>Service Request</Text>
+              <Text style={styles.headerSubtitle}>
+                {isOwner ? 'Your request' : role === 'worker' ? 'Worker opportunity' : 'Community request'}
+              </Text>
             </View>
 
-            <View style={styles.headerButton} />
+            <Pressable style={styles.headerButton} onPress={() => void loadDetails()}>
+              <Ionicons name="refresh" size={20} color={COLORS.primary} />
+            </Pressable>
           </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.scrollContent}
-          >
-            <RoleSwitcher role={role} />
-
-            <View style={styles.jobCard}>
-              <View style={styles.jobTopRow}>
-                <View style={styles.jobCategoryIcon}>
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <View style={styles.requestCard}>
+              <View style={styles.requestTop}>
+                <View style={styles.serviceIcon}>
                   <Ionicons
-                    name={categoryMeta.icon}
-                    size={22}
-                    color={COLORS.orange}
+                    name={
+                      CATEGORIES.find(item => item.id === request.category)?.icon ??
+                      'construct-outline'
+                    }
+                    size={23}
+                    color={COLORS.primary}
                   />
                 </View>
 
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.jobCategory}>{categoryMeta.title}</Text>
-
-                  <Text style={styles.jobTitle}>{job.title}</Text>
-                </View>
-
-                <View style={styles.openStatusBadge}>
-                  <Text style={styles.openStatusText}>
-                    {job.status.toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-
-              {job.photoUri && (
-                <Image
-                  source={{
-                    uri: job.photoUri,
-                  }}
-                  style={styles.detailImage}
-                />
-              )}
-
-              <Text style={styles.jobDescription}>{job.description}</Text>
-
-              <View style={styles.infoGrid}>
-                <View style={styles.infoItem}>
-                  <Ionicons
-                    name="location-outline"
-                    size={15}
-                    color={COLORS.purple}
-                  />
-
-                  <Text style={styles.infoText}>{job.location}</Text>
-                </View>
-
-                <View style={styles.infoItem}>
-                  <Ionicons
-                    name="wallet-outline"
-                    size={15}
-                    color={COLORS.orange}
-                  />
-
-                  <Text style={styles.infoText}>
-                    Budget {formatMoney(job.budget)}
+                <View style={styles.flex}>
+                  <Text style={styles.requestTitle}>{request.title}</Text>
+                  <Text style={styles.requestMeta}>
+                    {request.location_label} • {request.status.toUpperCase()}
                   </Text>
                 </View>
 
-                <View style={styles.infoItem}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={15}
-                    color={COLORS.purple}
-                  />
-
-                  <Text style={styles.infoText}>{job.schedule}</Text>
-                </View>
-              </View>
-            </View>
-
-            {role === 'worker' && (
-              <View style={styles.workerCTA}>
-                <Pressable onPress={messageCustomer} style={styles.inboxButton}>
-                  <Ionicons
-                    name="chatbubble-ellipses-outline"
-                    size={17}
-                    color={COLORS.purple}
-                  />
-
-                  <Text style={styles.inboxButtonText}>Message Customer</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setProposalVisible(true)}
-                  style={styles.sendProposalButton}
-                >
-                  <Ionicons
-                    name="document-text-outline"
-                    size={17}
-                    color="#FFFFFF"
-                  />
-
-                  <Text style={styles.sendProposalText}>Send Proposal</Text>
-                </Pressable>
-              </View>
-            )}
-
-            {accepted && role === 'customer' && (
-              <Pressable
-                onPress={messageAcceptedWorker}
-                style={styles.acceptedCard}
-              >
-                <View style={styles.acceptedIcon}>
-                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.acceptedTitle}>
-                    {accepted.workerName} selected
-                  </Text>
-
-                  <Text style={styles.acceptedText}>
-                    Agreed labor {formatMoney(accepted.price)} • Open active
-                    chat
-                  </Text>
-                </View>
-
-                <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-              </Pressable>
-            )}
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Public Discussion</Text>
-
-              <Text style={styles.sectionCount}>
-                {job.comments.length} comments
-              </Text>
-            </View>
-
-            <View style={styles.discussionCard}>
-              {job.comments.length === 0 ? (
-                <Text style={styles.emptyDiscussion}>
-                  No comments yet. Workers can ask public questions here.
+                <Text style={styles.price}>
+                  {money(request.budget_amount, request.currency)}
                 </Text>
-              ) : (
-                job.comments.map(comment => (
-                  <View key={comment.id} style={styles.commentRow}>
-                    <View
-                      style={[
-                        styles.commentAvatar,
-                        comment.authorRole === 'worker'
-                          ? styles.workerAvatar
-                          : styles.customerAvatar,
-                      ]}
-                    >
-                      <Text style={styles.avatarText}>
-                        {comment.authorName
-                          .split(' ')
-                          .slice(0, 2)
-                          .map(part => part[0])
-                          .join('')}
-                      </Text>
-                    </View>
+              </View>
 
-                    <View style={styles.commentBody}>
-                      <Text style={styles.commentAuthor}>
-                        {comment.authorName}
-                      </Text>
+              <Text style={styles.requestDescription}>{request.description}</Text>
 
-                      <Text style={styles.commentText}>{comment.text}</Text>
+              {request.schedule_note ? (
+                <View style={styles.schedule}>
+                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                  <Text style={styles.scheduleText}>{request.schedule_note}</Text>
+                </View>
+              ) : null}
+            </View>
 
-                      <Text style={styles.commentTime}>{comment.time}</Text>
-                    </View>
-                  </View>
-                ))
-              )}
+            {acceptedProposal ? (
+              <View style={styles.assignedCard}>
+                <Ionicons name="checkmark-circle" size={24} color={COLORS.green} />
+                <View style={styles.flex}>
+                  <Text style={styles.assignedTitle}>Worker selected</Text>
+                  <Text style={styles.assignedText}>
+                    Labor proposal {money(acceptedProposal.price_amount, acceptedProposal.currency)} • {acceptedProposal.availability_note}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
-              <View style={styles.commentComposer}>
-                <TextInput
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  placeholder="Write a public comment..."
-                  placeholderTextColor="#A2A6B3"
-                  returnKeyType="send"
-                  onSubmitEditing={addComment}
-                  style={styles.commentInput}
-                />
+            {role === 'worker' && request.status === 'open' && !isOwner ? (
+              <Pressable style={styles.workerProposalButton} onPress={() => setProposalOpen(true)}>
+                <Ionicons name="document-text-outline" size={18} color="#fff" />
+                <Text style={styles.workerProposalText}>Submit Proposal</Text>
+              </Pressable>
+            ) : null}
 
-                <Pressable
-                  onPress={addComment}
-                  disabled={!commentText.trim()}
-                  style={[
-                    styles.commentSend,
-                    !commentText.trim() && styles.disabledButton,
-                  ]}
-                >
-                  <Ionicons name="send" size={15} color="#FFFFFF" />
-                </Pressable>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Worker Proposals</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {proposals.length} proposal{proposals.length === 1 ? '' : 's'}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Worker Proposals</Text>
-
-              <Text style={styles.sectionCount}>
-                {job.proposals.length} offers
-              </Text>
-            </View>
-
-            {job.proposals.length === 0 ? (
+            {proposals.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={25}
-                  color={COLORS.muted}
-                />
-
-                <Text style={styles.emptyCardTitle}>No proposals yet</Text>
+                <Ionicons name="document-text-outline" size={30} color={COLORS.muted} />
+                <Text style={styles.emptyTitle}>No proposals yet</Text>
+                <Text style={styles.emptyText}>Worker proposals will appear here.</Text>
               </View>
             ) : (
-              job.proposals.map(proposal => (
+              proposals.map(item => (
                 <View
-                  key={proposal.id}
+                  key={item.id}
                   style={[
                     styles.proposalCard,
-                    proposal.status === 'accepted' && styles.proposalAccepted,
+                    item.status === 'accepted' && styles.proposalAccepted,
                   ]}
                 >
-                  <View style={styles.proposalHeader}>
-                    <View style={styles.proposalAvatar}>
+                  <View style={styles.proposalTop}>
+                    <View style={styles.avatar}>
                       <Text style={styles.avatarText}>
-                        {proposal.workerName
-                          .split(' ')
-                          .slice(0, 2)
-                          .map(part => part[0])
-                          .join('')}
+                        {initials(item.worker_id.slice(0, 6))}
                       </Text>
                     </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.proposalName}>
-                        {proposal.workerName}
-                      </Text>
-
-                      <Text style={styles.proposalProfession}>
-                        {proposal.profession} • ⭐ {proposal.rating}
-                      </Text>
+                    <View style={styles.flex}>
+                      <Text style={styles.proposalTitle}>Worker proposal</Text>
+                      <Text style={styles.proposalAvailability}>{item.availability_note}</Text>
                     </View>
-
                     <Text style={styles.proposalPrice}>
-                      {formatMoney(proposal.price)}
+                      {money(item.price_amount, item.currency)}
                     </Text>
                   </View>
 
-                  <View style={styles.proposalAvailability}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={14}
-                      color={COLORS.purple}
-                    />
+                  {item.note ? <Text style={styles.proposalNote}>{item.note}</Text> : null}
 
-                    <Text style={styles.proposalAvailabilityText}>
-                      {proposal.availability}
-                    </Text>
-                  </View>
-
-                  <Text style={styles.proposalNote}>{proposal.note}</Text>
-
-                  {proposal.status === 'accepted' ? (
-                    <View style={styles.acceptedProposalBadge}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={15}
-                        color={COLORS.success}
-                      />
-
-                      <Text style={styles.acceptedProposalText}>Accepted</Text>
+                  {item.status === 'accepted' ? (
+                    <View style={styles.acceptedBadge}>
+                      <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
+                      <Text style={styles.acceptedBadgeText}>Accepted</Text>
                     </View>
-                  ) : role === 'customer' ? (
+                  ) : isOwner && request.status === 'open' ? (
                     <Pressable
-                      onPress={() => {
-                        acceptProposal(job.id, proposal.id);
-
-                        Alert.alert(
-                          'Worker selected',
-                          'The proposal has been accepted. Private chat is now an active job conversation.',
-                        );
-                      }}
-                      style={styles.acceptProposalButton}
+                      style={[styles.acceptButton, saving && styles.disabled]}
+                      disabled={saving}
+                      onPress={() => void acceptProposal(item.id)}
                     >
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-
-                      <Text style={styles.acceptProposalText}>
-                        Accept Proposal
-                      </Text>
+                      <Text style={styles.acceptText}>Accept Proposal</Text>
                     </Pressable>
                   ) : null}
                 </View>
               ))
             )}
+
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Public Discussion</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {comments.length} comment{comments.length === 1 ? '' : 's'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.discussionCard}>
+              {comments.length === 0 ? (
+                <Text style={styles.emptyText}>No comments yet. Ask a public question about the job.</Text>
+              ) : (
+                comments.map(item => (
+                  <View key={item.id} style={styles.commentRow}>
+                    <View style={styles.commentAvatar}>
+                      <Ionicons name="person" size={15} color="#fff" />
+                    </View>
+                    <View style={styles.flex}>
+                      <Text style={styles.commentAuthor}>
+                        {item.author_id === user?.id ? profile?.display_name ?? 'You' : 'Community member'}
+                      </Text>
+                      <Text style={styles.commentText}>{item.body}</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+
+              <View style={styles.composer}>
+                <TextInput
+                  style={styles.commentInput}
+                  value={comment}
+                  onChangeText={setComment}
+                  placeholder="Write a public comment…"
+                  placeholderTextColor={COLORS.muted}
+                  maxLength={2000}
+                />
+                <Pressable
+                  style={[styles.sendButton, (!comment.trim() || saving) && styles.disabled]}
+                  disabled={!comment.trim() || saving}
+                  onPress={() => void submitComment()}
+                >
+                  <Ionicons name="send" size={16} color="#fff" />
+                </Pressable>
+              </View>
+            </View>
           </ScrollView>
         </View>
       </SafeAreaView>
 
       <Modal
-        visible={proposalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setProposalVisible(false)}
+        visible={proposalOpen}
+        onRequestClose={() => setProposalOpen(false)}
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setProposalVisible(false)}
-          />
+          <Pressable style={styles.backdrop} onPress={() => setProposalOpen(false)} />
 
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Submit a Proposal</Text>
+            <Text style={styles.modalSubtitle}>
+              Add your labor price, availability, and a clear service note.
+            </Text>
 
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Send Proposal</Text>
+            <Text style={styles.label}>Labor price (BDT)</Text>
+            <TextInput
+              style={styles.input}
+              value={proposalPrice}
+              onChangeText={setProposalPrice}
+              keyboardType="numeric"
+              placeholder="e.g. 700"
+              placeholderTextColor={COLORS.muted}
+            />
 
-                <Text style={styles.modalSubtitle}>
-                  Offer labor price and availability.
-                </Text>
-              </View>
+            <Text style={styles.label}>Availability</Text>
+            <TextInput
+              style={styles.input}
+              value={proposalAvailability}
+              onChangeText={setProposalAvailability}
+              maxLength={300}
+            />
 
-              <Pressable onPress={() => setProposalVisible(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text} />
-              </Pressable>
-            </View>
+            <Text style={styles.label}>Note</Text>
+            <TextInput
+              style={[styles.input, styles.modalTextArea]}
+              value={proposalNote}
+              onChangeText={setProposalNote}
+              multiline
+              textAlignVertical="top"
+              placeholder="Explain what you can do and any conditions."
+              placeholderTextColor={COLORS.muted}
+              maxLength={2000}
+            />
 
-            <Text style={styles.label}>Labor price</Text>
-
-            <View style={styles.inputWrapper}>
-              <Text style={styles.currency}>৳</Text>
-
-              <TextInput
-                value={proposalPrice}
-                onChangeText={setProposalPrice}
-                keyboardType="numeric"
-                style={styles.input}
-              />
-            </View>
-
-            <Text style={[styles.label, styles.spacedLabel]}>Availability</Text>
-
-            <View style={styles.inputWrapper}>
-              <TextInput
-                value={proposalAvailability}
-                onChangeText={setProposalAvailability}
-                style={styles.input}
-              />
-            </View>
-
-            <Text style={[styles.label, styles.spacedLabel]}>Note</Text>
-
-            <View style={[styles.inputWrapper, styles.modalTextArea]}>
-              <TextInput
-                value={proposalNote}
-                onChangeText={setProposalNote}
-                multiline
-                textAlignVertical="top"
-                style={[styles.input, styles.modalNoteInput]}
-              />
-            </View>
-
-            <Pressable onPress={submitProposal} style={styles.primaryButton}>
-              <Ionicons name="paper-plane" size={17} color="#FFFFFF" />
-
-              <Text style={styles.primaryButtonText}>Send Proposal</Text>
+            <Pressable
+              style={[styles.primaryButton, saving && styles.disabled]}
+              disabled={saving}
+              onPress={() => void sendProposal()}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="paper-plane" size={17} color="#fff" />
+                  <Text style={styles.primaryButtonText}>Send Proposal</Text>
+                </>
+              )}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -954,764 +705,284 @@ export default function JobBoardScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#E9ECF3',
-  },
-
-  appShell: {
+  flex: { flex: 1 },
+  screen: { flex: 1, backgroundColor: '#ecebf2' },
+  shell: {
     flex: 1,
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 720,
     alignSelf: 'center',
     backgroundColor: COLORS.background,
   },
-
   header: {
-    height: 62,
-    paddingHorizontal: 11,
+    minHeight: 64,
+    paddingHorizontal: 13,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#fff',
   },
-
   headerButton: {
-    width: 39,
-    height: 39,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  headerCenter: {
-    alignItems: 'center',
-  },
-
-  headerTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  headerSubtitle: {
-    marginTop: 2,
-    fontSize: 7,
-    color: COLORS.muted,
-  },
-
-  scrollContent: {
-    padding: 13,
-    paddingBottom: 50,
-  },
-
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 14, fontWeight: '900', color: COLORS.text },
+  headerSubtitle: { marginTop: 2, fontSize: 9.5, color: COLORS.muted },
+  content: { padding: 15, paddingBottom: 54 },
   hero: {
-    padding: 13,
+    padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: COLORS.purple,
+    gap: 12,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
   },
-
   heroIcon: {
-    width: 44,
-    height: 44,
-    marginRight: 9,
+    width: 48,
+    height: 48,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.13)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-
-  heroTitle: {
-    fontSize: 11.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
-  heroText: {
-    marginTop: 3,
-    fontSize: 7.5,
-    lineHeight: 11,
-    color: '#DDD9FF',
-  },
-
-  label: {
-    marginTop: 15,
-    marginBottom: 6,
-    fontSize: 9,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  spacedLabel: {
-    marginTop: 15,
-  },
-
-  inputWrapper: {
-    minHeight: 48,
-    paddingHorizontal: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 13,
-    backgroundColor: COLORS.card,
-  },
-
+  heroTitle: { fontSize: 15, fontWeight: '900', color: '#fff' },
+  heroText: { marginTop: 4, fontSize: 11, lineHeight: 17, color: '#d9d8ff' },
+  label: { marginTop: 17, marginBottom: 7, fontSize: 11, fontWeight: '900', color: COLORS.text },
   input: {
-    flex: 1,
-    minHeight: 46,
-    fontSize: 9.5,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    backgroundColor: '#fff',
     color: COLORS.text,
+    fontSize: 12,
   },
-
-  currency: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: COLORS.orange,
+  textArea: { minHeight: 120, paddingTop: 13 },
+  modalTextArea: { minHeight: 90, paddingTop: 12 },
+  categoryRow: { gap: 7 },
+  category: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 999,
+    backgroundColor: '#fff',
   },
-
-  textAreaWrapper: {
-    minHeight: 115,
+  categoryActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  categoryText: { fontSize: 10.5, fontWeight: '800', color: COLORS.primary },
+  categoryTextActive: { color: '#fff' },
+  privacyCard: {
+    marginTop: 18,
+    padding: 14,
+    flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 9,
+    borderRadius: 15,
+    backgroundColor: COLORS.greenSoft,
   },
-
-  textArea: {
-    minHeight: 110,
-    paddingVertical: 11,
-  },
-
-  categoryRow: {
-    gap: 7,
-    paddingRight: 8,
-  },
-
-  categoryButton: {
-    minHeight: 39,
-    paddingHorizontal: 11,
+  privacyText: { flex: 1, fontSize: 10.5, lineHeight: 16, color: COLORS.muted },
+  primaryButton: {
+    minHeight: 51,
+    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+  },
+  primaryButtonText: { fontSize: 12, fontWeight: '900', color: '#fff' },
+  disabled: { opacity: 0.55 },
+  requestCard: {
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 11,
-    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    backgroundColor: '#fff',
   },
-
-  categoryButtonSelected: {
-    borderColor: COLORS.purple,
-    backgroundColor: COLORS.purple,
+  requestTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  serviceIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.purpleSoft,
   },
-
-  categoryButtonText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.purple,
-  },
-
-  categoryButtonTextSelected: {
-    color: '#FFFFFF',
-  },
-
-  scheduleRow: {
+  requestTitle: { fontSize: 15, fontWeight: '900', color: COLORS.text },
+  requestMeta: { marginTop: 3, fontSize: 10, color: COLORS.muted },
+  price: { fontSize: 14, fontWeight: '900', color: COLORS.orange },
+  requestDescription: { marginTop: 14, fontSize: 11.5, lineHeight: 18, color: COLORS.muted },
+  schedule: {
+    marginTop: 12,
+    padding: 10,
     flexDirection: 'row',
-    gap: 7,
-  },
-
-  scheduleButton: {
-    flex: 1,
-    minHeight: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 11,
-    backgroundColor: COLORS.card,
-  },
-
-  scheduleButtonSelected: {
-    borderColor: COLORS.orange,
-    backgroundColor: COLORS.orangeSoft,
-  },
-
-  scheduleText: {
-    fontSize: 7.5,
-    fontWeight: '800',
-    color: COLORS.muted,
-  },
-
-  scheduleTextSelected: {
-    color: COLORS.orangeDark,
-  },
-
-  photoPicker: {
-    minHeight: 125,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#F1B687',
-    borderRadius: 15,
-    backgroundColor: '#FFF9F5',
-  },
-
-  photoPickerTitle: {
-    marginTop: 7,
-    fontSize: 9.5,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  photoPickerText: {
-    marginTop: 3,
-    fontSize: 7,
-    color: COLORS.muted,
-  },
-
-  selectedImageWrapper: {
-    position: 'relative',
-  },
-
-  selectedImage: {
-    width: '100%',
-    height: 220,
-    borderRadius: 15,
-  },
-
-  removePhoto: {
-    width: 34,
-    height: 34,
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 11,
-    backgroundColor: 'rgba(20,20,30,0.75)',
-  },
-
-  changePhotoButton: {
-    minHeight: 38,
-    marginTop: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
+    gap: 6,
     borderRadius: 11,
     backgroundColor: COLORS.purpleSoft,
   },
-
-  changePhotoText: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: COLORS.purple,
+  scheduleText: { fontSize: 10.5, color: COLORS.primary },
+  assignedCard: {
+    marginTop: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    backgroundColor: COLORS.greenSoft,
   },
-
-  primaryButton: {
-    minHeight: 49,
-    marginTop: 17,
+  assignedTitle: { fontSize: 12, fontWeight: '900', color: COLORS.green },
+  assignedText: { marginTop: 3, fontSize: 10, lineHeight: 15, color: COLORS.muted },
+  workerProposalButton: {
+    minHeight: 48,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: 13,
+    gap: 7,
+    borderRadius: 14,
     backgroundColor: COLORS.orange,
   },
-
-  primaryButtonText: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
+  workerProposalText: { fontSize: 12, fontWeight: '900', color: '#fff' },
+  sectionHeader: { marginTop: 22, marginBottom: 9 },
+  sectionTitle: { fontSize: 14, fontWeight: '900', color: COLORS.text },
+  sectionSubtitle: { marginTop: 2, fontSize: 9.5, color: COLORS.muted },
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    backgroundColor: '#fff',
   },
-
-  roleSwitcher: {
-    marginBottom: 12,
-    padding: 4,
-    flexDirection: 'row',
+  emptyTitle: { marginTop: 7, fontSize: 12, fontWeight: '900', color: COLORS.text },
+  emptyText: { marginTop: 4, fontSize: 10.5, lineHeight: 16, color: COLORS.muted, textAlign: 'center' },
+  proposalCard: {
+    marginBottom: 9,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+  },
+  proposalAccepted: { borderColor: '#b9e2c9', backgroundColor: '#fcfffd' },
+  proposalTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  avatar: {
+    width: 42,
+    height: 42,
     borderRadius: 13,
-    backgroundColor: '#EDEEF3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
   },
-
-  roleOption: {
-    flex: 1,
-    minHeight: 36,
+  avatarText: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  proposalTitle: { fontSize: 11.5, fontWeight: '900', color: COLORS.text },
+  proposalAvailability: { marginTop: 2, fontSize: 9.5, color: COLORS.muted },
+  proposalPrice: { fontSize: 13, fontWeight: '900', color: COLORS.orange },
+  proposalNote: { marginTop: 10, fontSize: 10.5, lineHeight: 16, color: COLORS.muted },
+  acceptedBadge: {
+    marginTop: 11,
+    padding: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
     borderRadius: 10,
+    backgroundColor: COLORS.greenSoft,
   },
-
-  customerRoleActive: {
+  acceptedBadgeText: { fontSize: 10, fontWeight: '900', color: COLORS.green },
+  acceptButton: {
+    minHeight: 40,
+    marginTop: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
     backgroundColor: COLORS.orange,
   },
-
-  workerRoleActive: {
-    backgroundColor: COLORS.purple,
-  },
-
-  roleText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.muted,
-  },
-
-  roleTextActive: {
-    color: '#FFFFFF',
-  },
-
-  jobCard: {
-    padding: 13,
+  acceptText: { fontSize: 10.5, fontWeight: '900', color: '#fff' },
+  discussionCard: {
+    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 17,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#fff',
   },
-
-  jobTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  jobCategoryIcon: {
-    width: 44,
-    height: 44,
-    marginRight: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 13,
-    backgroundColor: COLORS.orangeSoft,
-  },
-
-  jobCategory: {
-    fontSize: 6.5,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    color: COLORS.orangeDark,
-  },
-
-  jobTitle: {
-    marginTop: 2,
-    fontSize: 13,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  openStatusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: COLORS.successSoft,
-  },
-
-  openStatusText: {
-    fontSize: 6,
-    fontWeight: '900',
-    color: COLORS.success,
-  },
-
-  detailImage: {
-    width: '100%',
-    height: 200,
-    marginTop: 11,
-    borderRadius: 14,
-  },
-
-  jobDescription: {
-    marginTop: 12,
-    fontSize: 8.5,
-    lineHeight: 13,
-    color: '#626775',
-  },
-
-  infoGrid: {
-    marginTop: 12,
-    gap: 7,
-  },
-
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-
-  infoText: {
-    fontSize: 7.5,
-    color: COLORS.muted,
-  },
-
-  workerCTA: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 7,
-  },
-
-  inboxButton: {
-    flex: 1,
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    borderWidth: 1,
-    borderColor: '#D9D6F3',
-    borderRadius: 11,
-    backgroundColor: COLORS.purpleSoft,
-  },
-
-  inboxButtonText: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: COLORS.purple,
-  },
-
-  sendProposalButton: {
-    flex: 1,
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    borderRadius: 11,
-    backgroundColor: COLORS.purple,
-  },
-
-  sendProposalText: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
-  acceptedCard: {
-    marginTop: 10,
-    padding: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 14,
-    backgroundColor: COLORS.purple,
-  },
-
-  acceptedIcon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 11,
-    backgroundColor: COLORS.orange,
-  },
-
-  acceptedTitle: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
-  acceptedText: {
-    marginTop: 2,
-    fontSize: 6.8,
-    color: '#DDD9FF',
-  },
-
-  sectionHeader: {
-    marginTop: 17,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  sectionCount: {
-    fontSize: 7,
-    color: COLORS.muted,
-  },
-
-  discussionCard: {
-    padding: 11,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 15,
-    backgroundColor: COLORS.card,
-  },
-
-  emptyDiscussion: {
-    paddingVertical: 15,
-    textAlign: 'center',
-    fontSize: 8,
-    color: COLORS.muted,
-  },
-
-  commentRow: {
-    marginBottom: 12,
-    flexDirection: 'row',
-  },
-
+  commentRow: { flexDirection: 'row', gap: 9, marginBottom: 12 },
   commentAvatar: {
     width: 34,
     height: 34,
-    marginRight: 7,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 11,
+    backgroundColor: COLORS.primary,
   },
-
-  workerAvatar: {
-    backgroundColor: COLORS.purple,
-  },
-
-  customerAvatar: {
-    backgroundColor: COLORS.orange,
-  },
-
-  avatarText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
-  commentBody: {
-    flex: 1,
-  },
-
-  commentAuthor: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  commentText: {
-    marginTop: 3,
-    fontSize: 8,
-    lineHeight: 12,
-    color: COLORS.muted,
-  },
-
-  commentTime: {
-    marginTop: 3,
-    fontSize: 6,
-    color: '#A4A7B0',
-  },
-
-  commentComposer: {
-    minHeight: 43,
-    paddingLeft: 10,
-    paddingRight: 4,
+  commentAuthor: { fontSize: 10, fontWeight: '900', color: COLORS.text },
+  commentText: { marginTop: 2, fontSize: 10.5, lineHeight: 16, color: COLORS.muted },
+  composer: {
+    marginTop: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    backgroundColor: '#F8F8FA',
+    gap: 8,
   },
-
   commentInput: {
     flex: 1,
-    minHeight: 40,
-    fontSize: 8,
+    minHeight: 43,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.background,
     color: COLORS.text,
+    fontSize: 10.5,
   },
-
-  commentSend: {
-    width: 32,
-    height: 32,
+  sendButton: {
+    width: 43,
+    height: 43,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: COLORS.orange,
+    backgroundColor: COLORS.primary,
   },
-
-  disabledButton: {
-    opacity: 0.35,
+  centerState: { flex: 1, padding: 30, alignItems: 'center', justifyContent: 'center' },
+  centerTitle: { marginTop: 9, fontSize: 15, fontWeight: '900', color: COLORS.text },
+  centerText: { marginTop: 7, fontSize: 11, lineHeight: 17, textAlign: 'center', color: COLORS.muted },
+  retryButton: {
+    marginTop: 15,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 11,
+    backgroundColor: COLORS.primary,
   },
-
-  emptyCard: {
-    padding: 25,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 15,
-    backgroundColor: COLORS.card,
+  retryText: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15,15,25,0.46)',
   },
-
-  emptyCardTitle: {
-    marginTop: 6,
-    fontSize: 8.5,
-    fontWeight: '900',
-    color: COLORS.muted,
-  },
-
-  proposalCard: {
-    marginBottom: 9,
-    padding: 11,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 15,
-    backgroundColor: COLORS.card,
-  },
-
-  proposalAccepted: {
-    borderColor: '#A9DCC2',
-    backgroundColor: '#FCFFFD',
-  },
-
-  proposalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  proposalAvatar: {
-    width: 42,
-    height: 42,
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 13,
-    backgroundColor: COLORS.purple,
-  },
-
-  proposalName: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  proposalProfession: {
-    marginTop: 2,
-    fontSize: 6.5,
-    color: COLORS.muted,
-  },
-
-  proposalPrice: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: COLORS.orangeDark,
-  },
-
-  proposalAvailability: {
-    marginTop: 9,
-    padding: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 9,
-    backgroundColor: COLORS.purpleSoft,
-  },
-
-  proposalAvailabilityText: {
-    fontSize: 7,
-    color: COLORS.purpleDark,
-  },
-
-  proposalNote: {
-    marginTop: 8,
-    fontSize: 7.5,
-    lineHeight: 11,
-    color: COLORS.muted,
-  },
-
-  acceptProposalButton: {
-    minHeight: 39,
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    borderRadius: 10,
-    backgroundColor: COLORS.orange,
-  },
-
-  acceptProposalText: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-
-  acceptedProposalBadge: {
-    marginTop: 10,
-    padding: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    borderRadius: 10,
-    backgroundColor: COLORS.successSoft,
-  },
-
-  acceptedProposalText: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: COLORS.success,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-
-  modalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(15,17,30,0.45)',
-  },
-
   modalSheet: {
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 720,
     alignSelf: 'center',
-    padding: 16,
-    paddingBottom: 27,
-    borderTopLeftRadius: 23,
-    borderTopRightRadius: 23,
-    backgroundColor: COLORS.card,
+    padding: 20,
+    paddingBottom: 30,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#fff',
   },
-
   modalHandle: {
-    width: 43,
+    width: 42,
     height: 4,
-    marginBottom: 14,
+    marginBottom: 16,
     alignSelf: 'center',
     borderRadius: 3,
-    backgroundColor: '#D6D8E0',
+    backgroundColor: '#d4d1db',
   },
-
-  modalHeader: {
-    marginBottom: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  modalTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-
-  modalSubtitle: {
-    marginTop: 2,
-    fontSize: 7.5,
-    color: COLORS.muted,
-  },
-
-  modalTextArea: {
-    minHeight: 90,
-    alignItems: 'flex-start',
-  },
-
-  modalNoteInput: {
-    minHeight: 85,
-    paddingVertical: 10,
-  },
+  modalTitle: { fontSize: 17, fontWeight: '900', color: COLORS.text },
+  modalSubtitle: { marginTop: 3, fontSize: 10.5, color: COLORS.muted },
 });
