@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { getAuthIdentity } from '@/features/auth/auth.service';
+import { PRESENTATION_MODE } from '@/lib/presentation-mode';
 
 const C = {
   primary: '#15157d',
@@ -61,6 +62,12 @@ export default function OtpSuccessScreen() {
     setIsContinuing(true);
 
     try {
+      if (PRESENTATION_MODE) {
+        router.replace('/role-selection');
+
+        return;
+      }
+
       const identity = await getAuthIdentity();
 
       if (!identity) {
