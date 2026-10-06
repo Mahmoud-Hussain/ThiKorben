@@ -515,18 +515,33 @@ export default function JobBoardScreen() {
                     Labor proposal {money(acceptedProposal.price_amount, acceptedProposal.currency)} • {acceptedProposal.availability_note}
                   </Text>
                 </View>
-                <Pressable
-                  style={styles.chatButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/job-chat',
-                      params: { requestId: request.id },
-                    })
-                  }
-                >
-                  <Ionicons name="chatbubble-ellipses" size={17} color="#fff" />
-                  <Text style={styles.chatButtonText}>Chat</Text>
-                </Pressable>
+                <View style={styles.assignmentActions}>
+                  <Pressable
+                    style={styles.progressButton}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/job-details',
+                        params: { requestId: request.id },
+                      })
+                    }
+                  >
+                    <Ionicons name="pulse-outline" size={16} color={COLORS.primary} />
+                    <Text style={styles.progressButtonText}>Progress</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.chatButton}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/job-chat',
+                        params: { requestId: request.id },
+                      })
+                    }
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={17} color="#fff" />
+                    <Text style={styles.chatButtonText}>Chat</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : null}
 
@@ -853,6 +868,20 @@ const styles = StyleSheet.create({
   },
   assignedTitle: { fontSize: 12, fontWeight: '900', color: COLORS.green },
   assignedText: { marginTop: 3, fontSize: 10, lineHeight: 15, color: COLORS.muted },
+  assignmentActions: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  progressButton: {
+    minHeight: 34,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 10,
+    backgroundColor: COLORS.purpleSoft,
+  },
+  progressButtonText: { fontSize: 9, fontWeight: '900', color: COLORS.primary },
   chatButton: {
     minHeight: 38,
     paddingHorizontal: 12,
