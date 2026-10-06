@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSession } from '@/contexts/session-context';
+import { supabase } from '@/lib/supabase';
 import {
   acceptServiceProposal,
   addServiceRequestComment,
@@ -169,6 +170,54 @@ export default function JobBoardScreen() {
       active = false;
     };
   }, [loadDetails]);
+
+  useEffect(() => {
+    if (!requestId || isCreateMode) {
+      return;
+    }
+
+    const reload = () => {
+      void loadDetails();
+    };
+
+    const channel = supabase
+      .channel(`job-board:${requestId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_requests',
+          filter: `id=eq.${requestId}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_proposals',
+          filter: `service_request_id=eq.${requestId}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_request_comments',
+          filter: `service_request_id=eq.${requestId}`,
+        },
+        reload,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isCreateMode, loadDetails, requestId]);
 
   const submitRequest = async () => {
     if (role !== 'customer') {
