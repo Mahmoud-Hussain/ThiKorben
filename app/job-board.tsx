@@ -254,7 +254,7 @@ export default function JobBoardScreen() {
         pathname: '/job-board',
         params: {
           mode: 'detail',
-          params.requestId: created.id,
+          requestId: created.id,
         },
       });
     } catch (error) {
@@ -595,7 +595,7 @@ export default function JobBoardScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/job-details',
-                        params: { params.requestId: request.id },
+                        params: { requestId: request.id },
                       })
                     }
                   >
@@ -608,7 +608,7 @@ export default function JobBoardScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/job-chat',
-                        params: { params.requestId: request.id },
+                        params: { requestId: request.id },
                       })
                     }
                   >
