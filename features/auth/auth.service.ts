@@ -20,6 +20,12 @@ import type {
   WorkerProfileRecord,
 } from './types';
 
+export const PRESENTATION_OTP = '246810';
+
+export function isPresentationAuthEnabled() {
+  return process.env.EXPO_PUBLIC_PRESENTATION_AUTH !== 'false';
+}
+
 const WORKER_TRADES = new Set([
   'plumber',
   'electrician',
@@ -134,6 +140,14 @@ export async function requestPhoneOtp(
 ): Promise<string> {
   const phone = normalizeBangladeshPhone(input.phone);
 
+  if (isPresentationAuthEnabled()) {
+    if (input.mode === 'signup') {
+      normalizeDisplayName(input.fullName ?? '');
+    }
+
+    return phone;
+  }
+
   if (input.mode === 'login') {
     await authRepository.requestPhoneOtp(phone, {
       shouldCreateUser: false,
@@ -163,6 +177,17 @@ export async function verifyPhoneOtp(
 ): Promise<VerifiedPhoneSession> {
   const phone = normalizeBangladeshPhone(input.phone);
   const token = normalizePhoneOtp(input.token);
+
+  if (isPresentationAuthEnabled()) {
+    if (token !== PRESENTATION_OTP) {
+      throw new Error('Invalid presentation verification code.');
+    }
+
+    return authRepository.signInPresentationUser(
+      input.fullName,
+      phone,
+    );
+  }
 
   return authRepository.verifyPhoneOtp(phone, token);
 }
