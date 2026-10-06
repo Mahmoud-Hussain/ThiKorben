@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   Alert,
@@ -46,6 +46,7 @@ const COLORS = {
 };
 
 export default function CartScreen() {
+  const params = useLocalSearchParams<{ requestId?: string }>();
   const [items, setItems] = useState(getDetailedCartItems());
 
   const refresh = useCallback(() => {
@@ -425,7 +426,14 @@ export default function CartScreen() {
                 </View>
 
                 <Pressable
-                  onPress={() => router.push('/service-checkout')}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/service-checkout',
+                      params: params.requestId
+                        ? { requestId: params.requestId }
+                        : undefined,
+                    })
+                  }
                   style={styles.checkoutButton}
                 >
                   <Text style={styles.checkoutText}>Final Checkout</Text>
