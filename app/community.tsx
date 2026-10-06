@@ -37,11 +37,11 @@ const COLORS = {
   red: '#c43d39',
 };
 
-const CATEGORIES: Array<{
+const CATEGORIES: {
   value?: CommunityCategory;
   label: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
-}> = [
+}[] = [
   { label: 'All', icon: 'apps-outline' },
   { value: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
   { value: 'electrical', label: 'Electrical', icon: 'flash-outline' },
