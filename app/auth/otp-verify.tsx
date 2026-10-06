@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSession } from '@/contexts/session-context';
+import { PRESENTATION_MODE } from '@/lib/presentation-mode';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -66,7 +67,7 @@ function getReadableError(error: unknown) {
 
 export default function OtpVerifyScreen() {
   const router = useRouter();
-  const { refreshAuth } = useSession();
+  const { refreshAuth, startPresentationSession } = useSession();
 
   const params = useLocalSearchParams<{
     phone?: string;
@@ -158,21 +159,19 @@ export default function OtpVerifyScreen() {
     setIsVerifying(true);
 
     try {
-      await verifyPhoneOtp({
-        phone,
-        token,
-      });
-      await refreshAuth();
+      if (PRESENTATION_MODE) {
+        await startPresentationSession(phone, name);
+      } else {
+        await verifyPhoneOtp({
+          phone,
+          token,
+        });
+        await refreshAuth();
+      }
 
       /*
-       * SessionProvider receives Supabase's
-       * SIGNED_IN event automatically.
-       *
-       * Signup users continue through role
-       * selection/onboarding.
-       *
-       * Existing users can also choose their
-       * active role before entering the app.
+       * In presentation mode the local demo session is created above.
+       * In normal mode SessionProvider receives Supabase's SIGNED_IN event.
        */
       router.replace({
         pathname: '/auth/otp-success',
@@ -199,16 +198,18 @@ export default function OtpVerifyScreen() {
     setIsResending(true);
 
     try {
-      await resendPhoneOtp({
-        phone,
-        mode,
+      if (!PRESENTATION_MODE) {
+        await resendPhoneOtp({
+          phone,
+          mode,
 
-        ...(mode === 'signup'
-          ? {
-              fullName: name,
-            }
-          : {}),
-      });
+          ...(mode === 'signup'
+            ? {
+                fullName: name,
+              }
+            : {}),
+        });
+      }
 
       setDigits(Array(OTP_LENGTH).fill(''));
 
@@ -260,6 +261,19 @@ export default function OtpVerifyScreen() {
               Enter the 6-digit code sent to{' '}
               <Text style={styles.phoneHighlight}>{maskedPhone}</Text>
             </Text>
+
+            {PRESENTATION_MODE && (
+              <View style={styles.presentationCard}>
+                <Ionicons
+                  name="desktop-outline"
+                  size={18}
+                  color={C.primaryContainer}
+                />
+                <Text style={styles.presentationText}>
+                  Presentation mode is active. Any 6-digit code will continue.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.otpRow}>
               {digits.map((digit, index) => (
@@ -550,4 +564,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: C.outline,
   },
+  presentationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: C.surfaceContainerLow,
+  },
+
+  presentationText: {
+    flex: 1,
+    color: C.primaryContainer,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+
 });
