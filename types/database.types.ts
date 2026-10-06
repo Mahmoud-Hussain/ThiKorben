@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      service_orders: {
+        Row: {
+          confirmed_at: string
+          created_at: string
+          customer_id: string
+          delivery_fee: number
+          grand_total: number
+          id: string
+          labor_cost: number
+          material_subtotal: number
+          payment_method: string
+          payment_status: string
+          service_platform_fee: number
+          service_request_id: string
+          shop_platform_fee: number
+          worker_id: string
+        }
+        Insert: {
+          confirmed_at?: string
+          created_at?: string
+          customer_id: string
+          delivery_fee: number
+          grand_total: number
+          id?: string
+          labor_cost: number
+          material_subtotal: number
+          payment_method: string
+          payment_status?: string
+          service_platform_fee: number
+          service_request_id: string
+          shop_platform_fee: number
+          worker_id: string
+        }
+        Update: {
+          confirmed_at?: string
+          created_at?: string
+          customer_id?: string
+          delivery_fee?: number
+          grand_total?: number
+          id?: string
+          labor_cost?: number
+          material_subtotal?: number
+          payment_method?: string
+          payment_status?: string
+          service_platform_fee?: number
+          service_request_id?: string
+          shop_platform_fee?: number
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: true
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_notifications: {
         Row: {
           body: string
@@ -606,6 +665,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_service_order: {
+        Args: {
+          p_payment_method: string
+          p_service_request_id: string
+        }
+        Returns: Database["public"]["Tables"]["service_orders"]["Row"]
+      }
       accept_service_proposal: {
         Args: { p_proposal_id: string }
         Returns: {
