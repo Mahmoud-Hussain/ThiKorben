@@ -83,7 +83,7 @@ function initials(value: string) {
 export default function JobBoardScreen() {
   const params = useLocalSearchParams<{
     mode?: string;
-    requestId?: string;
+    params.requestId?: string;
     title?: string;
     category?: CommunityCategory;
     description?: string;
@@ -172,7 +172,7 @@ export default function JobBoardScreen() {
   }, [loadDetails]);
 
   useEffect(() => {
-    if (!requestId || isCreateMode) {
+    if (!params.requestId || createMode) {
       return;
     }
 
@@ -181,14 +181,14 @@ export default function JobBoardScreen() {
     };
 
     const channel = supabase
-      .channel(`job-board:${requestId}`)
+      .channel(`job-board:${params.requestId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'service_requests',
-          filter: `id=eq.${requestId}`,
+          filter: `id=eq.${params.requestId}`,
         },
         reload,
       )
@@ -198,7 +198,7 @@ export default function JobBoardScreen() {
           event: '*',
           schema: 'public',
           table: 'service_proposals',
-          filter: `service_request_id=eq.${requestId}`,
+          filter: `service_request_id=eq.${params.requestId}`,
         },
         reload,
       )
@@ -208,7 +208,7 @@ export default function JobBoardScreen() {
           event: '*',
           schema: 'public',
           table: 'service_request_comments',
-          filter: `service_request_id=eq.${requestId}`,
+          filter: `service_request_id=eq.${params.requestId}`,
         },
         reload,
       )
@@ -217,7 +217,7 @@ export default function JobBoardScreen() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [isCreateMode, loadDetails, requestId]);
+  }, [createMode, loadDetails, params.requestId]);
 
   const submitRequest = async () => {
     if (role !== 'customer') {
@@ -254,7 +254,7 @@ export default function JobBoardScreen() {
         pathname: '/job-board',
         params: {
           mode: 'detail',
-          requestId: created.id,
+          params.requestId: created.id,
         },
       });
     } catch (error) {
@@ -595,7 +595,7 @@ export default function JobBoardScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/job-details',
-                        params: { requestId: request.id },
+                        params: { params.requestId: request.id },
                       })
                     }
                   >
@@ -608,7 +608,7 @@ export default function JobBoardScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/job-chat',
-                        params: { requestId: request.id },
+                        params: { params.requestId: request.id },
                       })
                     }
                   >
