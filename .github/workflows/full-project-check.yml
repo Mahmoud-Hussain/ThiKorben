@@ -36,13 +36,35 @@ jobs:
         run: npm ci
 
       - name: Expo doctor
+        id: doctor
+        continue-on-error: true
         run: npx expo-doctor
 
       - name: TypeScript
+        id: typescript
+        continue-on-error: true
         run: npx tsc --noEmit
 
       - name: Lint
+        id: lint
+        continue-on-error: true
         run: npm run lint
 
       - name: Export web bundle
+        id: build
+        continue-on-error: true
         run: npm run build:web
+
+      - name: Validation summary
+        if: always()
+        run: |
+          echo "Expo Doctor: \${{ steps.doctor.outcome }}"
+          echo "TypeScript:   \${{ steps.typescript.outcome }}"
+          echo "Lint:         \${{ steps.lint.outcome }}"
+          echo "Web export:   \${{ steps.build.outcome }}"
+          if [ "\${{ steps.doctor.outcome }}" != "success" ] || \
+             [ "\${{ steps.typescript.outcome }}" != "success" ] || \
+             [ "\${{ steps.lint.outcome }}" != "success" ] || \
+             [ "\${{ steps.build.outcome }}" != "success" ]; then
+            exit 1
+          fi
