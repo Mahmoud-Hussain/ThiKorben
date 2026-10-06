@@ -34,7 +34,7 @@ function labelFor(category: string) {
   return category
     .replace('ac', 'AC')
     .replace(/_/g, ' ')
-    .replace(/w/g, value => value.toUpperCase());
+    .replace(/\b\w/g, value => value.toUpperCase());
 }
 
 export default function WorkerSkillPassportScreen() {
@@ -46,6 +46,8 @@ export default function WorkerSkillPassportScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    await Promise.resolve();
+
     setLoading(true);
     setError(null);
 
