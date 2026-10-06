@@ -83,6 +83,11 @@ export default function JobBoardScreen() {
   const params = useLocalSearchParams<{
     mode?: string;
     requestId?: string;
+    title?: string;
+    category?: CommunityCategory;
+    description?: string;
+    budget?: string;
+    schedule?: string;
   }>();
 
   const { role, user, profile } = useSession();
@@ -96,12 +101,18 @@ export default function JobBoardScreen() {
   const [saving, setSaving] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<CommunityCategory>('plumbing');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(params.title ?? '');
+  const [category, setCategory] = useState<CommunityCategory>(
+    CATEGORIES.some(item => item.id === params.category)
+      ? (params.category as CommunityCategory)
+      : 'plumbing',
+  );
+  const [description, setDescription] = useState(params.description ?? '');
   const [location, setLocation] = useState('');
-  const [budget, setBudget] = useState('');
-  const [scheduleNote, setScheduleNote] = useState('As soon as possible');
+  const [budget, setBudget] = useState(params.budget ?? '');
+  const [scheduleNote, setScheduleNote] = useState(
+    params.schedule ?? 'As soon as possible',
+  );
 
   const [comment, setComment] = useState('');
 
