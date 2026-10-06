@@ -18,6 +18,7 @@ import {
   getProductById,
 } from '@/constants/shop-data';
 import { useSession } from '@/contexts/session-context';
+import { supabase } from '@/lib/supabase';
 import { getServiceRequest } from '@/features/community/community.service';
 import type { CommunityRequest } from '@/features/community/types';
 import {
@@ -128,6 +129,32 @@ export default function JobMaterialsScreen() {
 
     return () => clearTimeout(timer);
   }, [hydrate]);
+
+  useEffect(() => {
+    if (!params.requestId) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`job-materials:${params.requestId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'job_material_requests',
+          filter: `service_request_id=eq.${params.requestId}`,
+        },
+        () => {
+          void hydrate();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [hydrate, params.requestId]);
 
   const requestMaterial = async () => {
     if (!request || !selectedProductId || saving) {
