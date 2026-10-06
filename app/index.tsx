@@ -14,7 +14,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
 const COLORS = {
   primary: '#15157d',
@@ -47,8 +46,8 @@ const STRINGS = {
     customerDesc: 'Find plumbers, electricians & emergency pros near you.',
     workerTitle: 'I Am a Worker / Pro',
     workerDesc: 'Accept nearby jobs, track earnings & grow your business.',
-    verifiedBadge: '100% Verified Pros',
-    fastDispatch: '15 Min Fast Dispatch',
+    verifiedBadge: 'Customer-Controlled Matching',
+    fastDispatch: 'Live Shared Job Flow',
     fairPricing: 'Transparent Pricing',
     enterCustomer: 'Enter as Customer',
     enterWorker: 'Enter as Worker',
@@ -65,8 +64,8 @@ const STRINGS = {
     customerDesc: 'কাছের অভিজ্ঞ প্লাম্বার ও ইলেকট্রিশিয়ান বুক করুন।',
     workerTitle: 'আমি একজন টেকনিশিয়ান / কারিগর',
     workerDesc: 'নতুন কাজের অর্ডার পান ও প্রতিদিন আয় বৃদ্ধি করুন।',
-    verifiedBadge: '১০০% ভেরিফাইড প্রফেশনাল',
-    fastDispatch: '১৫ মিনিটে দ্রুত সেবা',
+    verifiedBadge: 'কাস্টমার-কন্ট্রোলড ম্যাচিং',
+    fastDispatch: 'লাইভ শেয়ার্ড জব ফ্লো',
     fairPricing: 'স্বচ্ছ মূল্য তালিকা',
     enterCustomer: 'কাস্টমার হিসেবে প্রবেশ করুন',
     enterWorker: 'ওয়ার্কার হিসেবে প্রবেশ করুন',
@@ -152,7 +151,7 @@ export default function WelcomeScreen() {
           {/* Customer Card */}
           <TouchableOpacity
             style={styles.roleCardCustomer}
-            onPress={() => router.push('/auth/login')}
+            onPress={() => router.push('/auth/signup')}
             activeOpacity={0.88}>
             <View style={styles.roleCardTop}>
               <View style={styles.roleIconBoxCustomer}>
@@ -215,8 +214,7 @@ export default function WelcomeScreen() {
       {/* ── Unified Bottom Navigation Bar ── */}
       <BottomNavBar activeTab="home" />
 
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
+
     </SafeAreaView>
   );
 }
