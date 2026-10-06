@@ -82,12 +82,20 @@ export default function OtpSuccessScreen() {
        * to their last active application role.
        */
       if (identity.profile.active_role === 'worker') {
-        router.replace('/worker-dashboard');
+        router.replace(
+          identity.workerProfile
+            ? '/worker-dashboard'
+            : '/worker-profile-setup',
+        );
 
         return;
       }
 
-      router.replace('/customer-dashboard');
+      router.replace(
+        identity.customerProfile
+          ? '/customer-dashboard'
+          : '/customer-profile-setup',
+      );
     } catch {
       setError(
         'Your phone was verified, but we could not load your account. Please try again.',
