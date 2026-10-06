@@ -32,6 +32,7 @@ import type {
   WorkerProfileRecord,
 } from '@/features/auth/types';
 
+import { PRESENTATION_MODE } from '@/lib/presentation-mode';
 import { supabase } from '@/lib/supabase';
 
 export type { AppRole };
@@ -57,6 +58,10 @@ interface SessionContextValue {
   workerProfile: WorkerProfileRecord | null;
   authError: string | null;
   refreshAuth: () => Promise<void>;
+  startPresentationSession: (
+    phone: string,
+    displayName?: string,
+  ) => Promise<void>;
   setRole: (role: AppRole | null) => Promise<void>;
   registerWorker: () => Promise<void>;
   updatePublicProfile: (input: UpdateMyProfileInput) => Promise<AppProfile>;
@@ -85,9 +90,78 @@ function getErrorMessage(error: unknown) {
   return 'Authentication operation failed.';
 }
 
+const PRESENTATION_USER_ID = '00000000-0000-4000-8000-000000000001';
+
+function createPresentationIdentity(
+  phone: string,
+  displayName?: string,
+): AuthIdentity {
+  const now = new Date().toISOString();
+  const safeName = displayName?.trim() || 'Demo User';
+
+  const user = {
+    id: PRESENTATION_USER_ID,
+    aud: 'authenticated',
+    role: 'authenticated',
+    phone,
+    app_metadata: {
+      provider: 'phone',
+      providers: ['phone'],
+    },
+    user_metadata: {
+      full_name: safeName,
+    },
+    identities: [],
+    created_at: now,
+    updated_at: now,
+  } as User;
+
+  const session = {
+    access_token: 'presentation-mode',
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    refresh_token: 'presentation-mode',
+    user,
+  } as Session;
+
+  return {
+    session,
+    user,
+    profile: {
+      id: PRESENTATION_USER_ID,
+      active_role: 'customer',
+      avatar_path: null,
+      created_at: now,
+      display_name: safeName,
+      updated_at: now,
+    },
+    roles: ['customer', 'worker'],
+    customerProfile: {
+      completed_at: now,
+      created_at: now,
+      emergency_contact: null,
+      home_location: 'Dhaka',
+      updated_at: now,
+      user_id: PRESENTATION_USER_ID,
+    },
+    workerProfile: {
+      completed_at: now,
+      created_at: now,
+      experience_years: 3,
+      preferred_rate_bdt: 800,
+      primary_trade: 'plumber',
+      service_radius_km: 10,
+      updated_at: now,
+      user_id: PRESENTATION_USER_ID,
+      verification_status: 'verified',
+    },
+  };
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
-    status: 'loading',
+    status: PRESENTATION_MODE ? 'anonymous' : 'loading',
     identity: null,
     error: null,
   });
@@ -142,6 +216,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    if (PRESENTATION_MODE) {
+      return;
+    }
+
     let isActive = true;
 
     const {
@@ -201,12 +279,61 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [hydrateAuthenticatedUser]);
 
   const refreshAuth = useCallback(async () => {
+    if (PRESENTATION_MODE) {
+      return;
+    }
+
     const requestId = ++authRequestIdRef.current;
 
     await hydrateAuthenticatedUser(requestId);
   }, [hydrateAuthenticatedUser]);
 
+  const startPresentationSession = useCallback(
+    async (phone: string, displayName?: string) => {
+      if (!PRESENTATION_MODE) {
+        throw new Error('Presentation mode is not enabled.');
+      }
+
+      authRequestIdRef.current += 1;
+
+      setAuthState({
+        status: 'authenticated',
+        identity: createPresentationIdentity(phone, displayName),
+        error: null,
+      });
+    },
+    [],
+  );
+
   const registerWorker = useCallback(async () => {
+    if (PRESENTATION_MODE) {
+      setAuthState(current => {
+        if (!current.identity) {
+          return current;
+        }
+
+        const roles = current.identity.roles.includes('worker')
+          ? current.identity.roles
+          : [...current.identity.roles, 'worker' as AppRole];
+
+        return {
+          status: 'authenticated',
+          identity: {
+            ...current.identity,
+            roles,
+            profile: {
+              ...current.identity.profile,
+              active_role: 'worker',
+              updated_at: new Date().toISOString(),
+            },
+          },
+          error: null,
+        };
+      });
+
+      return;
+    }
+
     const result = await registerAsWorker();
 
     setAuthState(current => {
@@ -236,6 +363,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       if (!identity) {
         throw new Error('Authentication required.');
+      }
+
+      if (PRESENTATION_MODE) {
+        setAuthState(current => {
+          if (!current.identity) {
+            return current;
+          }
+
+          const roles = current.identity.roles.includes(nextRole)
+            ? current.identity.roles
+            : [...current.identity.roles, nextRole];
+
+          return {
+            status: 'authenticated',
+            identity: {
+              ...current.identity,
+              roles,
+              profile: {
+                ...current.identity.profile,
+                active_role: nextRole,
+                updated_at: new Date().toISOString(),
+              },
+            },
+            error: null,
+          };
+        });
+
+        return;
       }
 
       if (nextRole === 'worker' && !identity.roles.includes('worker')) {
@@ -282,6 +437,45 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const updatePublicProfile = useCallback(
     async (input: UpdateMyProfileInput) => {
+      if (PRESENTATION_MODE) {
+        const identity = authState.identity;
+
+        if (!identity) {
+          throw new Error('Authentication required.');
+        }
+
+        const profile: AppProfile = {
+          ...identity.profile,
+          ...(input.displayName !== undefined
+            ? {
+                display_name:
+                  input.displayName.trim() || identity.profile.display_name,
+              }
+            : {}),
+          ...(input.avatarPath !== undefined
+            ? {
+                avatar_path: input.avatarPath,
+              }
+            : {}),
+          updated_at: new Date().toISOString(),
+        };
+
+        setAuthState(current =>
+          current.identity
+            ? {
+                status: 'authenticated',
+                identity: {
+                  ...current.identity,
+                  profile,
+                },
+                error: null,
+              }
+            : current,
+        );
+
+        return profile;
+      }
+
       const profile = await updateMyProfile(input);
 
       setAuthState(current => {
@@ -301,11 +495,52 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       return profile;
     },
-    [],
+    [authState.identity],
   );
 
   const saveCustomerProfile = useCallback(
     async (input: SaveCustomerProfileInput) => {
+      if (PRESENTATION_MODE) {
+        const identity = authState.identity;
+
+        if (!identity) {
+          throw new Error('Authentication required.');
+        }
+
+        const now = new Date().toISOString();
+        const customerProfile: CustomerProfileRecord = {
+          completed_at: now,
+          created_at: identity.customerProfile?.created_at ?? now,
+          emergency_contact: input.emergencyContact?.trim() || null,
+          home_location: input.homeLocation.trim() || 'Dhaka',
+          updated_at: now,
+          user_id: identity.user.id,
+        };
+        const profile: AppProfile = {
+          ...identity.profile,
+          display_name:
+            input.displayName.trim() || identity.profile.display_name,
+          active_role: 'customer',
+          updated_at: now,
+        };
+
+        setAuthState(current =>
+          current.identity
+            ? {
+                status: 'authenticated',
+                identity: {
+                  ...current.identity,
+                  profile,
+                  customerProfile,
+                },
+                error: null,
+              }
+            : current,
+        );
+
+        return customerProfile;
+      }
+
       const result = await saveCustomerProfileService(input);
 
       setAuthState(current => {
@@ -326,11 +561,65 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       return result.customerProfile;
     },
-    [],
+    [authState.identity],
   );
 
   const saveWorkerProfile = useCallback(
     async (input: SaveWorkerProfileInput) => {
+      if (PRESENTATION_MODE) {
+        const identity = authState.identity;
+
+        if (!identity) {
+          throw new Error('Authentication required.');
+        }
+
+        const now = new Date().toISOString();
+        const workerProfile: WorkerProfileRecord = {
+          completed_at: now,
+          created_at: identity.workerProfile?.created_at ?? now,
+          experience_years: Number.isFinite(input.experienceYears)
+            ? input.experienceYears
+            : 0,
+          preferred_rate_bdt: Number.isFinite(input.preferredRateBdt)
+            ? input.preferredRateBdt
+            : 0,
+          primary_trade: input.primaryTrade.trim() || 'plumber',
+          service_radius_km: Number.isFinite(input.serviceRadiusKm)
+            ? input.serviceRadiusKm
+            : 5,
+          updated_at: now,
+          user_id: identity.user.id,
+          verification_status:
+            identity.workerProfile?.verification_status ?? 'verified',
+        };
+        const profile: AppProfile = {
+          ...identity.profile,
+          display_name:
+            input.displayName.trim() || identity.profile.display_name,
+          active_role: 'worker',
+          updated_at: now,
+        };
+
+        setAuthState(current =>
+          current.identity
+            ? {
+                status: 'authenticated',
+                identity: {
+                  ...current.identity,
+                  profile,
+                  workerProfile,
+                  roles: current.identity.roles.includes('worker')
+                    ? current.identity.roles
+                    : [...current.identity.roles, 'worker'],
+                },
+                error: null,
+              }
+            : current,
+        );
+
+        return workerProfile;
+      }
+
       const result = await saveWorkerProfileService(input);
 
       setAuthState(current => {
@@ -351,13 +640,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       return result.workerProfile;
     },
-    [],
+    [authState.identity],
   );
 
   const logout = useCallback(async () => {
     authRequestIdRef.current += 1;
 
-    await logoutCurrentDevice();
+    if (!PRESENTATION_MODE) {
+      await logoutCurrentDevice();
+    }
 
     setAuthState({
       status: 'anonymous',
@@ -371,7 +662,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const logoutEverywhere = useCallback(async () => {
     authRequestIdRef.current += 1;
 
-    await logoutAllDevices();
+    if (!PRESENTATION_MODE) {
+      await logoutAllDevices();
+    }
 
     setAuthState({
       status: 'anonymous',
@@ -398,6 +691,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       workerProfile: identity?.workerProfile ?? null,
       authError: authState.error,
       refreshAuth,
+      startPresentationSession,
       setRole,
       registerWorker,
       updatePublicProfile,
@@ -417,6 +711,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       logout,
       logoutEverywhere,
       refreshAuth,
+      startPresentationSession,
       registerWorker,
       saveCustomerProfile,
       saveWorkerProfile,
