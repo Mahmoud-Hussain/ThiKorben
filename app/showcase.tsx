@@ -460,7 +460,7 @@ export default function ShowcaseScreen() {
           <View style={styles.workerAvatarSmall}>
             <Text style={styles.workerInitialSmall}>R</Text>
           </View>
-          <View className="flex">
+          <View style={styles.flex}>
             <Text style={styles.chatName}>Rahim Uddin</Text>
             <Text style={styles.chatStatus}>Accepted worker • Plumbing</Text>
           </View>
