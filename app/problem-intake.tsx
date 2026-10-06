@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import {
   Pressable,
   SafeAreaView,
@@ -72,7 +72,7 @@ export default function ProblemIntakeScreen() {
 
         <Pressable
           style={[styles.optionCard, styles.aiCard]}
-          onPress={() => router.push('/ai-assistant')}
+          onPress={() => router.push('/ai-assistant' as Href)}
         >
           <View style={[styles.optionIcon, { backgroundColor: C.orangeSoft }]}>
             <Ionicons name="sparkles" size={26} color={C.orange} />
