@@ -15,7 +15,6 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNavBar } from '@/components/bottom-nav-bar';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
 const COLORS = {
   primary: '#15157d',
@@ -195,7 +194,7 @@ export default function WorkerDashboardScreen() {
 
             <TouchableOpacity
               style={styles.acceptJobBtn}
-              onPress={() => router.push('/job-details')}
+              onPress={() => router.push('/community')}
               activeOpacity={0.85}>
               <Text style={styles.acceptJobText}>View & Accept</Text>
               <Ionicons name="arrow-forward" size={15} color="#ffffff" />
@@ -254,7 +253,7 @@ export default function WorkerDashboardScreen() {
             <TouchableOpacity
               key={job.id}
               style={styles.jobCard}
-              onPress={() => router.push('/job-details')}
+              onPress={() => router.push('/community')}
               activeOpacity={0.88}>
               <View style={styles.jobCardHeader}>
                 <View style={styles.jobIconBox}>
@@ -303,8 +302,7 @@ export default function WorkerDashboardScreen() {
       {/* ── Unified Bottom Navigation Bar ── */}
       <BottomNavBar activeTab="worker" />
 
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
+
     </SafeAreaView>
   );
 }
