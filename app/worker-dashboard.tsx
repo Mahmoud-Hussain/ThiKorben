@@ -364,7 +364,7 @@ export default function WorkerDashboardScreen() {
       </ScrollView>
 
       {/* ── Unified Bottom Navigation Bar ── */}
-      <BottomNavBar activeTab="worker" />
+      <BottomNavBar activeTab="home" />
 
 
     </SafeAreaView>
