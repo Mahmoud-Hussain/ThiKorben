@@ -160,9 +160,7 @@ export function BottomNavBar({ activeTab }: BottomNavBarProps) {
             key={item.key}
             style={styles.tabButton}
             onPress={() => {
-              if (pathname !== item.route) {
-                router.push(item.route);
-              }
+              router.push(item.route);
             }}
             activeOpacity={0.75}
             accessibilityRole="button"
