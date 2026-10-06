@@ -1,17 +1,33 @@
 import * as authRepository from './auth.repository';
 
-import { normalizeBangladeshPhone, normalizePhoneOtp } from './phone';
+import {
+  normalizeBangladeshPhone,
+  normalizePhoneOtp,
+} from './phone';
 
 import type {
   AppProfile,
   AppProfileUpdate,
   AppRole,
   AuthIdentity,
+  CustomerProfileRecord,
   RequestPhoneOtpInput,
+  SaveCustomerProfileInput,
+  SaveWorkerProfileInput,
   UpdateMyProfileInput,
   VerifiedPhoneSession,
   VerifyPhoneOtpInput,
+  WorkerProfileRecord,
 } from './types';
+
+const WORKER_TRADES = new Set([
+  'plumber',
+  'electrician',
+  'carpenter',
+  'cleaner',
+  'painter',
+  'ac_technician',
+]);
 
 function normalizeDisplayName(value: string) {
   const normalized = value.trim();
@@ -45,6 +61,64 @@ function normalizeAvatarPath(value: string | null) {
   return normalized;
 }
 
+function normalizeLocation(value: string) {
+  const normalized = value.trim();
+
+  if (normalized.length < 2) {
+    throw new Error('Home location is required.');
+  }
+
+  if (normalized.length > 160) {
+    throw new Error('Home location cannot exceed 160 characters.');
+  }
+
+  return normalized;
+}
+
+function normalizeOptionalEmergencyContact(value?: string) {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalizeBangladeshPhone(normalized);
+}
+
+function normalizeWorkerTrade(value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  if (!WORKER_TRADES.has(normalized)) {
+    throw new Error('Select a supported primary trade.');
+  }
+
+  return normalized;
+}
+
+function normalizeExperienceYears(value: number) {
+  if (!Number.isInteger(value) || value < 0 || value > 60) {
+    throw new Error('Experience must be a whole number between 0 and 60.');
+  }
+
+  return value;
+}
+
+function normalizePreferredRate(value: number) {
+  if (!Number.isFinite(value) || value <= 0 || value > 10000000) {
+    throw new Error('Enter a valid preferred rate.');
+  }
+
+  return Math.round(value * 100) / 100;
+}
+
+function normalizeServiceRadius(value: number) {
+  if (!Number.isInteger(value) || value < 1 || value > 50) {
+    throw new Error('Service radius must be between 1 and 50 km.');
+  }
+
+  return value;
+}
+
 function requireUserId(userId: string) {
   const normalized = userId.trim();
 
@@ -62,9 +136,6 @@ export async function requestPhoneOtp(
 
   if (input.mode === 'login') {
     await authRepository.requestPhoneOtp(phone, {
-      /*
-       * Login must never silently create a new account.
-       */
       shouldCreateUser: false,
     });
 
@@ -84,13 +155,6 @@ export async function requestPhoneOtp(
 export async function resendPhoneOtp(
   input: RequestPhoneOtpInput,
 ): Promise<string> {
-  /*
-   * Sending another OTP through the same endpoint keeps
-   * signup/login account-creation semantics identical to
-   * the original request.
-   *
-   * Supabase rate limits remain authoritative.
-   */
   return requestPhoneOtp(input);
 }
 
@@ -98,7 +162,6 @@ export async function verifyPhoneOtp(
   input: VerifyPhoneOtpInput,
 ): Promise<VerifiedPhoneSession> {
   const phone = normalizeBangladeshPhone(input.phone);
-
   const token = normalizePhoneOtp(input.token);
 
   return authRepository.verifyPhoneOtp(phone, token);
@@ -119,10 +182,11 @@ export async function getAuthIdentity(): Promise<AuthIdentity | null> {
 
   const userId = requireUserId(user.id);
 
-  const [profile, roleRows] = await Promise.all([
+  const [profile, roleRows, customerProfile, workerProfile] = await Promise.all([
     authRepository.getProfile(userId),
-
     authRepository.getUserRoles(userId),
+    authRepository.getCustomerProfile(userId),
+    authRepository.getWorkerProfile(userId),
   ]);
 
   const roles = roleRows.map(row => row.role);
@@ -140,6 +204,8 @@ export async function getAuthIdentity(): Promise<AuthIdentity | null> {
     user,
     profile,
     roles,
+    customerProfile,
+    workerProfile,
   };
 }
 
@@ -179,6 +245,62 @@ export async function updateMyProfile(
   return authRepository.updateProfile(requireUserId(user.id), changes);
 }
 
+export async function saveCustomerProfile(
+  input: SaveCustomerProfileInput,
+): Promise<{
+  profile: AppProfile;
+  customerProfile: CustomerProfileRecord;
+}> {
+  const user = await authRepository.getCurrentUser();
+
+  if (!user) {
+    throw new Error('Authentication required.');
+  }
+
+  const customerProfile = await authRepository.saveCustomerProfile({
+    displayName: normalizeDisplayName(input.displayName),
+    homeLocation: normalizeLocation(input.homeLocation),
+    emergencyContact: normalizeOptionalEmergencyContact(
+      input.emergencyContact,
+    ),
+  });
+
+  const profile = await authRepository.getProfile(user.id);
+
+  return {
+    profile,
+    customerProfile,
+  };
+}
+
+export async function saveWorkerProfile(
+  input: SaveWorkerProfileInput,
+): Promise<{
+  profile: AppProfile;
+  workerProfile: WorkerProfileRecord;
+}> {
+  const user = await authRepository.getCurrentUser();
+
+  if (!user) {
+    throw new Error('Authentication required.');
+  }
+
+  const workerProfile = await authRepository.saveWorkerProfile({
+    displayName: normalizeDisplayName(input.displayName),
+    primaryTrade: normalizeWorkerTrade(input.primaryTrade),
+    experienceYears: normalizeExperienceYears(input.experienceYears),
+    preferredRateBdt: normalizePreferredRate(input.preferredRateBdt),
+    serviceRadiusKm: normalizeServiceRadius(input.serviceRadiusKm),
+  });
+
+  const profile = await authRepository.getProfile(user.id);
+
+  return {
+    profile,
+    workerProfile,
+  };
+}
+
 export async function registerAsWorker(): Promise<{
   role: AppRole;
   profile: AppProfile;
@@ -194,14 +316,12 @@ export async function registerAsWorker(): Promise<{
 
   const [profile, roleRows] = await Promise.all([
     authRepository.getProfile(user.id),
-
     authRepository.getUserRoles(user.id),
   ]);
 
   return {
     role,
     profile,
-
     roles: roleRows.map(row => row.role),
   };
 }
