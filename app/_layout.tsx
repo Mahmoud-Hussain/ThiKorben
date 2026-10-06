@@ -20,6 +20,7 @@ const PUBLIC_PATHS = new Set([
 function AppNavigator() {
   const pathname = usePathname();
   const router = useRouter();
+
   const {
     status,
     isAuthenticated,
@@ -43,37 +44,26 @@ function AppNavigator() {
       return null;
     }
 
-    if (role === 'worker') {
-      if (!workerProfile) {
-        return pathname === '/worker-profile-setup' ||
-          pathname === '/logout-confirmation'
-          ? null
-          : '/worker-profile-setup';
-      }
-
-      return pathname === '/worker-dashboard' ||
-        pathname === '/worker-profile-setup' ||
+    if (role === 'worker' && !workerProfile) {
+      return pathname === '/worker-profile-setup' ||
         pathname === '/logout-confirmation'
         ? null
-        : '/worker-dashboard';
+        : '/worker-profile-setup';
     }
 
-    if (role === 'customer') {
-      if (!customerProfile) {
-        return pathname === '/customer-profile-setup' ||
-          pathname === '/logout-confirmation'
-          ? null
-          : '/customer-profile-setup';
-      }
-
-      return pathname === '/customer-dashboard' ||
-        pathname === '/customer-profile-setup' ||
+    if (role === 'customer' && !customerProfile) {
+      return pathname === '/customer-profile-setup' ||
         pathname === '/logout-confirmation'
         ? null
-        : '/customer-dashboard';
+        : '/customer-profile-setup';
     }
 
-    return '/role-selection';
+    /*
+     * After onboarding is complete, authenticated users may navigate
+     * across the application. Authorization for data mutations remains
+     * enforced by Supabase RLS and controlled RPCs.
+     */
+    return null;
   }, [
     customerProfile,
     isAuthenticated,
