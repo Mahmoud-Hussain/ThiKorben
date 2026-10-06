@@ -180,7 +180,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => setSelectedService(null)}
             activeOpacity={0.8}>
             <View style={styles.logoIcon}>
-              <MaterialIcons name="handyman" size={22} color={COLORS.primary} />
+              <MaterialIcons name="home-repair-service" size={22} color={COLORS.primary} />
             </View>
             <Text style={styles.logoText}>{t.appName}</Text>
           </TouchableOpacity>
