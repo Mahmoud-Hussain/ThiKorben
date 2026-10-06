@@ -83,7 +83,7 @@ function initials(value: string) {
 export default function JobBoardScreen() {
   const params = useLocalSearchParams<{
     mode?: string;
-    params.requestId?: string;
+    requestId?: string;
     title?: string;
     category?: CommunityCategory;
     description?: string;
