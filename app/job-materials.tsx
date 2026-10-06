@@ -13,6 +13,10 @@ import {
   View,
 } from 'react-native';
 
+import {
+  addToCart,
+  getProductById,
+} from '@/constants/shop-data';
 import { useSession } from '@/contexts/session-context';
 import { getServiceRequest } from '@/features/community/community.service';
 import type { CommunityRequest } from '@/features/community/types';
@@ -163,10 +167,28 @@ export default function JobMaterialsScreen() {
     setSaving(true);
 
     try {
+      const material = materials.find(item => item.id === materialRequestId);
+      const serviceProduct = material
+        ? productMap.get(material.product_id)
+        : undefined;
+
       await decideMaterialRequest({
         materialRequestId,
         status,
       });
+
+      if (status === 'approved' && serviceProduct) {
+        const shopProduct = getProductById(serviceProduct.slug);
+
+        if (shopProduct) {
+          addToCart(shopProduct.id, material?.quantity ?? 1);
+
+          Alert.alert(
+            'Material approved',
+            `${shopProduct.name} was added to your ThiKorben cart.`,
+          );
+        }
+      }
 
       await hydrate();
     } catch (decisionError) {
