@@ -1,241 +1,273 @@
-import React, { useState } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
-  Linking,
-  Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BottomNavBar } from '@/components/bottom-nav-bar';
-import { LeafletMap } from '@/components/leaflet-map';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
+import { useSession } from '@/contexts/session-context';
+import {
+  advanceServiceRequestStatus,
+  getServiceRequest,
+  getServiceRequestProposals,
+} from '@/features/community/community.service';
+import type {
+  CommunityProposal,
+  CommunityRequest,
+} from '@/features/community/types';
 
-const COLORS = {
+const C = {
   primary: '#15157d',
-  primaryContainer: '#2e3192',
-  secondary: '#fd9923',
-  accentOrange: '#F7941D',
-  background: '#f8f7fc',
-  surface: '#ffffff',
-  surfaceContainerLow: '#f4f2fa',
-  surfaceContainerHigh: '#eae7f0',
-  surfaceDim: '#dbd9e1',
-  text: '#1b1b21',
-  textMuted: '#5b5a68',
-  border: '#e6e3ee',
-  success: '#16a34a',
-  purpleSoft: '#ede9fe',
-  purpleDark: '#4338ca',
+  primarySoft: '#eeedff',
+  orange: '#F7941D',
+  orangeSoft: '#fff4e7',
+  green: '#178c4f',
+  greenSoft: '#eaf8f0',
+  bg: '#f7f6fb',
+  card: '#fff',
+  text: '#181820',
+  muted: '#6b6b78',
+  border: '#e5e2eb',
+  red: '#c43d39',
 };
 
-const JOB_STEPS = [
-  { id: 0, title: 'Job Accepted', time: '10:15 AM', desc: 'Worker confirmed request' },
-  { id: 1, title: 'On the Way', time: '10:20 AM', desc: 'Traveling to Dhanmondi 11/A' },
-  { id: 2, title: 'Arrived at Location', time: '10:35 AM', desc: 'At customer doorstep' },
-  { id: 3, title: 'Work in Progress', time: '10:40 AM', desc: 'Fixing sink pipe & seal' },
-  { id: 4, title: 'Job Completed', time: '11:15 AM', desc: 'Payment received (৳500)' },
-];
+function money(value: number, currency: string) {
+  return `${currency === 'BDT' ? '৳' : currency + ' '}${Number(value).toLocaleString()}`;
+}
+
+function messageFrom(error: unknown) {
+  return error instanceof Error ? error.message : 'Something went wrong.';
+}
+
+const STEPS = [
+  { key: 'assigned', label: 'Worker assigned' },
+  { key: 'ordered', label: 'Work in progress' },
+  { key: 'completed', label: 'Job completed' },
+] as const;
 
 export default function JobDetailsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [currentStep, setCurrentStep] = useState(1); // 1 = On the way
+  const params = useLocalSearchParams<{ requestId?: string }>();
+  const { user, role } = useSession();
 
-  const handleNextStep = () => {
-    if (currentStep < 4) {
-      const next = currentStep + 1;
-      setCurrentStep(next);
-      Alert.alert('Status Updated', `Job status moved to: "${JOB_STEPS[next].title}"`);
-    } else {
+  const [request, setRequest] = useState<CommunityRequest | null>(null);
+  const [proposals, setProposals] = useState<CommunityProposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const acceptedProposal = useMemo(
+    () => proposals.find(item => item.status === 'accepted') ?? null,
+    [proposals],
+  );
+
+  const assignedWorker = acceptedProposal?.worker_id === user?.id;
+  const customer = request?.customer_id === user?.id;
+
+  const currentStep = useMemo(() => {
+    if (!request) return -1;
+    if (request.status === 'completed') return 2;
+    if (request.status === 'ordered') return 1;
+    if (request.status === 'assigned') return 0;
+    return -1;
+  }, [request]);
+
+  const load = useCallback(async () => {
+    if (!params.requestId) {
+      setError('Service request ID is missing.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [nextRequest, nextProposals] = await Promise.all([
+        getServiceRequest(params.requestId),
+        getServiceRequestProposals(params.requestId),
+      ]);
+
+      setRequest(nextRequest);
+      setProposals(nextProposals);
+    } catch (loadError) {
+      setError(messageFrom(loadError));
+    } finally {
+      setLoading(false);
+    }
+  }, [params.requestId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const advance = async () => {
+    if (!request || !assignedWorker || saving) {
+      return;
+    }
+
+    const nextStatus =
+      request.status === 'assigned'
+        ? 'ordered'
+        : request.status === 'ordered'
+          ? 'completed'
+          : null;
+
+    if (!nextStatus) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await advanceServiceRequestStatus(request.id, nextStatus);
+      await load();
+
       Alert.alert(
-        'Job Finished!',
-        '৳500 has been credited to your ThiKorben wallet. Great job!',
-        [{ text: 'Back to Worker Dashboard', onPress: () => router.push('/worker-dashboard') }]
+        nextStatus === 'completed' ? 'Job completed' : 'Status updated',
+        nextStatus === 'completed'
+          ? 'The service request is now marked completed.'
+          : 'The customer can now see that work is in progress.',
       );
+    } catch (advanceError) {
+      Alert.alert('Could not update job', messageFrom(advanceError));
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleCallCustomer = () => {
-    Linking.openURL('tel:+8801800000000').catch(() => {
-      Alert.alert('Call Customer', 'Calling Nusrat Ahmed (+880 1800-000000)...');
-    });
-  };
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.primary} />
+          <Text style={styles.centerText}>Loading job progress…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={36} color={C.red} />
+          <Text style={styles.centerTitle}>Unable to open job</Text>
+          <Text style={styles.centerText}>{error ?? 'Job not found.'}</Text>
+          <Pressable style={styles.retry} onPress={() => void load()}>
+            <Text style={styles.retryText}>Try Again</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-
-      {/* ── Top Header ── */}
+    <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Job Details</Text>
-          <Text style={styles.jobIdText}>#TK-88219 • Dhanmondi</Text>
+        <Pressable style={styles.headerButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={C.text} />
+        </Pressable>
+
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Job Progress</Text>
+          <Text style={styles.headerSubtitle}>{request.title}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.headerActionBtn}
-          onPress={() => router.push('/track-worker')}
-          activeOpacity={0.7}>
-          <Ionicons name="navigate-circle" size={26} color={COLORS.accentOrange} />
-        </TouchableOpacity>
+
+        <Pressable style={styles.headerButton} onPress={() => void load()}>
+          <Ionicons name="refresh" size={20} color={C.primary} />
+        </Pressable>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, 20) + 90 },
-        ]}
-        showsVerticalScrollIndicator={false}>
-
-        {/* ── Job Summary Card ── */}
-        <View style={styles.card}>
-          <View style={styles.summaryTopRow}>
-            <View style={styles.serviceIconBox}>
-              <MaterialCommunityIcons name="pipe-wrench" size={24} color={COLORS.primary} />
-            </View>
-            <View style={styles.summaryTitleCol}>
-              <View style={styles.tagRow}>
-                <View style={styles.urgentPill}>
-                  <Text style={styles.urgentPillText}>URGENT FIX</Text>
-                </View>
-                <Text style={styles.payoutBadge}>৳500 Cash / bKash</Text>
-              </View>
-              <Text style={styles.jobHeading}>Kitchen sink pipe leaking</Text>
-              <Text style={styles.customerName}>Customer: Nusrat Ahmed</Text>
-            </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.summary}>
+          <View style={styles.summaryIcon}>
+            <MaterialCommunityIcons name="clipboard-check-outline" size={24} color={C.primary} />
           </View>
 
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Ionicons name="location" size={14} color={COLORS.primary} />
-              <Text style={styles.metaText}>House 42, Road 11/A, Dhanmondi</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="car" size={14} color={COLORS.textMuted} />
-              <Text style={styles.metaText}>1.2 km (8 mins drive)</Text>
-            </View>
+          <View style={styles.flex}>
+            <Text style={styles.summaryTitle}>{request.title}</Text>
+            <Text style={styles.summaryMeta}>
+              {request.location_label} • {request.status.toUpperCase()}
+            </Text>
           </View>
 
-          {/* Customer Call & Message Buttons */}
-          <View style={styles.contactRow}>
-            <TouchableOpacity
-              style={styles.contactBtnCall}
-              onPress={handleCallCustomer}
-              activeOpacity={0.8}>
-              <Ionicons name="call" size={16} color="#ffffff" />
-              <Text style={styles.contactBtnCallText}>Call Customer</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.contactBtnChat}
-              onPress={() => Alert.alert('Chat', 'Opening direct messaging with Nusrat Ahmed...')}
-              activeOpacity={0.8}>
-              <Ionicons name="chatbubble" size={16} color={COLORS.primary} />
-              <Text style={styles.contactBtnChatText}>Message</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── Customer Problem Description ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeading}>Customer Note</Text>
-          <Text style={styles.descriptionText}>
-            &quot;Water is leaking under the kitchen sink every time the tap is turned on. Need someone to bring replacement pipe/coupling and seal it urgently.&quot;
+          <Text style={styles.budget}>
+            {money(request.budget_amount, request.currency)}
           </Text>
         </View>
 
-        {/* ── Customer Location & Map ── */}
-        <View style={styles.card}>
-          <View style={styles.mapTitleRow}>
-            <View>
-              <Text style={styles.cardHeading}>Destination Map</Text>
-              <Text style={styles.cardSubheading}>Road 11/A, Dhanmondi 27</Text>
+        {acceptedProposal ? (
+          <View style={styles.assigned}>
+            <Ionicons name="person-circle-outline" size={27} color={C.green} />
+            <View style={styles.flex}>
+              <Text style={styles.assignedTitle}>Assigned worker confirmed</Text>
+              <Text style={styles.assignedText}>
+                Labor proposal {money(acceptedProposal.price_amount, acceptedProposal.currency)} • {acceptedProposal.availability_note}
+              </Text>
             </View>
-            <TouchableOpacity
-              style={styles.trackCustomerBtn}
-              onPress={() => router.push('/track-worker')}
-              activeOpacity={0.8}>
-              <Text style={styles.trackCustomerText}>Customer View</Text>
-              <Ionicons name="arrow-forward" size={12} color={COLORS.primary} />
-            </TouchableOpacity>
           </View>
+        ) : null}
 
-          <View style={styles.mapWrapper}>
-            <LeafletMap
-              workerLat={23.7700}
-              workerLng={90.3600}
-              customerLat={23.7639}
-              customerLng={90.3589}
-              style={styles.mapView}
-            />
-          </View>
-        </View>
-
-        {/* ── Job Status Workflow Timeline ── */}
         <View style={styles.card}>
-          <Text style={styles.cardHeading}>Job Lifecycle Progress</Text>
-          <Text style={styles.cardSubheading}>Tap action button below to advance stage</Text>
+          <Text style={styles.sectionTitle}>Service lifecycle</Text>
+          <Text style={styles.sectionText}>
+            Controlled status transitions are written through secure backend RPCs.
+          </Text>
 
           <View style={styles.timeline}>
-            {JOB_STEPS.map((step, idx) => {
-              const isDone = idx < currentStep;
-              const isCurrent = idx === currentStep;
-              const isPending = idx > currentStep;
+            {STEPS.map((step, index) => {
+              const done = currentStep >= index;
+              const active = currentStep === index;
 
               return (
-                <View key={step.id} style={styles.timelineItem}>
-                  <View style={styles.timelineLeftCol}>
+                <View key={step.key} style={styles.timelineRow}>
+                  <View style={styles.timelineRail}>
                     <View
                       style={[
                         styles.timelineDot,
-                        isDone && styles.timelineDotDone,
-                        isCurrent && styles.timelineDotCurrent,
-                        isPending && styles.timelineDotPending,
-                      ]}>
-                      {isDone ? (
-                        <Ionicons name="checkmark" size={12} color="#ffffff" />
-                      ) : isCurrent ? (
-                        <View style={styles.pulseInner} />
+                        done && styles.timelineDotDone,
+                        active && styles.timelineDotActive,
+                      ]}
+                    >
+                      {done ? (
+                        <Ionicons name="checkmark" size={13} color="#fff" />
                       ) : null}
                     </View>
-                    {idx < JOB_STEPS.length - 1 && (
+
+                    {index < STEPS.length - 1 ? (
                       <View
                         style={[
                           styles.timelineLine,
-                          isDone ? styles.timelineLineDone : styles.timelineLinePending,
+                          currentStep > index && styles.timelineLineDone,
                         ]}
                       />
-                    )}
+                    ) : null}
                   </View>
 
-                  <View style={styles.timelineContent}>
-                    <View style={styles.timelineTitleRow}>
-                      <Text
-                        style={[
-                          styles.stepTitle,
-                          isCurrent && styles.stepTitleCurrent,
-                          isPending && styles.stepTitlePending,
-                        ]}>
-                        {step.title}
-                      </Text>
-                      <Text style={styles.stepTime}>{step.time}</Text>
-                    </View>
-                    <Text style={styles.stepDesc}>{step.desc}</Text>
+                  <View style={styles.timelineBody}>
+                    <Text
+                      style={[
+                        styles.timelineTitle,
+                        active && styles.timelineTitleActive,
+                      ]}
+                    >
+                      {step.label}
+                    </Text>
+                    <Text style={styles.timelineText}>
+                      {index === 0
+                        ? 'Customer accepted a worker proposal.'
+                        : index === 1
+                          ? 'Assigned worker started the service.'
+                          : 'Assigned worker completed the service.'}
+                    </Text>
                   </View>
                 </View>
               );
@@ -243,367 +275,246 @@ export default function JobDetailsScreen() {
           </View>
         </View>
 
+        {acceptedProposal ? (
+          <View style={styles.actionGrid}>
+            <Pressable
+              style={styles.actionCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/job-chat',
+                  params: { requestId: request.id },
+                })
+              }
+            >
+              <View style={[styles.actionIcon, { backgroundColor: C.primarySoft }]}>
+                <Ionicons name="chatbubbles-outline" size={22} color={C.primary} />
+              </View>
+              <Text style={styles.actionTitle}>Private Chat</Text>
+              <Text style={styles.actionText}>
+                Secure conversation between the customer and assigned worker.
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.actionCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/job-materials',
+                  params: { requestId: request.id },
+                })
+              }
+            >
+              <View style={[styles.actionIcon, { backgroundColor: C.orangeSoft }]}>
+                <Ionicons name="cart-outline" size={22} color={C.orange} />
+              </View>
+              <Text style={styles.actionTitle}>Materials</Text>
+              <Text style={styles.actionText}>
+                Request, review, approve, or reject catalog-backed materials.
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {assignedWorker && (request.status === 'assigned' || request.status === 'ordered') ? (
+          <Pressable
+            style={[styles.advanceButton, saving && styles.disabled]}
+            disabled={saving}
+            onPress={() => void advance()}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons
+                  name={request.status === 'assigned' ? 'play' : 'checkmark-circle'}
+                  size={18}
+                  color="#fff"
+                />
+                <Text style={styles.advanceText}>
+                  {request.status === 'assigned'
+                    ? 'Start Work'
+                    : 'Mark Job Completed'}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        ) : null}
+
+        {customer ? (
+          <View style={styles.customerInfo}>
+            <Ionicons name="eye-outline" size={20} color={C.primary} />
+            <Text style={styles.customerInfoText}>
+              You can follow progress here. Only the assigned worker can advance lifecycle status.
+            </Text>
+          </View>
+        ) : null}
+
+        {role === 'worker' && !assignedWorker ? (
+          <View style={styles.customerInfo}>
+            <Ionicons name="lock-closed-outline" size={20} color={C.primary} />
+            <Text style={styles.customerInfoText}>
+              This progress view is read-only unless you are the accepted worker for this request.
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
-
-      {/* ── Sticky Action Button Bar ── */}
-      <View style={[styles.bottomBar, { bottom: 64 + Math.max(insets.bottom, 10) }]}>
-        <TouchableOpacity
-          style={styles.advanceStepBtn}
-          onPress={handleNextStep}
-          activeOpacity={0.88}>
-          <MaterialCommunityIcons
-            name={
-              currentStep === 1
-                ? 'navigation'
-                : currentStep === 2
-                ? 'map-marker-check'
-                : currentStep === 3
-                ? 'hammer-wrench'
-                : 'check-circle'
-            }
-            size={20}
-            color="#ffffff"
-          />
-          <Text style={styles.advanceStepBtnText}>
-            {currentStep === 0
-              ? 'Start Trip (On the Way)'
-              : currentStep === 1
-              ? 'Mark Arrived at Location'
-              : currentStep === 2
-              ? 'Start Working'
-              : currentStep === 3
-              ? 'Complete Job & Collect ৳500'
-              : 'Job Completed (Finish)'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Unified Bottom Navigation Bar ── */}
-      <BottomNavBar activeTab="jobs" />
-
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
+  flex: { flex: 1 },
+  screen: { flex: 1, backgroundColor: C.bg },
   header: {
+    minHeight: 66,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
+    gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    zIndex: 10,
+    borderBottomColor: C.border,
+    backgroundColor: '#fff',
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surfaceContainerLow,
+  headerButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  jobIdText: {
-    fontSize: 10.5,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
-  headerActionBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    gap: 14,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6 },
-      android: { elevation: 1 },
-      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
-    }),
-  },
-  summaryTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 14, fontWeight: '900', color: C.text },
+  headerSubtitle: { marginTop: 2, fontSize: 9.5, color: C.muted },
+  content: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: 15,
+    paddingBottom: 50,
     gap: 12,
   },
-  serviceIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: COLORS.purpleSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryTitleCol: {
-    flex: 1,
-  },
-  tagRow: {
+  summary: {
+    padding: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  urgentPill: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  urgentPillText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: 0.3,
-  },
-  payoutBadge: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.success,
-  },
-  jobHeading: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: COLORS.text,
-  },
-  customerName: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  metaRow: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerLow,
-    gap: 6,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaText: {
-    fontSize: 12,
-    color: COLORS.text,
-  },
-  contactRow: {
-    flexDirection: 'row',
     gap: 10,
-    marginTop: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 18,
+    backgroundColor: '#fff',
   },
-  contactBtnCall: {
-    flex: 1,
-    flexDirection: 'row',
+  summaryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: COLORS.accentOrange,
-    paddingVertical: 10,
-    borderRadius: 12,
+    backgroundColor: C.primarySoft,
   },
-  contactBtnCallText: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  contactBtnChat: {
-    flex: 1,
+  summaryTitle: { fontSize: 12.5, fontWeight: '900', color: C.text },
+  summaryMeta: { marginTop: 2, fontSize: 9.5, color: C.muted },
+  budget: { fontSize: 13, fontWeight: '900', color: C.orange },
+  assigned: {
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: COLORS.purpleSoft,
-    paddingVertical: 10,
-    borderRadius: 12,
+    gap: 9,
+    borderRadius: 16,
+    backgroundColor: C.greenSoft,
   },
-  contactBtnChatText: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: COLORS.primary,
+  assignedTitle: { fontSize: 11.5, fontWeight: '900', color: C.green },
+  assignedText: { marginTop: 2, fontSize: 9.5, lineHeight: 15, color: C.muted },
+  card: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 18,
+    backgroundColor: '#fff',
   },
-  cardHeading: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  cardSubheading: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  descriptionText: {
-    fontSize: 12.5,
-    color: COLORS.text,
-    lineHeight: 18,
-    marginTop: 8,
-  },
-  mapTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  trackCustomerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: COLORS.purpleSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  trackCustomerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  mapWrapper: {
-    height: 150,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  mapView: {
-    flex: 1,
-  },
-  timeline: {
-    marginTop: 14,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    minHeight: 52,
-  },
-  timelineLeftCol: {
-    alignItems: 'center',
-    width: 22,
-    position: 'relative',
-  },
+  sectionTitle: { fontSize: 13, fontWeight: '900', color: C.text },
+  sectionText: { marginTop: 3, fontSize: 9.5, lineHeight: 15, color: C.muted },
+  timeline: { marginTop: 16 },
+  timelineRow: { minHeight: 72, flexDirection: 'row' },
+  timelineRail: { width: 31, alignItems: 'center', position: 'relative' },
   timelineDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#d5d2dc',
+    backgroundColor: '#fff',
     zIndex: 2,
   },
-  timelineDotDone: {
-    backgroundColor: COLORS.success,
-  },
-  timelineDotCurrent: {
-    backgroundColor: COLORS.primary,
-  },
-  timelineDotPending: {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-  },
-  pulseInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ffffff',
-  },
+  timelineDotDone: { borderColor: C.green, backgroundColor: C.green },
+  timelineDotActive: { borderColor: C.primary },
   timelineLine: {
     position: 'absolute',
-    top: 20,
-    bottom: -2,
-    width: 2,
-    zIndex: 1,
-  },
-  timelineLineDone: {
-    backgroundColor: COLORS.success,
-  },
-  timelineLinePending: {
-    backgroundColor: '#e5e7eb',
-  },
-  timelineContent: {
-    flex: 1,
-    paddingLeft: 12,
-    paddingBottom: 14,
-  },
-  timelineTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stepTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  stepTitleCurrent: {
-    color: COLORS.primary,
-    fontWeight: '900',
-  },
-  stepTitlePending: {
-    color: '#9ca3af',
-  },
-  stepTime: {
-    fontSize: 10.5,
-    color: COLORS.textMuted,
-  },
-  stepDesc: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  bottomBar: {
-    position: 'absolute',
+    top: 26,
     bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 6 },
-      android: { elevation: 6 },
-      web: { boxShadow: '0 -4px 14px rgba(0,0,0,0.06)' },
-    }),
+    width: 2,
+    backgroundColor: '#dedbe4',
   },
-  advanceStepBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: COLORS.primary,
+  timelineLineDone: { backgroundColor: C.green },
+  timelineBody: { flex: 1, paddingLeft: 10, paddingTop: 2 },
+  timelineTitle: { fontSize: 11.5, fontWeight: '800', color: C.muted },
+  timelineTitleActive: { color: C.primary, fontWeight: '900' },
+  timelineText: { marginTop: 3, fontSize: 9.5, lineHeight: 14, color: C.muted },
+  actionGrid: { flexDirection: 'row', gap: 10 },
+  actionCard: {
+    flex: 1,
+    minHeight: 132,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 17,
+    backgroundColor: '#fff',
+  },
+  actionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionTitle: { marginTop: 9, fontSize: 11.5, fontWeight: '900', color: C.text },
+  actionText: { marginTop: 3, fontSize: 9.5, lineHeight: 14, color: C.muted },
+  advanceButton: {
+    minHeight: 49,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 7,
+    borderRadius: 14,
+    backgroundColor: C.primary,
   },
-  advanceStepBtnText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#ffffff',
+  advanceText: { fontSize: 11.5, fontWeight: '900', color: '#fff' },
+  disabled: { opacity: 0.5 },
+  customerInfo: {
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderRadius: 15,
+    backgroundColor: C.primarySoft,
   },
+  customerInfoText: { flex: 1, fontSize: 9.5, lineHeight: 15, color: C.muted },
+  center: { flex: 1, padding: 30, alignItems: 'center', justifyContent: 'center' },
+  centerTitle: { marginTop: 10, fontSize: 15, fontWeight: '900', color: C.text },
+  centerText: {
+    marginTop: 7,
+    maxWidth: 330,
+    fontSize: 10.5,
+    lineHeight: 16,
+    textAlign: 'center',
+    color: C.muted,
+  },
+  retry: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 11,
+    backgroundColor: C.primary,
+  },
+  retryText: { fontSize: 10.5, fontWeight: '900', color: '#fff' },
 });
