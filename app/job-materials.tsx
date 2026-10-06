@@ -84,6 +84,8 @@ export default function JobMaterialsScreen() {
   );
 
   const hydrate = useCallback(async () => {
+    await Promise.resolve();
+
     if (!params.requestId) {
       setError('Service request ID is missing.');
       setLoading(false);
@@ -105,15 +107,15 @@ export default function JobMaterialsScreen() {
       setProducts(nextProducts);
       setMaterials(nextMaterials);
 
-      if (!selectedProductId && nextProducts[0]) {
-        setSelectedProductId(nextProducts[0].id);
-      }
+      setSelectedProductId(current =>
+        current ?? nextProducts[0]?.id ?? null,
+      );
     } catch (hydrateError) {
       setError(messageFrom(hydrateError));
     } finally {
       setLoading(false);
     }
-  }, [params.requestId, selectedProductId]);
+  }, [params.requestId]);
 
   useEffect(() => {
     void hydrate();
