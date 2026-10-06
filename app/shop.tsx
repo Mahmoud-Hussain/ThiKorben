@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { router, Stack } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Animated,
   Pressable,
@@ -86,7 +85,7 @@ type ProductCardProps = {
 };
 
 function ProductCard({ product, onAdd, onOpen }: ProductCardProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
 
   const pressIn = () => {
     Animated.spring(scale, {
@@ -200,8 +199,8 @@ export default function ShopScreen() {
 
   const [cartCount, setCartCount] = useState(getCartCount());
 
-  const pageOpacity = useRef(new Animated.Value(0)).current;
-  const pageTranslate = useRef(new Animated.Value(14)).current;
+  const [pageOpacity] = useState(() => new Animated.Value(0));
+  const [pageTranslate] = useState(() => new Animated.Value(14));
 
   useFocusEffect(
     useCallback(() => {
