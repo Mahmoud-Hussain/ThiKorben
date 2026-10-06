@@ -78,7 +78,7 @@ export default function CustomerDashboardScreen() {
       >
         <View style={styles.hero}>
           <View style={styles.heroIcon}>
-            <MaterialCommunityIcons name="handyman" size={28} color="#fff" />
+            <MaterialCommunityIcons name="hammer-wrench" size={28} color="#fff" />
           </View>
           <View style={styles.flex}>
             <Text style={styles.heroEyebrow}>SERVICE REQUEST</Text>
