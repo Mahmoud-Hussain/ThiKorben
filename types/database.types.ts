@@ -14,6 +14,76 @@ export type Database = {
   }
   public: {
     Tables: {
+      job_conversations: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          service_request_id: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          service_request_id: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          service_request_id?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_conversations_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: true
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_type: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "job_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_profiles: {
         Row: {
           completed_at: string
@@ -403,6 +473,10 @@ export type Database = {
       has_app_role: {
         Args: { p_role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
+      }
+      open_job_conversation: {
+        Args: { p_service_request_id: string }
+        Returns: Database["public"]["Tables"]["job_conversations"]["Row"]
       }
       register_worker_role: {
         Args: never
