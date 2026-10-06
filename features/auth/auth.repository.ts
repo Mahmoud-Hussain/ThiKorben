@@ -6,8 +6,10 @@ import type {
   AppProfile,
   AppProfileUpdate,
   AppRole,
+  CustomerProfileRecord,
   UserRole,
   VerifiedPhoneSession,
+  WorkerProfileRecord,
 } from './types';
 
 export async function getCurrentSession(): Promise<Session | null> {
@@ -47,12 +49,9 @@ export async function requestPhoneOtp(
 
   const { error } = await supabase.auth.signInWithOtp({
     phone,
-
     options: {
       channel: 'sms',
-
       shouldCreateUser: options.shouldCreateUser,
-
       ...(fullName
         ? {
             data: {
@@ -90,7 +89,6 @@ export async function verifyPhoneOtp(
 
   return {
     session: data.session,
-
     user: data.user,
   };
 }
@@ -101,6 +99,38 @@ export async function getProfile(userId: string): Promise<AppProfile> {
     .select('*')
     .eq('id', userId)
     .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getCustomerProfile(
+  userId: string,
+): Promise<CustomerProfileRecord | null> {
+  const { data, error } = await supabase
+    .from('customer_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getWorkerProfile(
+  userId: string,
+): Promise<WorkerProfileRecord | null> {
+  const { data, error } = await supabase
+    .from('worker_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -138,6 +168,54 @@ export async function updateProfile(
 
   if (error) {
     throw error;
+  }
+
+  return data;
+}
+
+export async function saveCustomerProfile(input: {
+  displayName: string;
+  homeLocation: string;
+  emergencyContact: string | null;
+}): Promise<CustomerProfileRecord> {
+  const { data, error } = await supabase.rpc('save_customer_profile', {
+    p_display_name: input.displayName,
+    p_home_location: input.homeLocation,
+    p_emergency_contact: input.emergencyContact,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error('Customer profile was not saved.');
+  }
+
+  return data;
+}
+
+export async function saveWorkerProfile(input: {
+  displayName: string;
+  primaryTrade: string;
+  experienceYears: number;
+  preferredRateBdt: number;
+  serviceRadiusKm: number;
+}): Promise<WorkerProfileRecord> {
+  const { data, error } = await supabase.rpc('save_worker_profile', {
+    p_display_name: input.displayName,
+    p_primary_trade: input.primaryTrade,
+    p_experience_years: input.experienceYears,
+    p_preferred_rate_bdt: input.preferredRateBdt,
+    p_service_radius_km: input.serviceRadiusKm,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error('Worker profile was not saved.');
   }
 
   return data;
