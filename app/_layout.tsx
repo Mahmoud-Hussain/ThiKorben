@@ -1,9 +1,10 @@
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
+import { GuidedTour } from '@/components/guided-tour';
 import { LogoutModal } from '@/components/logout-modal';
 import { SessionProvider, useSession } from '@/contexts/session-context';
 
@@ -91,11 +92,14 @@ function AppNavigator() {
   }
 
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }} />
-      <LogoutModal />
-      <StatusBar style="auto" />
-    </>
+    <View style={styles.viewport}>
+      <View style={styles.appFrame}>
+        <Stack screenOptions={{ headerShown: false }} />
+        <GuidedTour enabled={isAuthenticated} />
+        <LogoutModal />
+        <StatusBar style="auto" />
+      </View>
+    </View>
   );
 }
 
@@ -108,6 +112,22 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  viewport: {
+    flex: 1,
+    backgroundColor: Platform.OS === 'web' ? '#ecebf2' : '#f8f7fc',
+  },
+  appFrame: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    ...Platform.select({
+      web: {
+        maxWidth: 480,
+        boxShadow: '0 0 28px rgba(18, 18, 38, 0.12)',
+      },
+    }),
+  },
   loading: {
     flex: 1,
     alignItems: 'center',
