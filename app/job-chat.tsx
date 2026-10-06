@@ -103,7 +103,11 @@ export default function JobChatScreen() {
   }, [params.requestId]);
 
   useEffect(() => {
-    void hydrate();
+    const timer = setTimeout(() => {
+      void hydrate();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [hydrate]);
 
   useEffect(() => {
