@@ -410,3 +410,14 @@ export async function acceptServiceProposal(proposalId: string) {
     requireIdentifier(proposalId, 'Proposal ID'),
   );
 }
+
+
+export async function advanceServiceRequestStatus(
+  serviceRequestId: string,
+  status: 'ordered' | 'completed',
+) {
+  return communityRepository.advanceCommunityRequestStatus(
+    requireIdentifier(serviceRequestId, 'Service request ID'),
+    status,
+  );
+}
