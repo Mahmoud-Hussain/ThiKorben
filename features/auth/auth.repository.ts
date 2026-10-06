@@ -67,6 +67,34 @@ export async function requestPhoneOtp(
   }
 }
 
+export async function signInPresentationUser(
+  fullName?: string,
+  phoneDisplay?: string,
+): Promise<VerifiedPhoneSession> {
+  const { data, error } = await supabase.auth.signInAnonymously({
+    options: {
+      data: {
+        full_name: fullName?.trim() || 'ThiKorben User',
+        phone_display: phoneDisplay?.trim() || null,
+        presentation_mode: true,
+      },
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data.session || !data.user) {
+    throw new Error('Presentation session could not be created.');
+  }
+
+  return {
+    session: data.session,
+    user: data.user,
+  };
+}
+
 export async function verifyPhoneOtp(
   phone: string,
   token: string,
