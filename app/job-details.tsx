@@ -5,7 +5,6 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -56,29 +55,36 @@ export default function JobDetailsScreen() {
       setCurrentStep(next);
       Alert.alert('Status Updated', `Job status moved to: "${JOB_STEPS[next].title}"`);
     } else {
-      Alert.alert(
-        'Job Finished!',
-        '৳500 has been credited to your ThiKorben wallet. Great job!',
-        [{ text: 'Back to Worker Dashboard', onPress: () => router.push('/worker-dashboard') }]
-      );
+      router.push('/worker-dashboard');
     }
   };
 
-  const handleCallCustomer = () => {
-    Linking.openURL('tel:+8801800000000').catch(() => {
-      Alert.alert('Call Customer', 'Calling Nusrat Ahmed (+880 1800-000000)...');
-    });
+  const handleCallCustomer = async () => {
+    const url = 'tel:+8801800000000';
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('Call Customer', 'Phone calls are not supported on this device.');
+    }
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* ── Top Header ── */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => router.back()}
+          onPress={handleBack}
           activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
@@ -143,7 +149,17 @@ export default function JobDetailsScreen() {
 
             <TouchableOpacity
               style={styles.contactBtnChat}
-              onPress={() => Alert.alert('Chat', 'Opening direct messaging with Nusrat Ahmed...')}
+              onPress={() =>
+                router.push({
+                  pathname: '/chat',
+                  params: {
+                    recipientName: 'Nusrat Ahmed',
+                    recipientRole: 'Customer • House 42, Rd 11/A',
+                    jobTitle: 'Kitchen sink pipe leaking (৳500)',
+                    userRole: 'worker',
+                  },
+                })
+              }
               activeOpacity={0.8}>
               <Ionicons name="chatbubble" size={16} color={COLORS.primary} />
               <Text style={styles.contactBtnChatText}>Message</Text>
@@ -155,7 +171,7 @@ export default function JobDetailsScreen() {
         <View style={styles.card}>
           <Text style={styles.cardHeading}>Customer Note</Text>
           <Text style={styles.descriptionText}>
-            &quot;Water is leaking under the kitchen sink every time the tap is turned on. Need someone to bring replacement pipe/coupling and seal it urgently.&quot;
+            "Water is leaking under the kitchen sink every time the tap is turned on. Need someone to bring replacement pipe/coupling and seal it urgently."
           </Text>
         </View>
 
@@ -246,14 +262,16 @@ export default function JobDetailsScreen() {
       </ScrollView>
 
       {/* ── Sticky Action Button Bar ── */}
-      <View style={[styles.bottomBar, { bottom: 64 + Math.max(insets.bottom, 10) }]}>
+      <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.advanceStepBtn}
           onPress={handleNextStep}
           activeOpacity={0.88}>
           <MaterialCommunityIcons
             name={
-              currentStep === 1
+              currentStep === 0
+                ? 'play-circle'
+                : currentStep === 1
                 ? 'navigation'
                 : currentStep === 2
                 ? 'map-marker-check'
@@ -577,15 +595,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingVertical: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 6 },
       android: { elevation: 6 },

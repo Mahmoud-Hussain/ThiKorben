@@ -5,7 +5,6 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -95,7 +94,6 @@ export default function WorkerDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* ── Top Header ── */}
       <View style={styles.header}>
@@ -175,6 +173,7 @@ export default function WorkerDashboardScreen() {
         </View>
 
         {/* ── Urgent New Job Request Banner ── */}
+        {isOnline && (
         <View style={styles.urgentBanner}>
           <View style={styles.urgentHeader}>
             <View style={styles.urgentTag}>
@@ -202,12 +201,15 @@ export default function WorkerDashboardScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        )}
 
         {/* ── Today's Earnings & Stats ── */}
         <View style={styles.statsCard}>
           <View style={styles.statsHeader}>
-            <Text style={styles.statsTitle}>Today&apos;s Earnings</Text>
-            <Text style={styles.statsDate}>Today, 1 Sep</Text>
+            <Text style={styles.statsTitle}>Today's Earnings</Text>
+            <Text style={styles.statsDate}>
+              {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </Text>
           </View>
 
           <View style={styles.earningsRow}>
@@ -712,44 +714,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   jobArrow: {
-    marginLeft: 'auto',
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: 8,
-    position: 'relative',
-    zIndex: 20,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
     flex: 1,
-  },
-  navIconBox: {
-    width: 36,
-    height: 28,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navIconBoxActive: {
-    backgroundColor: COLORS.primary,
-  },
-  navLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  navLabelActive: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: COLORS.primary,
-    marginTop: 2,
+    alignItems: 'flex-end',
   },
 });

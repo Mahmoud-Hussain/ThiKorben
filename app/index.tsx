@@ -7,7 +7,6 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -143,6 +142,7 @@ export default function CustomerDashboardScreen() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
+  const [isActiveTracking] = useState(false); // BUG-009: wire to real booking state later
 
   const t = STRINGS[lang];
 
@@ -157,21 +157,11 @@ export default function CustomerDashboardScreen() {
 
   const handleBookEmergency = (serviceName: string) => {
     setEmergencyModalOpen(false);
-    Alert.alert(
-      'Emergency Dispatch Sent!',
-      `Searching nearest available worker for "${serviceName}" in Dhanmondi... Rahim has accepted!`,
-      [
-        {
-          text: 'Track Rahim Live',
-          onPress: () => router.push('/track-worker'),
-        },
-      ]
-    );
+    router.push('/track-worker');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* ── TopAppBar (Header from code.html) ── */}
       <View style={styles.header}>
@@ -218,19 +208,21 @@ export default function CustomerDashboardScreen() {
         showsVerticalScrollIndicator={false}>
 
         {/* ── Active Live Tracking Floating Banner ── */}
-        <TouchableOpacity
-          style={styles.activeTrackingCard}
-          onPress={() => router.push('/track-worker')}
-          activeOpacity={0.9}>
-          <View style={styles.pulseDotWrapper}>
-            <View style={styles.pulseDot} />
-          </View>
-          <View style={styles.activeTrackingTextCol}>
-            <Text style={styles.activeTrackingTitle}>{t.activeTracking}</Text>
-            <Text style={styles.activeTrackingSub}>Tap to view live Leaflet map & status</Text>
-          </View>
-          <Ionicons name="chevron-forward-circle" size={24} color={COLORS.accentOrange} />
-        </TouchableOpacity>
+        {isActiveTracking && (
+          <TouchableOpacity
+            style={styles.activeTrackingCard}
+            onPress={() => router.push('/track-worker')}
+            activeOpacity={0.9}>
+            <View style={styles.pulseDotWrapper}>
+              <View style={styles.pulseDot} />
+            </View>
+            <View style={styles.activeTrackingTextCol}>
+              <Text style={styles.activeTrackingTitle}>{t.activeTracking}</Text>
+              <Text style={styles.activeTrackingSub}>Tap to view live Leaflet map & status</Text>
+            </View>
+            <Ionicons name="chevron-forward-circle" size={24} color={COLORS.accentOrange} />
+          </TouchableOpacity>
+        )}
 
         {/* ── Hero Section ── */}
         <View style={styles.heroSection}>
@@ -406,11 +398,13 @@ export default function CustomerDashboardScreen() {
           </View>
 
           <View style={styles.proList}>
-            {filteredPros.map((pro) => (
+            {filteredPros.length === 0 ? (
+              <Text style={styles.emptyText}>No workers found. Try a different search.</Text>
+            ) : filteredPros.map((pro) => (
               <TouchableOpacity
                 key={pro.id}
                 style={styles.proCard}
-                onPress={() => router.push('/worker-profile')}
+                onPress={() => router.push({ pathname: '/worker-profile', params: { workerId: pro.id } })}
                 activeOpacity={0.88}>
                 <View style={styles.proCardLeft}>
                   <Image source={{ uri: pro.avatar }} style={styles.proAvatar} />
@@ -835,6 +829,12 @@ const styles = StyleSheet.create({
   },
   proList: {
     gap: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   proCard: {
     flexDirection: 'row',

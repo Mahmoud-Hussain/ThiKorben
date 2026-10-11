@@ -15,6 +15,9 @@ export function PageQuickSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // BUG-021: Only render in development; never ship to production
+  if (!__DEV__) return null;
+
   const pages = [
     {
       title: 'Customer Dashboard',
@@ -57,10 +60,18 @@ export function PageQuickSwitcher() {
       bg: '#fff2eb',
     },
     {
+      title: 'Live Chat & Messaging',
+      subtitle: 'Bilingual chat with worker or customer',
+      route: '/chat',
+      icon: 'chat-processing' as const,
+      color: '#0284c7',
+      bg: '#e0f2fe',
+    },
+    {
       title: 'Welcome & Language',
       subtitle: 'Onboarding & English / Bengali switch',
       route: '/welcome',
-      icon: 'sparkles' as const,
+      icon: 'creation' as const,
       color: '#7c3aed',
       bg: '#f5f0ff',
     },

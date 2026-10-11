@@ -3,7 +3,6 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -82,7 +81,6 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* ── Top Header ── */}
       <View style={styles.header}>
@@ -114,7 +112,7 @@ export default function WelcomeScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, 20) + 40 },
+          { paddingBottom: Math.max(insets.bottom, 20) },
         ]}
         showsVerticalScrollIndicator={false}>
 
@@ -152,7 +150,7 @@ export default function WelcomeScreen() {
           {/* Customer Card */}
           <TouchableOpacity
             style={styles.roleCardCustomer}
-            onPress={() => router.push('/')}
+            onPress={() => router.replace('/')}
             activeOpacity={0.88}>
             <View style={styles.roleCardTop}>
               <View style={styles.roleIconBoxCustomer}>
