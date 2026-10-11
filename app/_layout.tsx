@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { LogoutModal } from '@/components/logout-modal';
+import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 import { SessionProvider, useSession } from '@/contexts/session-context';
 
 const PUBLIC_PATHS = new Set([
@@ -109,6 +110,7 @@ function AppNavigator() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
+      <PageQuickSwitcher />
       <LogoutModal />
       <StatusBar style="auto" />
     </>
