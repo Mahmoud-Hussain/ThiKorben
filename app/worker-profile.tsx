@@ -6,7 +6,6 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -79,34 +78,36 @@ export default function WorkerProfileScreen() {
   const insets = useSafeAreaInsets();
   const [isFavorite, setIsFavorite] = useState(false);
 
-  const handleCall = () => {
-    Linking.openURL('tel:+8801700000000').catch(() => {
-      Alert.alert('Call Worker', 'Calling Rahim Uddin (+880 1700-000000)...');
-    });
+  const handleCall = async () => {
+    const url = 'tel:+8801700000000';
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('Call Worker', 'Phone calls are not supported on this device.');
+    }
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
   };
 
   const handleBookWorker = () => {
-    Alert.alert(
-      'Confirm Booking with Rahim',
-      'Rahim Uddin has accepted your request for Dhanmondi. He is preparing tools and starting trip!',
-      [
-        {
-          text: 'Go to Live Tracking',
-          onPress: () => router.push('/track-worker'),
-        },
-      ]
-    );
+    router.push('/track-worker');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* ── Top Header ── */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => router.back()}
+          onPress={handleBack}
           activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
@@ -250,7 +251,12 @@ export default function WorkerProfileScreen() {
                 </View>
                 <View style={styles.reviewStars}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <MaterialIcons key={s} name="star" size={13} color="#eab308" />
+                    <MaterialIcons
+                      key={s}
+                      name={s <= Math.round(rev.rating) ? 'star' : 'star-border'}
+                      size={13}
+                      color="#eab308"
+                    />
                   ))}
                 </View>
                 <Text style={styles.reviewText}>{rev.comment}</Text>
@@ -262,7 +268,7 @@ export default function WorkerProfileScreen() {
       </ScrollView>
 
       {/* ── Sticky Bottom Action Bar ── */}
-      <View style={[styles.bottomBar, { bottom: 64 + Math.max(insets.bottom, 10) }]}>
+      <View style={styles.bottomBar}>
         <View style={styles.bottomPriceCol}>
           <Text style={styles.bottomPriceLabel}>Visiting Fee</Text>
           <View style={styles.bottomPriceRow}>
@@ -274,8 +280,27 @@ export default function WorkerProfileScreen() {
         <TouchableOpacity
           style={styles.callWorkerBtn}
           onPress={handleCall}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+          accessibilityLabel="Call worker">
           <Ionicons name="call" size={18} color={COLORS.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.chatWorkerBtn}
+          onPress={() =>
+            router.push({
+              pathname: '/chat',
+              params: {
+                recipientName: 'Rahim Uddin',
+                recipientRole: 'Plumbing Specialist • 4.9 ★',
+                jobTitle: 'Plumbing Consultation & Booking',
+                userRole: 'customer',
+              },
+            })
+          }
+          activeOpacity={0.8}
+          accessibilityLabel="Message worker">
+          <Ionicons name="chatbubble" size={18} color={COLORS.primary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -605,17 +630,13 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingVertical: 10,
     gap: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 6 },
@@ -644,6 +665,14 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   callWorkerBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: COLORS.purpleSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatWorkerBtn: {
     width: 46,
     height: 46,
     borderRadius: 14,

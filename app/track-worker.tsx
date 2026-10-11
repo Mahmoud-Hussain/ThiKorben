@@ -4,7 +4,6 @@ import {
   Image,
   Linking,
   SafeAreaView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -47,25 +46,44 @@ export default function TrackWorkerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleCallWorker = () => {
-    Linking.openURL('tel:+8801700000000').catch(() => {
-      Alert.alert('Call Worker', 'Calling Rahim (+880 1700-000000)...');
-    });
+  const handleCallWorker = async () => {
+    const url = 'tel:+8801700000000';
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('Call Worker', 'Phone calls are not supported on this device.');
+    }
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
   };
 
   const handleMessageWorker = () => {
-    Alert.alert('Message Worker', 'Opening chat with Rahim...');
+    router.push({
+      pathname: '/chat',
+      params: {
+        recipientName: 'Rahim Uddin',
+        recipientRole: 'Plumbing Specialist • 4.9 ★',
+        jobTitle: 'Plumbing Leak Fix (Dhanmondi 27)',
+        userRole: 'customer',
+      },
+    });
   };
 
   return (
     <SafeAreaView style={s.root}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* ── Top App Bar ── */}
       <View style={s.appBar}>
         <TouchableOpacity
           style={s.backBtn}
-          onPress={() => router.back()}
+          onPress={handleBack}
           activeOpacity={0.7}
           accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={22} color={C.primary} />

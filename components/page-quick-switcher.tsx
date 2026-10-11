@@ -16,6 +16,8 @@ export function PageQuickSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
 
+  if (!__DEV__) return null;
+
   const sections = [
     {
       category: 'Core Service Flow',
@@ -105,6 +107,15 @@ export function PageQuickSwitcher() {
           iconType: 'mci',
           color: '#8b5cf6',
           bg: '#ede9fe',
+        },
+        {
+          title: 'Live Chat & Messaging',
+          subtitle: 'Direct worker messaging with bilingual quick replies',
+          route: '/chat',
+          icon: 'chat-processing',
+          iconType: 'mci',
+          color: '#0284c7',
+          bg: '#e0f2fe',
         },
         {
           title: 'Service Checkout',
