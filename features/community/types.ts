@@ -45,6 +45,7 @@ export interface CreateCommunityRequestInput {
   currency?: string;
   requestedStartAt?: string | null;
   scheduleNote?: string | null;
+  customerId?: string;
 }
 
 export interface UpdateCommunityRequestInput {
@@ -61,6 +62,7 @@ export interface UpdateCommunityRequestInput {
 export interface CreateCommunityCommentInput {
   serviceRequestId: string;
   body: string;
+  authorId?: string;
 }
 
 export interface CreateCommunityProposalInput {
@@ -69,6 +71,7 @@ export interface CreateCommunityProposalInput {
   currency?: string;
   availabilityNote: string;
   note?: string | null;
+  workerId?: string;
 }
 
 export interface UpdateCommunityProposalInput {

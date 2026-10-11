@@ -1,4 +1,10 @@
+import { PRESENTATION_MODE } from '@/lib/presentation-mode';
 import { supabase } from '@/lib/supabase';
+
+const isOfflineOrDemo =
+  PRESENTATION_MODE ||
+  !process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL.includes('example.supabase.co');
 
 import type {
   CommunityComment,
@@ -206,41 +212,43 @@ export async function listCommunityRequests(
   const offset = normalizeOffset(input.offset);
   const limit = normalizePageSize(input.limit);
 
-  try {
-    let query = supabase
-      .from('service_requests')
-      .select('*')
-      .order('last_activity_at', {
-        ascending: false,
-      })
-      .order('id', {
-        ascending: false,
-      })
-      .range(offset, offset + limit);
+  if (!isOfflineOrDemo) {
+    try {
+      let query = supabase
+        .from('service_requests')
+        .select('*')
+        .order('last_activity_at', {
+          ascending: false,
+        })
+        .order('id', {
+          ascending: false,
+        })
+        .range(offset, offset + limit);
 
-    if (input.category) {
-      query = query.eq('category', input.category);
+      if (input.category) {
+        query = query.eq('category', input.category);
+      }
+
+      if (input.status) {
+        query = query.eq('status', input.status);
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data && data.length > 0) {
+        const rows = data ?? [];
+        const hasMore = rows.length > limit;
+
+        return {
+          items: hasMore ? rows.slice(0, limit) : rows,
+          offset,
+          nextOffset: hasMore ? offset + limit : null,
+          hasMore,
+        };
+      }
+    } catch (err) {
+      // Graceful fallback to offline/presentation dataset
     }
-
-    if (input.status) {
-      query = query.eq('status', input.status);
-    }
-
-    const { data, error } = await query;
-
-    if (!error && data && data.length > 0) {
-      const rows = data ?? [];
-      const hasMore = rows.length > limit;
-
-      return {
-        items: hasMore ? rows.slice(0, limit) : rows,
-        offset,
-        nextOffset: hasMore ? offset + limit : null,
-        hasMore,
-      };
-    }
-  } catch (err) {
-    // Graceful fallback to offline/presentation dataset
   }
 
   // Filter in-memory fallback dataset
@@ -269,18 +277,20 @@ export async function listCommunityRequests(
 export async function getCommunityRequest(
   serviceRequestId: string,
 ): Promise<CommunityRequest> {
-  try {
-    const { data, error } = await supabase
-      .from('service_requests')
-      .select('*')
-      .eq('id', serviceRequestId)
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_requests')
+        .select('*')
+        .eq('id', serviceRequestId)
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const found = mockRequests.find(item => item.id === serviceRequestId);
@@ -294,18 +304,20 @@ export async function getCommunityRequest(
 export async function createCommunityRequest(
   input: CommunityRequestInsert,
 ): Promise<CommunityRequest> {
-  try {
-    const { data, error } = await supabase
-      .from('service_requests')
-      .insert(input)
-      .select()
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_requests')
+        .insert(input)
+        .select()
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const newReq: CommunityRequest = {
@@ -337,19 +349,21 @@ export async function updateCommunityRequest(
   serviceRequestId: string,
   input: CommunityRequestUpdate,
 ): Promise<CommunityRequest> {
-  try {
-    const { data, error } = await supabase
-      .from('service_requests')
-      .update(input)
-      .eq('id', serviceRequestId)
-      .select()
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_requests')
+        .update(input)
+        .eq('id', serviceRequestId)
+        .select()
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const index = mockRequests.findIndex(item => item.id === serviceRequestId);
@@ -369,16 +383,18 @@ export async function updateCommunityRequest(
 export async function cancelCommunityRequest(
   serviceRequestId: string,
 ): Promise<string> {
-  try {
-    const { data, error } = await supabase.rpc('cancel_service_request', {
-      p_service_request_id: serviceRequestId,
-    });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase.rpc('cancel_service_request', {
+        p_service_request_id: serviceRequestId,
+      });
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const found = mockRequests.find(item => item.id === serviceRequestId);
@@ -393,20 +409,22 @@ export async function cancelCommunityRequest(
 export async function listCommunityComments(
   serviceRequestId: string,
 ): Promise<CommunityComment[]> {
-  try {
-    const { data, error } = await supabase
-      .from('service_request_comments')
-      .select('*')
-      .eq('service_request_id', serviceRequestId)
-      .order('created_at', {
-        ascending: true,
-      });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_request_comments')
+        .select('*')
+        .eq('service_request_id', serviceRequestId)
+        .order('created_at', {
+          ascending: true,
+        });
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   return mockComments.filter(
@@ -417,18 +435,20 @@ export async function listCommunityComments(
 export async function createCommunityComment(
   input: CommunityCommentInsert,
 ): Promise<CommunityComment> {
-  try {
-    const { data, error } = await supabase
-      .from('service_request_comments')
-      .insert(input)
-      .select()
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_request_comments')
+        .insert(input)
+        .select()
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const newComment: CommunityComment = {
@@ -499,19 +519,21 @@ export async function getCommunityReaction(
   serviceRequestId: string,
   userId: string,
 ): Promise<CommunityReaction | null> {
-  try {
-    const { data, error } = await supabase
-      .from('service_request_reactions')
-      .select('*')
-      .eq('service_request_id', serviceRequestId)
-      .eq('user_id', userId)
-      .maybeSingle();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_request_reactions')
+        .select('*')
+        .eq('service_request_id', serviceRequestId)
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (!error) {
-      return data;
+      if (!error) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const key = `${serviceRequestId}:${userId}`;
@@ -530,21 +552,23 @@ export async function createCommunityReaction(
   serviceRequestId: string,
   userId: string,
 ): Promise<CommunityReaction> {
-  try {
-    const { data, error } = await supabase
-      .from('service_request_reactions')
-      .insert({
-        service_request_id: serviceRequestId,
-        user_id: userId,
-      })
-      .select()
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_request_reactions')
+        .insert({
+          service_request_id: serviceRequestId,
+          user_id: userId,
+        })
+        .select()
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const key = `${serviceRequestId}:${userId}`;
@@ -566,16 +590,18 @@ export async function deleteCommunityReaction(
   serviceRequestId: string,
   userId: string,
 ): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('service_request_reactions')
-      .delete()
-      .eq('service_request_id', serviceRequestId)
-      .eq('user_id', userId);
+  if (!isOfflineOrDemo) {
+    try {
+      const { error } = await supabase
+        .from('service_request_reactions')
+        .delete()
+        .eq('service_request_id', serviceRequestId)
+        .eq('user_id', userId);
 
-    if (!error) return;
-  } catch (err) {
-    // Fallback
+      if (!error) return;
+    } catch (err) {
+      // Fallback
+    }
   }
 
   const key = `${serviceRequestId}:${userId}`;
@@ -590,20 +616,22 @@ export async function deleteCommunityReaction(
 export async function listCommunityProposals(
   serviceRequestId: string,
 ): Promise<CommunityProposal[]> {
-  try {
-    const { data, error } = await supabase
-      .from('service_proposals')
-      .select('*')
-      .eq('service_request_id', serviceRequestId)
-      .order('created_at', {
-        ascending: false,
-      });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_proposals')
+        .select('*')
+        .eq('service_request_id', serviceRequestId)
+        .order('created_at', {
+          ascending: false,
+        });
 
-    if (!error && data) {
-      return data ?? [];
+      if (!error && data) {
+        return data ?? [];
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   return mockProposals.filter(
@@ -614,18 +642,20 @@ export async function listCommunityProposals(
 export async function createCommunityProposal(
   input: CommunityProposalInsert,
 ): Promise<CommunityProposal> {
-  try {
-    const { data, error } = await supabase
-      .from('service_proposals')
-      .insert(input)
-      .select()
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_proposals')
+        .insert(input)
+        .select()
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const newProp: CommunityProposal = {
@@ -656,19 +686,21 @@ export async function updateCommunityProposal(
   proposalId: string,
   input: CommunityProposalUpdate,
 ): Promise<CommunityProposal> {
-  try {
-    const { data, error } = await supabase
-      .from('service_proposals')
-      .update(input)
-      .eq('id', proposalId)
-      .select()
-      .single();
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_proposals')
+        .update(input)
+        .eq('id', proposalId)
+        .select()
+        .single();
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const prop = mockProposals.find(item => item.id === proposalId);
@@ -686,16 +718,18 @@ export async function updateCommunityProposal(
 export async function withdrawCommunityProposal(
   proposalId: string,
 ): Promise<string> {
-  try {
-    const { data, error } = await supabase.rpc('withdraw_service_proposal', {
-      p_proposal_id: proposalId,
-    });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase.rpc('withdraw_service_proposal', {
+        p_proposal_id: proposalId,
+      });
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const prop = mockProposals.find(item => item.id === proposalId);
@@ -707,16 +741,18 @@ export async function withdrawCommunityProposal(
 }
 
 export async function acceptCommunityProposal(proposalId: string) {
-  try {
-    const { data, error } = await supabase.rpc('accept_service_proposal', {
-      p_proposal_id: proposalId,
-    });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase.rpc('accept_service_proposal', {
+        p_proposal_id: proposalId,
+      });
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const prop = mockProposals.find(item => item.id === proposalId);
@@ -736,17 +772,19 @@ export async function advanceCommunityRequestStatus(
   serviceRequestId: string,
   status: 'ordered' | 'completed',
 ) {
-  try {
-    const { data, error } = await supabase.rpc('advance_service_request_status', {
-      p_service_request_id: serviceRequestId,
-      p_status: status,
-    });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase.rpc('advance_service_request_status', {
+        p_service_request_id: serviceRequestId,
+        p_status: status,
+      });
 
-    if (!error && data) {
-      return data;
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
     }
-  } catch (err) {
-    // Fallback
   }
 
   const req = mockRequests.find(item => item.id === serviceRequestId);

@@ -257,16 +257,14 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {isAuthenticated ? (
-          <TouchableOpacity
-            style={styles.communityButton}
-            onPress={() => router.push('/community')}
-          >
-            <Ionicons name="people" size={20} color={C.primary} />
-            <Text style={styles.communityText}>{t.community}</Text>
-            <Ionicons name="arrow-forward" size={18} color={C.primary} />
-          </TouchableOpacity>
-        ) : null}
+        <TouchableOpacity
+          style={styles.communityButton}
+          onPress={() => router.push('/community')}
+        >
+          <Ionicons name="people" size={20} color={C.primary} />
+          <Text style={styles.communityText}>{t.community}</Text>
+          <Ionicons name="arrow-forward" size={18} color={C.primary} />
+        </TouchableOpacity>
 
         <View style={styles.principle}>
           <Ionicons name="hand-left-outline" size={22} color={C.primary} />

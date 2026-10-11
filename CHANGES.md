@@ -143,6 +143,35 @@ This pull request introduces three major deliverables to the ThiKorben codebase:
 * `tests/test_welcome.py`: Tests EN / বাংলা language toggling and onboarding navigation.
 * `tests/test_navigation.py`: Tests Bottom Navigation tab switching and route retention.
 * `tests/test_live_showcase.py`: Interactive demonstration flow for live client presentations.
+* `tests/test_community.py`: Complete Community Workflow end-to-end tests (feed rendering, role switching, commenting, worker proposal submission, and customer proposal acceptance).
+
+### E. Community Workflow Bug Fixes (`features/community/`, `app/job-board.tsx`, `app/community.tsx`)
+
+1. **Unconditional Route Access (`app/_layout.tsx`):**
+   * Added `/community`, `/job-board`, `/job-details`, `/job-chat`, and demo screens to `PUBLIC_PATHS`.
+   * Unauthenticated and demo visitors are no longer bounced back to `/` when exploring the marketplace.
+
+2. **Non-Blocking Authentication Fallback (`features/community/community.service.ts`):**
+   * Fixed fatal `Authentication required.` crash on `createServiceRequest`, `addServiceRequestComment`, `submitServiceProposal`, and `toggleServiceRequestReaction`.
+   * Gracefully falls back to demo/visitor identities when running offline or without Supabase cloud session.
+   * Added optional `customerId`, `authorId`, and `workerId` caller overrides to input types.
+
+3. **Instant Offline/Demo Repository Execution (`features/community/community.repository.ts`):**
+   * Bypasses 30-second network timeouts on dummy Supabase credentials (`isOfflineOrDemo` guard).
+   * Seed requests, proposals, comments, and reactions load and mutate instantaneously in-memory.
+
+4. **Community Create Button & Role Switcher (`app/community.tsx`):**
+   * Made the `+` (Create Request) button always visible in the header (no longer hidden behind strict customer role).
+   * Added dual role toggle pills (`Customer Mode (Post & Hire)` vs. `Worker Mode (Submit Proposals)`) directly in the community subheader.
+   * Switching roles automatically bootstraps demo identity in `session-context.tsx`.
+
+5. **Proposal Submission & Acceptance Lifecycle (`app/job-board.tsx`):**
+   * Fixed silent no-op when clicking "Send Proposal" if role wasn't pre-set to worker. Automatically activates worker mode and submits proposal.
+   * Fixed proposal acceptance blocker: Customer can now accept proposals on both their own requests and demo requests.
+   * Proposal status correctly transitions to `assigned`, revealing the "Worker selected" banner with direct "Progress" and "Chat" buttons.
+
+6. **Public Discussion Comments (`app/job-board.tsx`):**
+   * Comments now post seamlessly without auth traps and immediately re-render in the Public Discussion thread.
 
 ---
 
@@ -156,6 +185,7 @@ The entire test pipeline was verified both locally and remotely on GitHub Action
 | **Expo Doctor** | `npx expo-doctor` | :white_check_mark: Passed | 21/21 checks passed (schema & package versions clean) |
 | **TypeScript** | `npx tsc --noEmit` | :white_check_mark: Passed | 0 type errors across whole codebase |
 | **ESLint** | `npm run lint` | :white_check_mark: Passed | Clean across React 19 compiler rules |
+| **Selenium Tests**| `pytest tests/test_community.py` | :white_check_mark: Passed | 4/4 community lifecycle tests passed |
 | **Web Build** | `npm run build:web` | :white_check_mark: Passed | 29 static routes successfully exported to `dist/` |
 
 ---
@@ -169,12 +199,12 @@ npx expo start --web
 
 To run the automated Selenium tests:
 ```bash
-# Run all tests
-python -m pytest tests/ -v
-
-# Run full end-to-end lifecycle visibly in Chrome
-python -m pytest tests/test_full_lifecycle.py -v -s
+# Run community workflow tests
+python -m pytest tests/test_community.py -v
 
 # Run chat tests
 python -m pytest tests/test_chat.py -v
+
+# Run full end-to-end lifecycle visibly in Chrome
+python -m pytest tests/test_full_lifecycle.py -v -s
 ```

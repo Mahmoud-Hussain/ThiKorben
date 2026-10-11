@@ -197,7 +197,7 @@ function RequestCard({
 }
 
 export default function CommunityScreen() {
-  const { role, user } = useSession();
+  const { role, user, setRole } = useSession();
   const [category, setCategory] = useState<CommunityCategory | undefined>();
   const [reactingId, setReactingId] = useState<string | null>(null);
 
@@ -263,21 +263,70 @@ export default function CommunityScreen() {
               <Text style={styles.headerSubtitle}>{subtitle}</Text>
             </View>
 
-            {role === 'customer' ? (
-              <Pressable
-                style={styles.createButton}
-                onPress={() =>
-                  router.push({
-                    pathname: '/job-board',
-                    params: { mode: 'create' },
-                  })
+            <Pressable
+              testID="community-create-button"
+              accessibilityLabel="Post a Service Request"
+              style={styles.createButton}
+              onPress={() => {
+                if (role !== 'customer') {
+                  void setRole('customer');
                 }
+                router.push({
+                  pathname: '/job-board',
+                  params: { mode: 'create' },
+                });
+              }}
+            >
+              <Ionicons name="add" size={19} color="#fff" />
+            </Pressable>
+          </View>
+
+          <View style={styles.roleToggleRow}>
+            <Pressable
+              testID="role-customer-toggle"
+              style={[
+                styles.rolePill,
+                role !== 'worker' && styles.rolePillActive,
+              ]}
+              onPress={() => void setRole('customer')}
+            >
+              <Ionicons
+                name="person-outline"
+                size={13}
+                color={role !== 'worker' ? '#fff' : COLORS.primary}
+              />
+              <Text
+                style={[
+                  styles.rolePillText,
+                  role !== 'worker' && styles.rolePillTextActive,
+                ]}
               >
-                <Ionicons name="add" size={19} color="#fff" />
-              </Pressable>
-            ) : (
-              <View style={styles.headerButton} />
-            )}
+                Customer Mode (Post & Hire)
+              </Text>
+            </Pressable>
+
+            <Pressable
+              testID="role-worker-toggle"
+              style={[
+                styles.rolePill,
+                role === 'worker' && styles.rolePillActive,
+              ]}
+              onPress={() => void setRole('worker')}
+            >
+              <Ionicons
+                name="hammer-outline"
+                size={13}
+                color={role === 'worker' ? '#fff' : COLORS.primary}
+              />
+              <Text
+                style={[
+                  styles.rolePillText,
+                  role === 'worker' && styles.rolePillTextActive,
+                ]}
+              >
+                Worker Mode (Submit Proposals)
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.filtersWrapper}>
@@ -438,6 +487,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.orange,
+  },
+  roleToggleRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#f1f0f7',
+    gap: 8,
+  },
+  rolePill: {
+    flex: 1,
+    height: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 5,
+  },
+  rolePillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  rolePillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  rolePillTextActive: {
+    color: '#fff',
   },
   filtersWrapper: {
     height: 54,

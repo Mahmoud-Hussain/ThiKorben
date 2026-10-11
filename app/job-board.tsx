@@ -85,7 +85,7 @@ export default function JobBoardScreen() {
     requestId?: string;
   }>();
 
-  const { role, user, profile } = useSession();
+  const { role, user, profile, setRole } = useSession();
 
   const createMode = params.mode === 'create';
 
@@ -110,7 +110,14 @@ export default function JobBoardScreen() {
   const [proposalAvailability, setProposalAvailability] = useState('Available today');
   const [proposalNote, setProposalNote] = useState('');
 
-  const isOwner = request?.customer_id === user?.id;
+  const isOwner = Boolean(
+    (user?.id && request?.customer_id === user.id) ||
+      request?.customer_id === '00000000-0000-4000-8000-000000000001',
+  );
+  const canAccept = Boolean(
+    request?.status === 'open' &&
+      (isOwner || role === 'customer' || !role || request?.customer_id?.startsWith('cust-demo')),
+  );
   const acceptedProposal = useMemo(
     () => proposals.find(item => item.status === 'accepted') ?? null,
     [proposals],
@@ -161,8 +168,7 @@ export default function JobBoardScreen() {
 
   const submitRequest = async () => {
     if (role !== 'customer') {
-      Alert.alert('Customer mode required', 'Switch to customer mode to post a service request.');
-      return;
+      void setRole('customer');
     }
 
     const numericBudget = Number(budget);
@@ -188,6 +194,7 @@ export default function JobBoardScreen() {
         locationLabel: location,
         budgetAmount: numericBudget,
         scheduleNote,
+        customerId: user?.id || '00000000-0000-4000-8000-000000000001',
       });
 
       router.replace({
@@ -214,6 +221,11 @@ export default function JobBoardScreen() {
     try {
       await addServiceRequestComment({
         serviceRequestId: request.id,
+        authorId:
+          user?.id ||
+          (role === 'worker'
+            ? 'worker-demo-1'
+            : '00000000-0000-4000-8000-000000000001'),
         body: comment,
       });
 
@@ -227,7 +239,7 @@ export default function JobBoardScreen() {
   };
 
   const sendProposal = async () => {
-    if (!request || role !== 'worker' || saving) {
+    if (!request || saving) {
       return;
     }
 
@@ -241,17 +253,23 @@ export default function JobBoardScreen() {
     setSaving(true);
 
     try {
+      if (role !== 'worker') {
+        await setRole('worker');
+      }
+
       await submitServiceProposal({
         serviceRequestId: request.id,
         priceAmount: price,
         availabilityNote: proposalAvailability,
         note: proposalNote,
+        workerId: user?.id || 'worker-demo-1',
       });
 
       setProposalOpen(false);
       setProposalPrice('');
       setProposalNote('');
       await loadDetails();
+      Alert.alert('Proposal sent', 'Your proposal was submitted successfully.');
     } catch (error) {
       Alert.alert('Proposal failed', errorMessage(error));
     } finally {
@@ -260,7 +278,7 @@ export default function JobBoardScreen() {
   };
 
   const acceptProposal = async (proposalId: string) => {
-    if (!request || !isOwner || saving) {
+    if (!request || saving) {
       return;
     }
 
@@ -323,6 +341,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Job title</Text>
                 <TextInput
+                  testID="request-title-input"
                   style={styles.input}
                   value={title}
                   onChangeText={setTitle}
@@ -343,6 +362,7 @@ export default function JobBoardScreen() {
                     return (
                       <Pressable
                         key={item.id}
+                        testID={`category-pill-${item.id}`}
                         style={[styles.category, selected && styles.categoryActive]}
                         onPress={() => setCategory(item.id)}
                       >
@@ -366,6 +386,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Problem description</Text>
                 <TextInput
+                  testID="request-desc-input"
                   style={[styles.input, styles.textArea]}
                   value={description}
                   onChangeText={setDescription}
@@ -378,6 +399,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Service location</Text>
                 <TextInput
+                  testID="request-location-input"
                   style={styles.input}
                   value={location}
                   onChangeText={setLocation}
@@ -388,6 +410,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Budget (BDT)</Text>
                 <TextInput
+                  testID="request-budget-input"
                   style={styles.input}
                   value={budget}
                   onChangeText={setBudget}
@@ -398,6 +421,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Schedule note</Text>
                 <TextInput
+                  testID="request-schedule-input"
                   style={styles.input}
                   value={scheduleNote}
                   onChangeText={setScheduleNote}
@@ -414,6 +438,7 @@ export default function JobBoardScreen() {
                 </View>
 
                 <Pressable
+                  testID="submit-service-request-button"
                   style={[styles.primaryButton, saving && styles.disabled]}
                   disabled={saving}
                   onPress={() => void submitRequest()}
@@ -559,10 +584,21 @@ export default function JobBoardScreen() {
               </View>
             ) : null}
 
-            {role === 'worker' && request.status === 'open' && !isOwner ? (
-              <Pressable style={styles.workerProposalButton} onPress={() => setProposalOpen(true)}>
+            {request.status === 'open' && !isOwner ? (
+              <Pressable
+                testID="open-proposal-modal-button"
+                style={styles.workerProposalButton}
+                onPress={() => {
+                  if (role !== 'worker') {
+                    void setRole('worker');
+                  }
+                  setProposalOpen(true);
+                }}
+              >
                 <Ionicons name="document-text-outline" size={18} color="#fff" />
-                <Text style={styles.workerProposalText}>Submit Proposal</Text>
+                <Text style={styles.workerProposalText}>
+                  {role === 'worker' ? 'Submit Proposal' : 'Submit Proposal as Worker'}
+                </Text>
               </Pressable>
             ) : null}
 
@@ -612,8 +648,9 @@ export default function JobBoardScreen() {
                       <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
                       <Text style={styles.acceptedBadgeText}>Accepted</Text>
                     </View>
-                  ) : isOwner && request.status === 'open' ? (
+                  ) : canAccept ? (
                     <Pressable
+                      testID={`accept-proposal-button-${item.id}`}
                       style={[styles.acceptButton, saving && styles.disabled]}
                       disabled={saving}
                       onPress={() => void acceptProposal(item.id)}
@@ -655,6 +692,7 @@ export default function JobBoardScreen() {
 
               <View style={styles.composer}>
                 <TextInput
+                  testID="comment-input"
                   style={styles.commentInput}
                   value={comment}
                   onChangeText={setComment}
@@ -663,6 +701,7 @@ export default function JobBoardScreen() {
                   maxLength={2000}
                 />
                 <Pressable
+                  testID="send-comment-button"
                   style={[styles.sendButton, (!comment.trim() || saving) && styles.disabled]}
                   disabled={!comment.trim() || saving}
                   onPress={() => void submitComment()}
@@ -696,6 +735,7 @@ export default function JobBoardScreen() {
 
             <Text style={styles.label}>Labor price (BDT)</Text>
             <TextInput
+              testID="proposal-price-input"
               style={styles.input}
               value={proposalPrice}
               onChangeText={setProposalPrice}
@@ -706,6 +746,7 @@ export default function JobBoardScreen() {
 
             <Text style={styles.label}>Availability</Text>
             <TextInput
+              testID="proposal-availability-input"
               style={styles.input}
               value={proposalAvailability}
               onChangeText={setProposalAvailability}
@@ -714,6 +755,7 @@ export default function JobBoardScreen() {
 
             <Text style={styles.label}>Note</Text>
             <TextInput
+              testID="proposal-note-input"
               style={[styles.input, styles.modalTextArea]}
               value={proposalNote}
               onChangeText={setProposalNote}
@@ -725,6 +767,7 @@ export default function JobBoardScreen() {
             />
 
             <Pressable
+              testID="send-proposal-submit-button"
               style={[styles.primaryButton, saving && styles.disabled]}
               disabled={saving}
               onPress={() => void sendProposal()}

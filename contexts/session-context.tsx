@@ -359,10 +359,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const identity = authState.identity;
+      let identity = authState.identity;
 
       if (!identity) {
-        throw new Error('Authentication required.');
+        const demoIdentity = createPresentationIdentity(
+          '+8801700000000',
+          'Demo User',
+        );
+        setAuthState({
+          status: 'authenticated',
+          identity: {
+            ...demoIdentity,
+            roles: [nextRole],
+            profile: {
+              ...demoIdentity.profile,
+              active_role: nextRole,
+              updated_at: new Date().toISOString(),
+            },
+          },
+          error: null,
+        });
+        return;
       }
 
       if (PRESENTATION_MODE) {

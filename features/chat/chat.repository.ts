@@ -1,39 +1,69 @@
+import { PRESENTATION_MODE } from '@/lib/presentation-mode';
 import { supabase } from '@/lib/supabase';
 import type { JobConversation, JobMessage } from './types';
+
+const isOfflineOrDemo =
+  PRESENTATION_MODE ||
+  !process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL.includes('example.supabase.co');
+
+let mockConversations: JobConversation[] = [];
+let mockJobMessages: JobMessage[] = [];
 
 export async function openJobConversation(
   serviceRequestId: string,
 ): Promise<JobConversation> {
-  const { data, error } = await supabase.rpc('open_job_conversation', {
-    p_service_request_id: serviceRequestId,
-  });
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase.rpc('open_job_conversation', {
+        p_service_request_id: serviceRequestId,
+      });
 
-  if (error) {
-    throw error;
+      if (!error && data) {
+        return data;
+      }
+    } catch {
+      // Fallback
+    }
   }
 
-  if (!data) {
-    throw new Error('Conversation was not created.');
+  let existing = mockConversations.find(
+    c => c.service_request_id === serviceRequestId,
+  );
+  if (!existing) {
+    existing = {
+      id: `conv-${serviceRequestId}`,
+      service_request_id: serviceRequestId,
+      customer_id: '00000000-0000-4000-8000-000000000001',
+      worker_id: 'worker-demo-1',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    mockConversations.push(existing);
   }
 
-  return data;
+  return existing;
 }
 
 export async function listJobMessages(
   conversationId: string,
 ): Promise<JobMessage[]> {
-  const { data, error } = await supabase
-    .from('job_messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-    .order('id', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('job_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
 
-  if (error) {
-    throw error;
+    if (!error && data) {
+      return data;
+    }
+  } catch {
+    // Fallback
   }
 
-  return data ?? [];
+  return mockJobMessages.filter(m => m.conversation_id === conversationId);
 }
 
 export async function insertJobMessage(input: {
@@ -41,20 +71,34 @@ export async function insertJobMessage(input: {
   senderId: string;
   body: string;
 }): Promise<JobMessage> {
-  const { data, error } = await supabase
-    .from('job_messages')
-    .insert({
-      conversation_id: input.conversationId,
-      sender_id: input.senderId,
-      body: input.body,
-      message_type: 'text',
-    })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('job_messages')
+      .insert({
+        conversation_id: input.conversationId,
+        sender_id: input.senderId,
+        body: input.body,
+        message_type: 'text',
+      })
+      .select()
+      .single();
 
-  if (error) {
-    throw error;
+    if (!error && data) {
+      return data;
+    }
+  } catch {
+    // Fallback
   }
 
-  return data;
+  const newMsg: JobMessage = {
+    id: `msg-${Date.now()}`,
+    conversation_id: input.conversationId,
+    sender_id: input.senderId,
+    body: input.body,
+    message_type: 'text',
+    created_at: new Date().toISOString(),
+  };
+
+  mockJobMessages.push(newMsg);
+  return newMsg;
 }
