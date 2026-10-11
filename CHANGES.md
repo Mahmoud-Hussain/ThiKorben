@@ -4,7 +4,7 @@
 **Pull Request (Fork):** [#1 (feature/live-chat-and-ux-bugfixes -> dev)](https://github.com/rajee99/ThiKorben-1/pull/1)  
 **Upstream Compare:** [compare/dev...rajee99:ThiKorben-1:feature/live-chat-and-ux-bugfixes](https://github.com/Mahmoud-Hussain/ThiKorben/compare/dev...rajee99:ThiKorben-1:feature/live-chat-and-ux-bugfixes?expand=1)  
 **Author:** rajee99  
-**Status:** All checks passing (0 TypeScript errors, 0 ESLint warnings, 15/15 Pytest tests passing)
+**Status:** All checks passing (0 TypeScript errors, 0 ESLint warnings, 18/18 Pytest tests passing)
 
 ---
 
@@ -325,5 +325,74 @@ python -m pytest tests/test_floating_chat.py -v
 | `test_floating_chat_button_renders_globally` | Verifies floating chat FAB renders on the screen | :white_check_mark: PASSED |
 | `test_floating_chat_opens_and_sends_message` | Opens chat drawer, types message, and verifies rendered in thread | :white_check_mark: PASSED |
 | `test_floating_chat_recent_history_switching` | Opens Recent History tab, displays conversations, and switches recipient | :white_check_mark: PASSED |
+| `test_floating_chat_hidden_on_fullscreen_chat_page` | Verifies floating widget is suppressed on `/chat` so send button is never covered | :white_check_mark: PASSED |
+| `test_start_new_chat_with_new_worker_from_pro_directory` | Starts a new chat thread with verified pros from directory roster | :white_check_mark: PASSED |
+| `test_front_page_has_prominent_signup_button` | Verifies front page provides explicit, visible Sign Up buttons in header and hero | :white_check_mark: PASSED |
+
+---
+
+## 7. Front Page Sign Up Visibility & Authentication Accessibility (`app/index.tsx`)
+
+### The Problem
+Previously on the front page (`app/index.tsx`), new users could not locate a clear **Sign Up** button:
+* The top navigation bar only showed the brand logo and language switchers (EN / বাংলা), with no auth action buttons.
+* The hero action group presented a generic *"Get Started"* label which was ambiguous.
+* If a session was active, the hero buttons would transition into *"Continue to ThiKorben"*, making it impossible for visitors to quickly sign up a new account.
+
+### The Fix
+* **Prominent Header Auth Actions**: Added a dedicated top-right authentication group:
+  * **Sign In** button linking to `/auth/login`.
+  * **Sign Up** button (`headerSignupBtn`) styled with brand orange (`#F7941D`), white text, and `person-add` icon linking directly to `/auth/signup`.
+  * If authenticated, also displays a **Dashboard** quick shortcut.
+* **Hero Section Dual Actions**:
+  * Added an explicit **Sign Up Free** (`hero-signup-btn`) primary action button linking directly to `/auth/signup`.
+  * Preserved the secondary Sign In / Dashboard navigation.
+* **Bilingual Translation Support**: Added `signup: 'Sign Up'` and `signup: 'সাইন আপ'` across both English and Bengali dictionaries in `COPY`.
+
+---
+
+## 8. Dynamic Floating Chat with New Workers & Full-Screen Chat Suppression (`components/floating-chat-widget.tsx`)
+
+### The Problem
+1. **Button Covering Full-Screen Chat**: When navigating directly to `/chat` or `/job-chat`, the floating chat trigger and dev switcher stacked in the bottom right corner, literally covering the message input box and Send button.
+2. **Static Worker List**: The floating widget only initialized with hardcoded conversations (Rahim, Kamal, Support Desk) and provided no interface to discover, select, or start a chat with other workers or when booking a new pro.
+
+### The Fix
+1. **Full-Screen Chat Suppression Guard**:
+   * Integrated `usePathname()` in `FloatingChatWidget`.
+   * If `pathname === '/chat' || pathname === '/job-chat'`, the widget immediately returns `null`. This guarantees the floating button never covers the full-screen chat input or send buttons.
+2. **Directory of Verified Pros in Recent History Tab**:
+   * Exported `AVAILABLE_WORKERS` catalog including verified trade specialists:
+     * **Rahim Uddin** (Verified Plumber)
+     * **Kamal Hossain** (Electrician)
+     * **Tariqul Islam** (Master Carpenter)
+     * **Belal Ahmed** (Home Painter)
+     * **Shahinur Rahman** (Appliance Technician)
+     * **ThiKorben Support Desk**
+   * Under *"Active Conversations"*, added a dedicated *"Start New Chat with Pro"* roster where users can tap **Chat** / **Open** next to any professional.
+   * Dynamically instantiates a new conversation thread, selects that worker, stores it in `localStorage`, and transitions directly into the active chat thread.
+3. **Global Cross-Screen Event Bus (`thikorben_open_chat`)**:
+   * Added `openFloatingWorkerChat(...)` helper and a `window.addEventListener('thikorben_open_chat', ...)` listener.
+   * Any screen (such as worker profiles, proposal acceptances, or job tracking) can trigger a chat with a specific worker by dispatching this event.
+4. **Header Pro Switcher**: Added a quick Pro switcher button (`people` icon) in the widget top bar allowing immediate switching between active workers.
+
+---
+
+## 9. Page Quick Switcher De-cluttering & Route Suppression (`components/page-quick-switcher.tsx`)
+
+### The Problem
+* The dev page switcher floating button was manually imported and rendered in multiple individual screens (`app/worker-profile.tsx`, `app/welcome.tsx`, `app/track-worker.tsx`) in addition to being rendered globally in `app/_layout.tsx`.
+* It appeared on screens where it caused clutter (including full-screen chat and auth routes).
+
+### The Fix
+* **Removed Redundant Local Usages**: Deleted all duplicate `<PageQuickSwitcher />` component instances and imports from `app/worker-profile.tsx`, `app/welcome.tsx`, and `app/track-worker.tsx`.
+* **Suppressed on Chat & Auth Routes**: Added route guards to automatically suppress rendering on:
+  * `/chat`
+  * `/job-chat`
+  * `/auth/login`
+  * `/auth/signup`
+  * `/auth/role-select`
+* **Session Dismissal Persistence**: When the user taps the `(X)` close button on the floating switcher container, the dismissal state is saved to `sessionStorage` (`thikorben_pages_dismissed`), ensuring it remains hidden across subsequent screen navigations during that session.
+
 
 

@@ -36,6 +36,7 @@ const COPY = {
     subtitle:
       'Create a structured service request, compare worker proposals, chat privately, approve materials, and follow job progress in one place.',
     start: 'Get Started',
+    signup: 'Sign Up',
     continue: 'Continue to ThiKorben',
     login: 'Sign In',
     customer: 'Customer workflow',
@@ -48,6 +49,7 @@ const COPY = {
     subtitle:
       'সার্ভিস রিকোয়েস্ট তৈরি করুন, ওয়ার্কারের প্রপোজাল তুলনা করুন, প্রাইভেট চ্যাট করুন, প্রয়োজনীয় উপকরণ অনুমোদন করুন এবং কাজের অগ্রগতি দেখুন।',
     start: 'শুরু করুন',
+    signup: 'সাইন আপ',
     continue: 'ThiKorben এ যান',
     login: 'সাইন ইন',
     customer: 'কাস্টমার ফ্লো',
@@ -87,23 +89,58 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        <View style={styles.language}>
-          <TouchableOpacity
-            style={[styles.languageButton, lang === 'en' && styles.languageActive]}
-            onPress={() => setLang('en')}
-          >
-            <Text style={[styles.languageText, lang === 'en' && styles.languageTextActive]}>
-              EN
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.languageButton, lang === 'bn' && styles.languageActive]}
-            onPress={() => setLang('bn')}
-          >
-            <Text style={[styles.languageText, lang === 'bn' && styles.languageTextActive]}>
-              বাংলা
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {isAuthenticated ? (
+            <TouchableOpacity
+              testID="header-dashboard-btn"
+              style={styles.headerDashboardBtn}
+              onPress={() => router.push(continueRoute)}
+              accessibilityLabel="Go to Dashboard"
+            >
+              <Ionicons name="apps" size={14} color={C.primary} />
+              <Text style={styles.headerDashboardText}>Dashboard</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <View style={styles.headerAuthGroup}>
+            {!isAuthenticated ? (
+              <TouchableOpacity
+                style={styles.headerLoginBtn}
+                onPress={() => router.push('/auth/login')}
+                accessibilityLabel="Sign In"
+              >
+                <Text style={styles.headerLoginText}>{t.login}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              testID="header-signup-btn"
+              style={styles.headerSignupBtn}
+              onPress={() => router.push('/auth/signup')}
+              accessibilityLabel="Sign Up"
+            >
+              <Ionicons name="person-add" size={13} color="#fff" />
+              <Text style={styles.headerSignupText}>{t.signup}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.language}>
+            <TouchableOpacity
+              style={[styles.languageButton, lang === 'en' && styles.languageActive]}
+              onPress={() => setLang('en')}
+            >
+              <Text style={[styles.languageText, lang === 'en' && styles.languageTextActive]}>
+                EN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.languageButton, lang === 'bn' && styles.languageActive]}
+              onPress={() => setLang('bn')}
+            >
+              <Text style={[styles.languageText, lang === 'bn' && styles.languageTextActive]}>
+                বাংলা
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -122,27 +159,34 @@ export default function WelcomeScreen() {
 
           <View style={styles.heroActions}>
             <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() =>
-                router.push(isAuthenticated ? continueRoute : '/auth/signup')
-              }
+              testID="hero-signup-btn"
+              style={[styles.primaryButton, styles.signupHeroBtn]}
+              onPress={() => router.push('/auth/signup')}
               activeOpacity={0.88}
             >
-              <Text style={styles.primaryButtonText}>
-                {isAuthenticated ? t.continue : t.start}
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
+              <Ionicons name="person-add" size={18} color="#fff" />
+              <Text style={styles.primaryButtonText}>{t.signup} Free</Text>
             </TouchableOpacity>
 
-            {!isAuthenticated ? (
+            {isAuthenticated ? (
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => router.push(continueRoute)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryButtonText}>{t.continue}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+            ) : (
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => router.push('/auth/login')}
                 activeOpacity={0.88}
               >
                 <Text style={styles.secondaryButtonText}>{t.login}</Text>
+                <Ionicons name="arrow-forward" size={16} color={C.primary} />
               </TouchableOpacity>
-            ) : null}
+            )}
           </View>
         </View>
 
@@ -304,6 +348,57 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 17, fontWeight: '900', color: C.primary },
   brandSub: { marginTop: 1, fontSize: 8.5, color: C.muted },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerAuthGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerLoginBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#fff',
+  },
+  headerLoginText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.primary,
+  },
+  headerSignupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: C.orange,
+  },
+  headerSignupText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  headerDashboardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: C.primarySoft,
+  },
+  headerDashboardText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.primary,
+  },
   language: {
     padding: 3,
     flexDirection: 'row',
@@ -314,6 +409,9 @@ const styles = StyleSheet.create({
   languageActive: { backgroundColor: '#fff' },
   languageText: { fontSize: 9.5, fontWeight: '700', color: C.muted },
   languageTextActive: { color: C.primary },
+  signupHeroBtn: {
+    backgroundColor: C.orange,
+  },
   content: {
     width: '100%',
     maxWidth: 920,

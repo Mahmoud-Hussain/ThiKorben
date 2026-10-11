@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
 import { LeafletMap } from '@/components/leaflet-map';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
 const COLORS = {
   primary: '#15157d',
@@ -314,9 +313,6 @@ export default function WorkerProfileScreen() {
 
       {/* ── Unified Bottom Navigation Bar ── */}
       <BottomNavBar activeTab="pros" />
-
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
     </SafeAreaView>
   );
 }

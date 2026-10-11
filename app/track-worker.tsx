@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
 import { LeafletMap } from '@/components/leaflet-map';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
 const C = {
   primary: '#15157d',
@@ -244,9 +243,6 @@ export default function TrackWorkerScreen() {
 
       {/* ── Unified Bottom Navigation Bar ── */}
       <BottomNavBar activeTab="track" />
-
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
     </SafeAreaView>
   );
 }

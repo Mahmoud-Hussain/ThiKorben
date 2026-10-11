@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavBar } from '@/components/bottom-nav-bar';
-import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 
 const COLORS = {
   primary: '#15157d',
@@ -212,9 +211,6 @@ export default function WelcomeScreen() {
 
       {/* ── Unified Bottom Navigation Bar ── */}
       <BottomNavBar activeTab="home" />
-
-      {/* ── Quick Switcher Floating Button ── */}
-      <PageQuickSwitcher />
     </SafeAreaView>
   );
 }

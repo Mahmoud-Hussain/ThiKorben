@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useSession } from '@/contexts/session-context';
 
 export interface ChatMessage {
@@ -37,6 +37,78 @@ export interface ChatConversation {
   lastTime: string;
   avatarColor: string;
   messages: ChatMessage[];
+}
+
+export interface ProWorkerItem {
+  recipientId: string;
+  recipientName: string;
+  recipientRole: string;
+  jobTitle: string;
+  avatarColor: string;
+  greeting: string;
+}
+
+export const AVAILABLE_WORKERS: ProWorkerItem[] = [
+  {
+    recipientId: 'worker-demo-1',
+    recipientName: 'Rahim Uddin',
+    recipientRole: 'Verified Plumber • 4.9 ★',
+    jobTitle: 'Plumbing Leak Fix & Sanitation',
+    avatarColor: '#10b981',
+    greeting: 'আসসালামু আলাইকুম! আমি রহিম, প্লাম্বিং কাজের যে কোনো সমস্যায় আছি।',
+  },
+  {
+    recipientId: 'worker-demo-2',
+    recipientName: 'Kamal Hossain',
+    recipientRole: 'Electrician • 4.8 ★',
+    jobTitle: 'Main Breaker & AC Repair',
+    avatarColor: '#f59e0b',
+    greeting: 'আসসালামু আলাইকুম, ইলেকট্রিক সার্কিট ও ওয়্যারিং কাজের বিস্তারিত জানান।',
+  },
+  {
+    recipientId: 'worker-demo-3',
+    recipientName: 'Tariqul Islam',
+    recipientRole: 'Master Carpenter • 4.9 ★',
+    jobTitle: 'Furniture Repair & Wood Work',
+    avatarColor: '#8b5cf6',
+    greeting: 'আসসালামু আলাইকুম! ফার্নিচার বা কাঠের কাজের জন্য সাহায্য করতে পারি।',
+  },
+  {
+    recipientId: 'worker-demo-4',
+    recipientName: 'Belal Ahmed',
+    recipientRole: 'Home Painter • 4.7 ★',
+    jobTitle: 'Interior Painting & Wall Putty',
+    avatarColor: '#06b6d4',
+    greeting: 'আসসালামু আলাইকুম! রুমের পেইন্ট বা দেয়ালের স্যাঁতসেঁতে সমস্যার কাজ করি।',
+  },
+  {
+    recipientId: 'worker-demo-5',
+    recipientName: 'Shahinur Rahman',
+    recipientRole: 'Appliance Tech • 4.9 ★',
+    jobTitle: 'Refrigerator & Washing Machine',
+    avatarColor: '#ec4899',
+    greeting: 'আসসালামু আলাইকুম! হোম অ্যাপ্লায়েন্স মেরামতের জন্য জানাবেন।',
+  },
+  {
+    recipientId: 'support-1',
+    recipientName: 'ThiKorben Support',
+    recipientRole: 'Customer Help Desk',
+    jobTitle: 'Order, Safety & Live Inquiries',
+    avatarColor: '#15157d',
+    greeting: 'ঠিককরবেন হেল্পলাইনে স্বাগতম! কীভাবে সাহায্য করতে পারি?',
+  },
+];
+
+export function openFloatingWorkerChat(worker: {
+  workerId?: string;
+  workerName: string;
+  workerRole?: string;
+  jobTitle?: string;
+  initialMessage?: string;
+}) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('thikorben_open_chat', { detail: worker }));
+  }
 }
 
 const STORAGE_KEY = 'thikorben_floating_chat_conversations_v2';
@@ -181,6 +253,7 @@ function getCurrentFormattedTime() {
 
 export function FloatingChatWidget() {
   const router = useRouter();
+  const pathname = usePathname();
   const { role } = useSession();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -206,6 +279,103 @@ export function FloatingChatWidget() {
       }, 150);
     }
   }, [isOpen, activeTab, selectedConvId, activeConv.messages.length, isTyping]);
+
+  // Dynamically listen to new chat requests with any worker across screens
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOpenChatEvent = (e: any) => {
+      const detail = e.detail;
+      if (!detail || !detail.workerName) return;
+
+      const { workerId, workerName, workerRole, jobTitle, initialMessage } = detail;
+
+      setConversations(prev => {
+        const existing = prev.find(
+          c =>
+            (workerId && c.recipientId === workerId) ||
+            c.recipientName.toLowerCase() === workerName.toLowerCase()
+        );
+        if (existing) {
+          setSelectedConvId(existing.id);
+          return prev;
+        }
+
+        const newId = `conv-${workerId || generateMsgId('w')}`;
+        const newConv: ChatConversation = {
+          id: newId,
+          recipientId: workerId || `worker-${generateMsgId('w')}`,
+          recipientName: workerName,
+          recipientRole: workerRole || 'Verified Specialist',
+          jobTitle: jobTitle || 'Direct Consultation',
+          unreadCount: 0,
+          lastMessage: initialMessage || `Chat started with ${workerName}`,
+          lastTime: getCurrentFormattedTime(),
+          avatarColor: '#10b981',
+          messages: [
+            {
+              id: generateMsgId('init'),
+              sender: 'other',
+              text:
+                initialMessage ||
+                `আসসালামু আলাইকুম! আমি ${workerName}। আপনার সার্ভিসের বিষয়ে সাহায্য করতে প্রস্তুত।`,
+              time: getCurrentFormattedTime(),
+              type: 'text',
+              status: 'delivered',
+            },
+          ],
+        };
+        setSelectedConvId(newId);
+        return [newConv, ...prev];
+      });
+
+      setActiveTab('chat');
+      setIsOpen(true);
+    };
+
+    window.addEventListener('thikorben_open_chat', handleOpenChatEvent);
+    return () => {
+      window.removeEventListener('thikorben_open_chat', handleOpenChatEvent);
+    };
+  }, []);
+
+  const handleStartProChat = (pro: ProWorkerItem) => {
+    const existing = conversations.find(
+      c => c.recipientId === pro.recipientId || c.recipientName === pro.recipientName
+    );
+
+    if (existing) {
+      handleSelectConv(existing.id);
+      return;
+    }
+
+    const newId = `conv-${pro.recipientId}`;
+    const newConv: ChatConversation = {
+      id: newId,
+      recipientId: pro.recipientId,
+      recipientName: pro.recipientName,
+      recipientRole: pro.recipientRole,
+      jobTitle: pro.jobTitle,
+      unreadCount: 0,
+      lastMessage: pro.greeting,
+      lastTime: getCurrentFormattedTime(),
+      avatarColor: pro.avatarColor,
+      messages: [
+        {
+          id: generateMsgId('pro-init'),
+          sender: 'other',
+          text: pro.greeting,
+          time: getCurrentFormattedTime(),
+          type: 'text',
+          status: 'delivered',
+        },
+      ],
+    };
+
+    setConversations(prev => [newConv, ...prev]);
+    setSelectedConvId(newId);
+    setActiveTab('chat');
+  };
 
   const handleSelectConv = (convId: string) => {
     setSelectedConvId(convId);
@@ -396,6 +566,10 @@ export function FloatingChatWidget() {
     });
   };
 
+  if (pathname === '/chat' || pathname === '/job-chat') {
+    return null;
+  }
+
   return (
     <>
       {/* Floating Action Button */}
@@ -448,6 +622,14 @@ export function FloatingChatWidget() {
               </View>
 
               <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => setActiveTab('history')}
+                  accessibilityLabel="Switch or Add Pro"
+                >
+                  <Ionicons name="people" size={17} color="#15157d" />
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.actionBtn}
                   onPress={handleCall}
@@ -552,6 +734,64 @@ export function FloatingChatWidget() {
                     </TouchableOpacity>
                   );
                 })}
+
+                {/* Available Pros Directory for Starting New Chats */}
+                <View style={styles.startProContainer}>
+                  <Text style={[styles.sectionHeading, { marginTop: 14 }]}>
+                    Start New Chat with Pro
+                  </Text>
+                  <Text style={styles.proSubtext}>
+                    Connect directly with verified local specialists
+                  </Text>
+                  {AVAILABLE_WORKERS.map(pro => {
+                    const alreadyHasConv = conversations.some(
+                      c =>
+                        c.recipientId === pro.recipientId ||
+                        c.recipientName.toLowerCase() === pro.recipientName.toLowerCase()
+                    );
+                    return (
+                      <View key={pro.recipientId} style={styles.proCard}>
+                        <View
+                          style={[styles.proAvatar, { backgroundColor: pro.avatarColor }]}
+                        >
+                          <Text style={styles.proAvatarText}>
+                            {pro.recipientName.charAt(0)}
+                          </Text>
+                        </View>
+                        <View style={styles.proDetails}>
+                          <Text style={styles.proName}>{pro.recipientName}</Text>
+                          <Text style={styles.proRole}>{pro.recipientRole}</Text>
+                          <Text style={styles.proJob} numberOfLines={1}>
+                            {pro.jobTitle}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          testID={`floating-chat-start-${pro.recipientId}`}
+                          style={[
+                            styles.proChatBtn,
+                            alreadyHasConv && styles.proChatBtnExisting,
+                          ]}
+                          onPress={() => handleStartProChat(pro)}
+                          accessibilityLabel={`Chat with ${pro.recipientName}`}
+                        >
+                          <Ionicons
+                            name={alreadyHasConv ? 'chatbubble' : 'chatbubble-ellipses-outline'}
+                            size={14}
+                            color={alreadyHasConv ? '#15157d' : '#ffffff'}
+                          />
+                          <Text
+                            style={[
+                              styles.proChatBtnText,
+                              alreadyHasConv && styles.proChatBtnTextExisting,
+                            ]}
+                          >
+                            {alreadyHasConv ? 'Open' : 'Chat'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
               </ScrollView>
             ) : (
               /* View 2: Active Chat Thread */
@@ -961,6 +1201,81 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '800',
+  },
+  startProContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  proSubtext: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginBottom: 10,
+    marginTop: -4,
+  },
+  proCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 7,
+  },
+  proAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  proAvatarText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  proDetails: {
+    flex: 1,
+  },
+  proName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  proRole: {
+    fontSize: 10,
+    color: '#059669',
+    fontWeight: '700',
+  },
+  proJob: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 1,
+  },
+  proChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#15157d',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  proChatBtnExisting: {
+    backgroundColor: '#eeedff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+  },
+  proChatBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  proChatBtnTextExisting: {
+    color: '#15157d',
   },
   chatBody: {
     flex: 1,

@@ -13,10 +13,36 @@ import { usePathname, useRouter } from 'expo-router';
 
 export function PageQuickSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        return window.sessionStorage.getItem('thikorben_pages_dismissed') === 'true';
+      } catch {}
+    }
+    return false;
+  });
   const router = useRouter();
   const pathname = usePathname();
 
-  if (!__DEV__) return null;
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        window.sessionStorage.setItem('thikorben_pages_dismissed', 'true');
+      } catch {}
+    }
+  };
+
+  if (!__DEV__ || isDismissed) return null;
+  if (
+    pathname === '/chat' ||
+    pathname === '/job-chat' ||
+    pathname === '/auth/login' ||
+    pathname === '/auth/signup' ||
+    pathname === '/auth/role-select'
+  ) {
+    return null;
+  }
 
   const sections = [
     {
@@ -212,15 +238,23 @@ export function PageQuickSwitcher() {
   return (
     <>
       {/* Floating Action Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setIsOpen(true)}
-        activeOpacity={0.85}
-        accessibilityLabel="Open Quick Page Switcher">
-        <View style={styles.fabGlow} />
-        <MaterialIcons name="grid-view" size={18} color="#ffffff" />
-        <Text style={styles.fabText}>Pages</Text>
-      </TouchableOpacity>
+      <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setIsOpen(true)}
+          activeOpacity={0.85}
+          accessibilityLabel="Open Quick Page Switcher">
+          <View style={styles.fabGlow} />
+          <MaterialIcons name="grid-view" size={18} color="#ffffff" />
+          <Text style={styles.fabText}>Pages</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.fabDismiss}
+          onPress={handleDismiss}
+          accessibilityLabel="Dismiss Pages Button">
+          <Ionicons name="close" size={13} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
 
       {/* Modal */}
       <Modal
@@ -302,11 +336,16 @@ export function PageQuickSwitcher() {
 }
 
 const styles = StyleSheet.create({
-  fab: {
+  fabContainer: {
     position: 'absolute',
     left: 18,
     bottom: 24,
     zIndex: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  fab: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -319,6 +358,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 8,
+  },
+  fabDismiss: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(21, 21, 125, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fabGlow: {
     position: 'absolute',

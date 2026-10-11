@@ -13,7 +13,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PageQuickSwitcher } from '../components/page-quick-switcher';
 
 interface Message {
   id: string;
@@ -422,6 +421,7 @@ export default function ChatScreen() {
         </TouchableOpacity>
 
         <TextInput
+          testID="chat-input"
           style={styles.textInput}
           placeholder="Message Rahim (English বা বাংলা)..."
           placeholderTextColor="#94a3b8"
@@ -432,6 +432,7 @@ export default function ChatScreen() {
         />
 
         <TouchableOpacity
+          testID="chat-send-btn"
           style={[
             styles.sendBtn,
             inputVal.trim().length > 0 && styles.sendBtnActive,
@@ -447,9 +448,6 @@ export default function ChatScreen() {
           />
         </TouchableOpacity>
       </View>
-
-      {/* Quick Switcher for easy navigation */}
-      <PageQuickSwitcher />
     </KeyboardAvoidingView>
   );
 }
