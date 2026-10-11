@@ -304,8 +304,8 @@ export function PageQuickSwitcher() {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 84,
+    left: 18,
+    bottom: 24,
     zIndex: 999,
     flexDirection: 'row',
     alignItems: 'center',
