@@ -1,9 +1,10 @@
 # Detailed Change Log & Implementation Manifest
 
 **Repository:** `Mahmoud-Hussain/ThiKorben`  
-**Pull Request:** [#19 (feature/live-chat-and-ux-bugfixes -> dev)](https://github.com/Mahmoud-Hussain/ThiKorben/pull/19)  
+**Pull Request (Fork):** [#1 (feature/live-chat-and-ux-bugfixes -> dev)](https://github.com/rajee99/ThiKorben-1/pull/1)  
+**Upstream Compare:** [compare/dev...rajee99:ThiKorben-1:feature/live-chat-and-ux-bugfixes](https://github.com/Mahmoud-Hussain/ThiKorben/compare/dev...rajee99:ThiKorben-1:feature/live-chat-and-ux-bugfixes?expand=1)  
 **Author:** rajee99  
-**Status:** All CI checks passing (21/21 Expo Doctor, 0 TypeScript errors, 0 ESLint warnings, 29/29 static routes built)
+**Status:** All checks passing (0 TypeScript errors, 0 ESLint warnings, 18/18 Pytest tests passing)
 
 ---
 
@@ -276,3 +277,205 @@ All 8 minimum acceptance criteria scenarios were implemented and verified with a
 | `test_08_proposal_rejected_on_assigned_job` | Propose button hidden & API rejects | :white_check_mark: PASSED |
 | `tests/test_community.py` (Full Suite) | 4/4 community lifecycle tests pass | :white_check_mark: PASSED |
 
+---
+
+## 6. Floating Chat Widget, Recent Chat History & Navigation Integration
+
+### A. Floating Chat Widget (`components/floating-chat-widget.tsx`)
+* **Component Architecture**: Built a dedicated, reusable floating chat widget mounted globally in `app/_layout.tsx` so both customers and workers have immediate access from any screen.
+* **Floating Trigger Button**:
+  * Positioned on the bottom-right corner (`bottom: 24, right: 18`) with elevation and pulse styling.
+  * Real-time unread badge displaying pending message count.
+* **Recent Chat History & Multi-Conversation Drawer**:
+  * Tabbed switcher between **Live Chat** and **Recent History**.
+  * Multi-conversation support tracking distinct customer/worker threads:
+    * **Rahim Uddin** (Verified Plumber • *Plumbing Leak Fix*)
+    * **Kamal Hossain** (Electrician • *Main Breaker Tripping*)
+    * **ThiKorben Support Desk** (*Order & Safety Inquiries*)
+  * Displays last message preview, relative timestamps, and unread badges.
+* **Full In-Widget Messaging Capabilities**:
+  * Instant custom text sending with delivery timestamps and double-check read receipts (`✓✓`).
+  * **Bilingual Quick Chips**: One-tap replies in Bengali and English (*"কতক্ষণ লাগবে ভাই?"*, *"দরজার সামনে আছি"*, *"গেইটের বেল বাজান"*, *"Flat number?"*, *"Call on arrival"*).
+  * **Rich Attachments**: 📍 Send live GPS Pin cards; 📸 Send photo attachments.
+  * **Simulated Automated Response Engine**: Generates realistic typing indicators (*"Rahim is typing..."*) and contextual worker replies.
+  * **Direct Phone Dialer**: Tap the phone icon to dial the worker or customer directly (`tel:...`).
+  * **Fullscreen Expansion**: One-click expand button transitions smoothly into the dedicated `/chat` screen.
+  * **Persistent Storage**: All sent messages, photo cards, and location pins are saved to `localStorage` (`thikorben_floating_chat_conversations_v2`), preserving conversations across page reloads.
+
+### B. Customer Dashboard Direct Shortcuts (`app/customer-dashboard.tsx`)
+* Added a responsive 2x3 quick-action grid on `/customer-dashboard` providing 1-click access to:
+  * 📍 **Live Tracking** (`/track-worker`): Interactive Leaflet map, GPS route, 12m ETA countdown.
+  * 🛒 **Hardware Shop** (`/shop`): Sanitary, electrical & repair supplies catalog.
+  * 📦 **Materials & Parts** (`/job-materials`): Smart product recommendations & customer material approval.
+  * 💬 **Live Chat** (`/chat`): Direct worker messaging & photo sharing.
+  * 👥 **Community** (`/community`): Browse active requests and quotes.
+  * 🔧 **Worker Mode** (`/role-selection`): Switch roles securely.
+
+### C. Layout & Navigation Hierarchy (`app/_layout.tsx`, `components/page-quick-switcher.tsx`)
+* Mounted `<FloatingChatWidget />` globally in `AppNavigator`.
+* Repositioned the Dev Page Switcher to bottom-left (`bottom: 24, left: 18`) to eliminate crowding and give the floating chat button prime visibility.
+
+### D. Automated Test Verification
+New test suite added in `tests/test_floating_chat.py`:
+```bash
+python -m pytest tests/test_floating_chat.py -v
+```
+| Test Scenario | Description | Result |
+| :--- | :--- | :--- |
+| `test_floating_chat_button_renders_globally` | Verifies floating chat FAB renders on the screen | :white_check_mark: PASSED |
+| `test_floating_chat_opens_and_sends_message` | Opens chat drawer, types message, and verifies rendered in thread | :white_check_mark: PASSED |
+| `test_floating_chat_recent_history_switching` | Opens Recent History tab, displays conversations, and switches recipient | :white_check_mark: PASSED |
+| `test_floating_chat_hidden_on_fullscreen_chat_page` | Verifies floating widget is suppressed on `/chat` so send button is never covered | :white_check_mark: PASSED |
+| `test_start_new_chat_with_new_worker_from_pro_directory` | Starts a new chat thread with verified pros from directory roster | :white_check_mark: PASSED |
+| `test_front_page_has_prominent_signup_button` | Verifies front page provides explicit, visible Sign Up buttons in header and hero | :white_check_mark: PASSED |
+
+---
+
+## 7. Front Page Sign Up Visibility & Authentication Accessibility (`app/index.tsx`)
+
+### The Problem
+Previously on the front page (`app/index.tsx`), new users could not locate a clear **Sign Up** button:
+* The top navigation bar only showed the brand logo and language switchers (EN / বাংলা), with no auth action buttons.
+* The hero action group presented a generic *"Get Started"* label which was ambiguous.
+* If a session was active, the hero buttons would transition into *"Continue to ThiKorben"*, making it impossible for visitors to quickly sign up a new account.
+
+### The Fix
+* **Prominent Header Auth Actions**: Added a dedicated top-right authentication group:
+  * **Sign In** button linking to `/auth/login`.
+  * **Sign Up** button (`headerSignupBtn`) styled with brand orange (`#F7941D`), white text, and `person-add` icon linking directly to `/auth/signup`.
+  * If authenticated, also displays a **Dashboard** quick shortcut.
+* **Hero Section Dual Actions**:
+  * Added an explicit **Sign Up Free** (`hero-signup-btn`) primary action button linking directly to `/auth/signup`.
+  * Preserved the secondary Sign In / Dashboard navigation.
+* **Bilingual Translation Support**: Added `signup: 'Sign Up'` and `signup: 'সাইন আপ'` across both English and Bengali dictionaries in `COPY`.
+
+---
+
+## 8. Dynamic Floating Chat with New Workers & Full-Screen Chat Suppression (`components/floating-chat-widget.tsx`)
+
+### The Problem
+1. **Button Covering Full-Screen Chat**: When navigating directly to `/chat` or `/job-chat`, the floating chat trigger and dev switcher stacked in the bottom right corner, literally covering the message input box and Send button.
+2. **Static Worker List**: The floating widget only initialized with hardcoded conversations (Rahim, Kamal, Support Desk) and provided no interface to discover, select, or start a chat with other workers or when booking a new pro.
+
+### The Fix
+1. **Full-Screen Chat Suppression Guard**:
+   * Integrated `usePathname()` in `FloatingChatWidget`.
+   * If `pathname === '/chat' || pathname === '/job-chat'`, the widget immediately returns `null`. This guarantees the floating button never covers the full-screen chat input or send buttons.
+2. **Directory of Verified Pros in Recent History Tab**:
+   * Exported `AVAILABLE_WORKERS` catalog including verified trade specialists:
+     * **Rahim Uddin** (Verified Plumber)
+     * **Kamal Hossain** (Electrician)
+     * **Tariqul Islam** (Master Carpenter)
+     * **Belal Ahmed** (Home Painter)
+     * **Shahinur Rahman** (Appliance Technician)
+     * **ThiKorben Support Desk**
+   * Under *"Active Conversations"*, added a dedicated *"Start New Chat with Pro"* roster where users can tap **Chat** / **Open** next to any professional.
+   * Dynamically instantiates a new conversation thread, selects that worker, stores it in `localStorage`, and transitions directly into the active chat thread.
+3. **Global Cross-Screen Event Bus (`thikorben_open_chat`)**:
+   * Added `openFloatingWorkerChat(...)` helper and a `window.addEventListener('thikorben_open_chat', ...)` listener.
+   * Any screen (such as worker profiles, proposal acceptances, or job tracking) can trigger a chat with a specific worker by dispatching this event.
+4. **Header Pro Switcher**: Added a quick Pro switcher button (`people` icon) in the widget top bar allowing immediate switching between active workers.
+
+---
+
+## 9. Page Quick Switcher De-cluttering & Route Suppression (`components/page-quick-switcher.tsx`)
+
+### The Problem
+* The dev page switcher floating button was manually imported and rendered in multiple individual screens (`app/worker-profile.tsx`, `app/welcome.tsx`, `app/track-worker.tsx`) in addition to being rendered globally in `app/_layout.tsx`.
+* It appeared on screens where it caused clutter (including full-screen chat and auth routes).
+
+### The Fix
+* **Removed Redundant Local Usages**: Deleted all duplicate `<PageQuickSwitcher />` component instances and imports from `app/worker-profile.tsx`, `app/welcome.tsx`, and `app/track-worker.tsx`.
+* **Suppressed on Chat & Auth Routes**: Added route guards to automatically suppress rendering on:
+  * `/chat`
+  * `/job-chat`
+  * `/auth/login`
+  * `/auth/signup`
+  * `/auth/role-select`
+* **Session Dismissal Persistence**: When the user taps the `(X)` close button on the floating switcher container, the dismissal state is saved to `sessionStorage` (`thikorben_pages_dismissed`), ensuring it remains hidden across subsequent screen navigations during that session.
+
+---
+
+## 10. Upgraded Chat System: Role Switching, AI Component Recommendations, In-Chat Cart & Cross-Widget Synchronization
+
+### Summary of Requirements & Enhancements
+1. **Customer / Worker Role Switcher**:
+   * Added a segmented toggle control at the top of `/chat` (`testID="demo-role-customer"`, `testID="demo-role-worker"`).
+   * Supports seamless role-switching for interactive demonstrations while strictly preserving existing messages, state, and conversations.
+   * Role state is client-side demo state (`thikorben_chat_demo_role_v1`) decoupled from server authentication rules.
+2. **Deterministic Component & Product Extraction**:
+   * Engineered `extractComponentRecommendations(messageText, conversationId, messageId)` in `services/chat-sync-service.ts`.
+   * Automatically identifies components, parts, and materials mentioned in worker messages (e.g., *"We need a 20A double-pole circuit breaker and 2.5mm electrical cable for this installation"*).
+   * Expanded product catalog (`constants/shop-data.ts`) with `circuit-breaker-20a` (20A Double-Pole Circuit Breaker), `water-pump-half-hp` (0.5 HP Household Water Pump), and aliases for `electrical-wire` (`2.5mm electrical cable`, etc.).
+   * Handles multi-product messages, specifications, and aliases while preventing unrelated false matches.
+3. **In-Chat Product Recommendation Panel**:
+   * Built `ChatProductRecommendationGroup` (`components/chat-product-recommendation.tsx`) natively inside the conversation stream.
+   * Displays product icons, brands, specs, unit prices in BDT (৳), stock status, quantity adjustment, and match rationale.
+   * Emits contextual AI Assistant announcements when recommendations are generated.
+4. **Customer Review & Approval Flow**:
+   * Enforced strict marketplace business rules: workers cannot approve items on behalf of customers (`Worker cannot approve` guard).
+   * Customers have explicit controls: **Approve**, **Reject**, **Change Product**, and **Details**.
+   * Status updates are immediately reflected (`Pending Customer Review`, `Approved`, `Rejected`, `Alternative Requested`, `In Demo Cart`) with contextual marketplace system events.
+5. **In-Chat Demo Cart**:
+   * Created `InChatCartModal` (`components/in-chat-cart-modal.tsx`) and header cart counter/amount button (`header-cart-btn`).
+   * Only approved products can be added to the demo cart.
+   * Calculates line totals, quantities, and subtotals accurately. Supports quantity increment/decrement, item removal, and empty state.
+   * Returning to chat preserves conversation and cart contents seamlessly.
+6. **Cross-Interface State Synchronization**:
+   * Engineered `services/chat-sync-service.ts` as the single source of truth for conversation and message state.
+   * Both full-screen `/chat` and `FloatingChatWidget` subscribe via `subscribeToChatSync`.
+   * Sending a message in `/chat` instantly updates recent previews and message threads in `FloatingChatWidget`, and vice-versa.
+   * Conversations, recommendations, and cart state stay synchronized across all windows and components.
+7. **Automated Verification**:
+   * Created `tests/test_chat_recommendations_and_sync.py` with 5 automated end-to-end tests validating role switching, keyword detection, customer approval rules, the in-chat demo cart, and bidirectional sync.
+
+
+
+
+
+
+---
+
+## 11. Job Materials: Direct Access Graceful Fallback & Role Switcher
+
+### Overview
+When navigating directly to `/job-materials` without query parameters (or in offline demo mode), the screen previously displayed a blocking error: `"Materials unavailable. Service request ID is missing."`. This has been resolved with realistic demo fallbacks, non-blocking hydration, and an interactive Customer/Worker view switcher.
+
+### Key Changes
+1. **Graceful Demo Fallback**:
+   * Updated `app/job-materials.tsx` hydration logic to immediately provide a realistic active job (`Plumbing Leak Fix & Basin Joint Repair (Dhanmondi 27)`), catalog items, and pending/approved material requests when `requestId` is absent.
+   * Guarded Supabase network requests with responsive timeouts (`Promise.race` with 1500ms) to prevent the screen from hanging on `"Loading material workflow…"`.
+2. **Interactive Role Switcher**:
+   * Added a segmented `Customer View` / `Worker View` toggle bar at the top of `/job-materials`.
+   * **Worker View**: Enables submitting new material requests with catalog item picker, quantity, and reason.
+   * **Customer View**: Enables reviewing pending material requests with **Approve** and **Reject** buttons and line-total / approved-total summaries.
+   * Added a direct header shortcut to `/chat` with active job context.
+3. **Verification**:
+   * Created `tests/test_job_materials.py` verifying direct access, header rendering, absence of missing request ID error, role switcher toggling, and material controls.
+   * Verified 0 TypeScript errors (`npx tsc --noEmit`) and 0 ESLint warnings (`npm run lint`).
+   * Tests: 100% passing.
+
+
+---
+
+## 12. Job Chat: In-Window Role Switcher, Keyword Suggestions & Customer Approval
+
+### Overview
+In `app/job-chat.tsx` (the dedicated job conversation window linked to service requests), users can now switch roles between **Customer** and **Worker** directly inside the chat window. This allows replying to the same conversation from either role, testing component keyword recommendations, and performing customer approvals without leaving the chat.
+
+### Key Changes
+1. **Interactive Role Switching**:
+   * **Top Control Bar**: Added a segmented toggle (`Customer Mode` / `Worker Mode`) allowing immediate role toggling.
+   * **Composer Identity Toggle**: Converted the bottom identity badge into an interactive toggle button right above the message input (`Chatting as: Worker 🔧 / Customer 👤 (Tap to Switch Role)`).
+2. **Deterministic Recommendation Triggering**:
+   * When chatting as **Worker**, typing required components (e.g., `20a double-pole circuit breaker`, `water pump`, `PVC pipe`, `teflon tape`, `copper wire`) triggers the inline **AI Component Recommendations** window directly below the message.
+   * Added quick-reply chips above the composer for instant 1-tap testing of worker part requests and customer responses.
+3. **Customer Approval & In-Chat Demo Cart**:
+   * When switching to **Customer Mode**, the customer can click **Approve** or **Reject** on recommended components.
+   * Approved components can be added directly to the demo cart via **Add to Cart**.
+   * Header cart button displays live item count badge and subtotal in BDT (৳), opening the `InChatCartModal` drawer for line-item review and quantity adjustments.
+4. **Verification**:
+   * Created `tests/test_job_chat.py` testing role switching, component detection, customer approval, and cart integration.
+   * Ran full regression across all chat test suites (`tests/test_job_chat.py`, `tests/test_job_materials.py`, `tests/test_chat_recommendations_and_sync.py`, `tests/test_floating_chat.py`) -> **13/13 PASSED (100%)**.
+   * `npx tsc --noEmit` -> **0 errors**.
+   * `npm run lint` -> **0 warnings, 0 errors**.
