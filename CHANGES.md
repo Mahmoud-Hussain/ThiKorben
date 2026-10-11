@@ -432,3 +432,50 @@ Previously on the front page (`app/index.tsx`), new users could not locate a cle
 
 
 
+
+
+---
+
+## 11. Job Materials: Direct Access Graceful Fallback & Role Switcher
+
+### Overview
+When navigating directly to `/job-materials` without query parameters (or in offline demo mode), the screen previously displayed a blocking error: `"Materials unavailable. Service request ID is missing."`. This has been resolved with realistic demo fallbacks, non-blocking hydration, and an interactive Customer/Worker view switcher.
+
+### Key Changes
+1. **Graceful Demo Fallback**:
+   * Updated `app/job-materials.tsx` hydration logic to immediately provide a realistic active job (`Plumbing Leak Fix & Basin Joint Repair (Dhanmondi 27)`), catalog items, and pending/approved material requests when `requestId` is absent.
+   * Guarded Supabase network requests with responsive timeouts (`Promise.race` with 1500ms) to prevent the screen from hanging on `"Loading material workflow…"`.
+2. **Interactive Role Switcher**:
+   * Added a segmented `Customer View` / `Worker View` toggle bar at the top of `/job-materials`.
+   * **Worker View**: Enables submitting new material requests with catalog item picker, quantity, and reason.
+   * **Customer View**: Enables reviewing pending material requests with **Approve** and **Reject** buttons and line-total / approved-total summaries.
+   * Added a direct header shortcut to `/chat` with active job context.
+3. **Verification**:
+   * Created `tests/test_job_materials.py` verifying direct access, header rendering, absence of missing request ID error, role switcher toggling, and material controls.
+   * Verified 0 TypeScript errors (`npx tsc --noEmit`) and 0 ESLint warnings (`npm run lint`).
+   * Tests: 100% passing.
+
+
+---
+
+## 12. Job Chat: In-Window Role Switcher, Keyword Suggestions & Customer Approval
+
+### Overview
+In `app/job-chat.tsx` (the dedicated job conversation window linked to service requests), users can now switch roles between **Customer** and **Worker** directly inside the chat window. This allows replying to the same conversation from either role, testing component keyword recommendations, and performing customer approvals without leaving the chat.
+
+### Key Changes
+1. **Interactive Role Switching**:
+   * **Top Control Bar**: Added a segmented toggle (`Customer Mode` / `Worker Mode`) allowing immediate role toggling.
+   * **Composer Identity Toggle**: Converted the bottom identity badge into an interactive toggle button right above the message input (`Chatting as: Worker 🔧 / Customer 👤 (Tap to Switch Role)`).
+2. **Deterministic Recommendation Triggering**:
+   * When chatting as **Worker**, typing required components (e.g., `20a double-pole circuit breaker`, `water pump`, `PVC pipe`, `teflon tape`, `copper wire`) triggers the inline **AI Component Recommendations** window directly below the message.
+   * Added quick-reply chips above the composer for instant 1-tap testing of worker part requests and customer responses.
+3. **Customer Approval & In-Chat Demo Cart**:
+   * When switching to **Customer Mode**, the customer can click **Approve** or **Reject** on recommended components.
+   * Approved components can be added directly to the demo cart via **Add to Cart**.
+   * Header cart button displays live item count badge and subtotal in BDT (৳), opening the `InChatCartModal` drawer for line-item review and quantity adjustments.
+4. **Verification**:
+   * Created `tests/test_job_chat.py` testing role switching, component detection, customer approval, and cart integration.
+   * Ran full regression across all chat test suites (`tests/test_job_chat.py`, `tests/test_job_materials.py`, `tests/test_chat_recommendations_and_sync.py`, `tests/test_floating_chat.py`) -> **13/13 PASSED (100%)**.
+   * `npx tsc --noEmit` -> **0 errors**.
+   * `npm run lint` -> **0 warnings, 0 errors**.

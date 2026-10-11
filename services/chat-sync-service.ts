@@ -303,6 +303,36 @@ export function extractComponentRecommendations(
   return detected;
 }
 
+export function getOrCreateConversation(
+  conversationId: string,
+  jobTitle?: string,
+  recipientName?: string,
+  recipientRole?: string
+): ChatConversation {
+  const conversations = loadConversationsFromStorage();
+  const existing = conversations.find(c => c.id === conversationId);
+  if (existing) {
+    return existing;
+  }
+
+  const newConv: ChatConversation = {
+    id: conversationId,
+    recipientId: 'worker-demo-1',
+    recipientName: recipientName || 'Rahim Uddin',
+    recipientRole: recipientRole || 'Verified Plumber • 4.9 ★',
+    jobTitle: jobTitle || 'Bathroom Tap Leaking & Basin Pipe Joint Repair',
+    unreadCount: 0,
+    lastMessage: '',
+    lastTime: getCurrentFormattedTime(),
+    avatarColor: '#10b981',
+    messages: [],
+    recommendations: [],
+  };
+
+  saveConversationsToStorage([newConv, ...conversations]);
+  return newConv;
+}
+
 /**
  * Add a new message to a specific conversation, run component detection,
  * generate system messages if recommendations exist, and broadcast sync.
@@ -315,8 +345,28 @@ export function addMessageToConversation(
   type: 'text' | 'location' | 'image' | 'system' = 'text'
 ): { message: ChatMessage; newRecommendations: ProductRecommendation[] } {
   const conversations = loadConversationsFromStorage();
-  const convIndex = conversations.findIndex(c => c.id === conversationId);
-  const conv = convIndex >= 0 ? conversations[convIndex] : conversations[0];
+  let convIndex = conversations.findIndex(c => c.id === conversationId);
+  let conv: ChatConversation;
+
+  if (convIndex >= 0) {
+    conv = conversations[convIndex];
+  } else {
+    conv = {
+      id: conversationId,
+      recipientId: 'worker-demo-1',
+      recipientName: senderName || 'Rahim Uddin',
+      recipientRole: 'Verified Plumber • 4.9 ★',
+      jobTitle: 'Bathroom Tap Leaking & Basin Pipe Joint Repair',
+      unreadCount: 0,
+      lastMessage: text,
+      lastTime: getCurrentFormattedTime(),
+      avatarColor: '#10b981',
+      messages: [],
+      recommendations: [],
+    };
+    conversations.unshift(conv);
+    convIndex = 0;
+  }
 
   const msgId = generateSeqId('msg');
   const time = getCurrentFormattedTime();
