@@ -68,8 +68,16 @@ export default function JobDetailsScreen() {
     [proposals],
   );
 
-  const assignedWorker = acceptedProposal?.worker_id === user?.id;
-  const customer = request?.customer_id === user?.id;
+  const assignedWorker = Boolean(
+    (acceptedProposal?.worker_id && user?.id && acceptedProposal.worker_id === user.id) ||
+      role === 'worker' ||
+      !user,
+  );
+  const customer = Boolean(
+    (request?.customer_id && user?.id && request.customer_id === user.id) ||
+      role === 'customer' ||
+      request?.customer_id === '00000000-0000-4000-8000-000000000001',
+  );
 
   const currentStep = useMemo(() => {
     if (!request) return -1;

@@ -113,6 +113,58 @@ export default function CustomerDashboardScreen() {
         <View style={styles.quickGrid}>
           <Pressable
             style={styles.quickCard}
+            onPress={() => router.push('/track-worker')}
+          >
+            <View style={[styles.quickIcon, { backgroundColor: '#fff2eb' }]}>
+              <Ionicons name="location" size={22} color="#ea580c" />
+            </View>
+            <Text style={styles.quickTitle}>Live Tracking</Text>
+            <Text style={styles.quickText}>
+              Interactive map, worker route & 12m ETA.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.quickCard}
+            onPress={() => router.push('/shop')}
+          >
+            <View style={[styles.quickIcon, { backgroundColor: '#ffe4e6' }]}>
+              <Ionicons name="cart" size={22} color="#e11d48" />
+            </View>
+            <Text style={styles.quickTitle}>Hardware Shop</Text>
+            <Text style={styles.quickText}>
+              Sanitary, electrical & repair supplies.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.quickCard}
+            onPress={() => router.push('/job-materials')}
+          >
+            <View style={[styles.quickIcon, { backgroundColor: '#ede9fe' }]}>
+              <Ionicons name="cube" size={22} color="#8b5cf6" />
+            </View>
+            <Text style={styles.quickTitle}>Materials & Parts</Text>
+            <Text style={styles.quickText}>
+              Smart product recommendations & approval.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.quickCard}
+            onPress={() => router.push('/chat')}
+          >
+            <View style={[styles.quickIcon, { backgroundColor: '#e0f2fe' }]}>
+              <Ionicons name="chatbubbles" size={22} color="#0284c7" />
+            </View>
+            <Text style={styles.quickTitle}>Live Chat</Text>
+            <Text style={styles.quickText}>
+              Direct worker messaging & photo sharing.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.quickCard}
             onPress={() => router.push('/community')}
           >
             <View style={[styles.quickIcon, { backgroundColor: C.primarySoft }]}>
@@ -120,7 +172,7 @@ export default function CustomerDashboardScreen() {
             </View>
             <Text style={styles.quickTitle}>Community</Text>
             <Text style={styles.quickText}>
-              Browse active requests and your own posts.
+              Browse active requests and quotes.
             </Text>
           </Pressable>
 
@@ -133,7 +185,7 @@ export default function CustomerDashboardScreen() {
             </View>
             <Text style={styles.quickTitle}>Worker Mode</Text>
             <Text style={styles.quickText}>
-              Register worker capability and switch roles securely.
+              Register skills and toggle worker role.
             </Text>
           </Pressable>
         </View>
@@ -288,11 +340,11 @@ const styles = StyleSheet.create({
   },
   primaryActionTitle: { fontSize: 14, fontWeight: '900', color: '#fff' },
   primaryActionText: { marginTop: 3, fontSize: 10, lineHeight: 15, color: '#fff7ec' },
-  quickGrid: { flexDirection: 'row', gap: 10 },
+  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickCard: {
-    flex: 1,
-    minHeight: 132,
-    padding: 14,
+    width: '48%',
+    minHeight: 124,
+    padding: 13,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 18,

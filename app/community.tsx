@@ -3,6 +3,7 @@ import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -197,7 +198,7 @@ function RequestCard({
 }
 
 export default function CommunityScreen() {
-  const { role, user } = useSession();
+  const { role, user, setRole } = useSession();
   const [category, setCategory] = useState<CommunityCategory | undefined>();
   const [reactingId, setReactingId] = useState<string | null>(null);
 
@@ -263,54 +264,110 @@ export default function CommunityScreen() {
               <Text style={styles.headerSubtitle}>{subtitle}</Text>
             </View>
 
-            {role === 'customer' ? (
-              <Pressable
-                style={styles.createButton}
-                onPress={() =>
-                  router.push({
-                    pathname: '/job-board',
-                    params: { mode: 'create' },
-                  })
+            <Pressable
+              testID="community-create-button"
+              accessibilityLabel="Post a Service Request"
+              style={styles.createButton}
+              onPress={() => {
+                if (role !== 'customer') {
+                  Alert.alert(
+                    'Customer Role Required',
+                    'Only customers can post service requests. Please switch to Customer mode to create a request.',
+                  );
+                  return;
                 }
-              >
-                <Ionicons name="add" size={19} color="#fff" />
-              </Pressable>
-            ) : (
-              <View style={styles.headerButton} />
-            )}
+                router.push({
+                  pathname: '/job-board',
+                  params: { mode: 'create' },
+                });
+              }}
+            >
+              <Ionicons name="add" size={19} color="#fff" />
+            </Pressable>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filters}
-          >
-            {CATEGORIES.map(item => {
-              const selected = item.value === category;
+          <View style={styles.roleToggleRow}>
+            <Pressable
+              testID="role-customer-toggle"
+              style={[
+                styles.rolePill,
+                role !== 'worker' && styles.rolePillActive,
+              ]}
+              onPress={() => void setRole('customer')}
+            >
+              <Ionicons
+                name="person-outline"
+                size={13}
+                color={role !== 'worker' ? '#fff' : COLORS.primary}
+              />
+              <Text
+                style={[
+                  styles.rolePillText,
+                  role !== 'worker' && styles.rolePillTextActive,
+                ]}
+              >
+                Customer Mode (Post & Hire)
+              </Text>
+            </Pressable>
 
-              return (
-                <Pressable
-                  key={item.label}
-                  style={[styles.filter, selected && styles.filterActive]}
-                  onPress={() => setCategory(item.value)}
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={15}
-                    color={selected ? '#fff' : COLORS.primary}
-                  />
-                  <Text
-                    style={[
-                      styles.filterText,
-                      selected && styles.filterTextActive,
-                    ]}
+            <Pressable
+              testID="role-worker-toggle"
+              style={[
+                styles.rolePill,
+                role === 'worker' && styles.rolePillActive,
+              ]}
+              onPress={() => void setRole('worker')}
+            >
+              <Ionicons
+                name="hammer-outline"
+                size={13}
+                color={role === 'worker' ? '#fff' : COLORS.primary}
+              />
+              <Text
+                style={[
+                  styles.rolePillText,
+                  role === 'worker' && styles.rolePillTextActive,
+                ]}
+              >
+                Worker Mode (Submit Proposals)
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.filtersWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filtersScroll}
+              contentContainerStyle={styles.filters}
+            >
+              {CATEGORIES.map(item => {
+                const selected = item.value === category;
+
+                return (
+                  <Pressable
+                    key={item.label}
+                    style={[styles.filter, selected && styles.filterActive]}
+                    onPress={() => setCategory(item.value)}
                   >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+                    <Ionicons
+                      name={item.icon}
+                      size={15}
+                      color={selected ? '#fff' : COLORS.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.filterText,
+                        selected && styles.filterTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
 
           {isLoading ? (
             <View style={styles.centerState}>
@@ -436,27 +493,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.orange,
   },
-  filters: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: '#fff',
-  },
-  filter: {
-    paddingHorizontal: 12,
+  roleToggleRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
     paddingVertical: 8,
+    backgroundColor: '#f1f0f7',
+    gap: 8,
+  },
+  rolePill: {
+    flex: 1,
+    height: 32,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 999,
+    gap: 5,
+  },
+  rolePillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  rolePillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  rolePillTextActive: {
+    color: '#fff',
+  },
+  filtersWrapper: {
+    height: 54,
+    flexGrow: 0,
+    flexShrink: 0,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  filtersScroll: {
+    height: 54,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  filters: {
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    gap: 8,
+  },
+  filter: {
+    height: 34,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 17,
+    backgroundColor: '#fff',
+    alignSelf: 'center',
   },
   filterActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
-  filterText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  filterText: { fontSize: 11.5, fontWeight: '700', color: COLORS.primary },
   filterTextActive: { color: '#fff' },
   feed: { flex: 1 },
   feedContent: { padding: 14, gap: 12, paddingBottom: 50 },

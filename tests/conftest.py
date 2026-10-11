@@ -5,6 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
@@ -166,3 +167,52 @@ def safe_click(driver, target, timeout=10):
                 return False
 
     return wait.until(_clicker)
+
+def dismiss_alert_if_present(driver):
+    try:
+        alert = driver.switch_to.alert
+        text = alert.text
+        alert.accept()
+        time.sleep(0.3)
+        return text
+    except Exception:
+        return None
+
+def fill_input(driver, target, text):
+    if isinstance(target, str):
+        elem = wait_for_xpath(driver, target)
+    else:
+        elem = target
+
+    try:
+        elem.clear()
+    except Exception:
+        pass
+
+    elem.send_keys(Keys.CONTROL, "a")
+    elem.send_keys(Keys.BACKSPACE)
+    elem.send_keys(text)
+
+    try:
+        driver.execute_script(
+            """
+            var el = arguments[0];
+            var val = arguments[1];
+            var proto = el.tagName.toLowerCase() === 'textarea' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+            var descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (descriptor && descriptor.set) {
+                descriptor.set.call(el, val);
+            } else {
+                el.value = val;
+            }
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            """,
+            elem,
+            text,
+        )
+    except Exception:
+        pass
+
+    time.sleep(0.3)
+    return elem

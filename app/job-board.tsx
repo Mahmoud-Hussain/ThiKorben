@@ -104,13 +104,46 @@ export default function JobBoardScreen() {
   const [scheduleNote, setScheduleNote] = useState('As soon as possible');
 
   const [comment, setComment] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposalPrice, setProposalPrice] = useState('');
   const [proposalAvailability, setProposalAvailability] = useState('Available today');
   const [proposalNote, setProposalNote] = useState('');
 
-  const isOwner = request?.customer_id === user?.id;
+  const isOwner = Boolean(
+    user?.id && request?.customer_id === user.id,
+  );
+
+  const userHasActiveProposal = Boolean(
+    user?.id &&
+      proposals.some(
+        p =>
+          p.worker_id === user.id &&
+          p.status !== 'withdrawn' &&
+          p.status !== 'declined',
+      ),
+  );
+
+  const canPropose = Boolean(
+    role === 'worker' &&
+      request?.status === 'open' &&
+      !isOwner &&
+      !userHasActiveProposal,
+  );
+
+  const canAcceptProposal = useCallback(
+    (item: CommunityProposal) =>
+      Boolean(
+        request?.status === 'open' &&
+          isOwner &&
+          role === 'customer' &&
+          item.status === 'pending' &&
+          item.worker_id !== user?.id,
+      ),
+    [isOwner, request?.status, role, user?.id],
+  );
+
   const acceptedProposal = useMemo(
     () => proposals.find(item => item.status === 'accepted') ?? null,
     [proposals],
@@ -160,35 +193,85 @@ export default function JobBoardScreen() {
   }, [loadDetails]);
 
   const submitRequest = async () => {
-    if (role !== 'customer') {
-      Alert.alert('Customer mode required', 'Switch to customer mode to post a service request.');
+    if (saving) {
       return;
     }
 
+    if (role !== 'customer') {
+      Alert.alert(
+        'Permission denied',
+        'Only customers can create and publish job requests.',
+      );
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    const trimmedDesc = description.trim();
+    const trimmedLoc = location.trim();
     const numericBudget = Number(budget);
 
-    if (
-      !title.trim() ||
-      !description.trim() ||
-      !location.trim() ||
-      !budget.trim() ||
-      !Number.isFinite(numericBudget)
-    ) {
-      Alert.alert('Complete the form', 'Add a title, description, location, and valid budget.');
+    if (trimmedTitle.length < 5) {
+      const msg = 'Title must contain at least 5 characters.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid title', msg);
+      }
       return;
     }
+
+    if (trimmedDesc.length < 10) {
+      const msg = 'Description must contain at least 10 characters.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid description', msg);
+      }
+      return;
+    }
+
+    if (trimmedLoc.length < 2) {
+      const msg = 'Location must contain at least 2 characters.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid location', msg);
+      }
+      return;
+    }
+
+    if (!budget.trim() || !Number.isFinite(numericBudget) || numericBudget <= 0) {
+      const msg = 'Budget must be greater than zero.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid budget', msg);
+      }
+      return;
+    }
+
+    setFormError(null);
 
     setSaving(true);
 
     try {
       const created = await createServiceRequest({
-        title,
+        title: trimmedTitle,
         category,
-        description,
-        locationLabel: location,
+        description: trimmedDesc,
+        locationLabel: trimmedLoc,
         budgetAmount: numericBudget,
-        scheduleNote,
+        scheduleNote: scheduleNote.trim() || undefined,
       });
+
+      Alert.alert(
+        'Request Published',
+        'Your service request has been published successfully.',
+      );
 
       router.replace({
         pathname: '/job-board',
@@ -227,14 +310,32 @@ export default function JobBoardScreen() {
   };
 
   const sendProposal = async () => {
-    if (!request || role !== 'worker' || saving) {
+    if (!request || saving) {
+      return;
+    }
+
+    if (role !== 'worker') {
+      Alert.alert('Permission denied', 'Only workers can submit proposals.');
+      return;
+    }
+
+    if (isOwner) {
+      Alert.alert(
+        'Invalid action',
+        'Customers cannot submit proposals for their own requests.',
+      );
       return;
     }
 
     const price = Number(proposalPrice);
 
     if (!Number.isFinite(price) || price <= 0) {
-      Alert.alert('Invalid price', 'Enter a valid labor price.');
+      Alert.alert('Invalid price', 'Enter a valid labor price greater than zero.');
+      return;
+    }
+
+    if (!proposalAvailability.trim()) {
+      Alert.alert('Availability required', 'Enter your availability note.');
       return;
     }
 
@@ -244,14 +345,15 @@ export default function JobBoardScreen() {
       await submitServiceProposal({
         serviceRequestId: request.id,
         priceAmount: price,
-        availabilityNote: proposalAvailability,
-        note: proposalNote,
+        availabilityNote: proposalAvailability.trim(),
+        note: proposalNote.trim() || undefined,
       });
 
       setProposalOpen(false);
       setProposalPrice('');
       setProposalNote('');
       await loadDetails();
+      Alert.alert('Proposal sent', 'Your proposal was submitted successfully.');
     } catch (error) {
       Alert.alert('Proposal failed', errorMessage(error));
     } finally {
@@ -260,7 +362,15 @@ export default function JobBoardScreen() {
   };
 
   const acceptProposal = async (proposalId: string) => {
-    if (!request || !isOwner || saving) {
+    if (!request || saving) {
+      return;
+    }
+
+    if (!isOwner || role !== 'customer') {
+      Alert.alert(
+        'Permission denied',
+        'Only the customer who created this request can accept a proposal.',
+      );
       return;
     }
 
@@ -323,6 +433,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Job title</Text>
                 <TextInput
+                  testID="request-title-input"
                   style={styles.input}
                   value={title}
                   onChangeText={setTitle}
@@ -343,6 +454,7 @@ export default function JobBoardScreen() {
                     return (
                       <Pressable
                         key={item.id}
+                        testID={`category-pill-${item.id}`}
                         style={[styles.category, selected && styles.categoryActive]}
                         onPress={() => setCategory(item.id)}
                       >
@@ -366,6 +478,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Problem description</Text>
                 <TextInput
+                  testID="request-desc-input"
                   style={[styles.input, styles.textArea]}
                   value={description}
                   onChangeText={setDescription}
@@ -378,6 +491,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Service location</Text>
                 <TextInput
+                  testID="request-location-input"
                   style={styles.input}
                   value={location}
                   onChangeText={setLocation}
@@ -388,6 +502,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Budget (BDT)</Text>
                 <TextInput
+                  testID="request-budget-input"
                   style={styles.input}
                   value={budget}
                   onChangeText={setBudget}
@@ -398,6 +513,7 @@ export default function JobBoardScreen() {
 
                 <Text style={styles.label}>Schedule note</Text>
                 <TextInput
+                  testID="request-schedule-input"
                   style={styles.input}
                   value={scheduleNote}
                   onChangeText={setScheduleNote}
@@ -413,7 +529,15 @@ export default function JobBoardScreen() {
                   </Text>
                 </View>
 
+                {formError ? (
+                  <View testID="form-error-container" style={styles.formErrorCard}>
+                    <Ionicons name="alert-circle" size={18} color={COLORS.red} />
+                    <Text testID="form-error-text" style={styles.formErrorText}>{formError}</Text>
+                  </View>
+                ) : null}
+
                 <Pressable
+                  testID="submit-service-request-button"
                   style={[styles.primaryButton, saving && styles.disabled]}
                   disabled={saving}
                   onPress={() => void submitRequest()}
@@ -559,11 +683,22 @@ export default function JobBoardScreen() {
               </View>
             ) : null}
 
-            {role === 'worker' && request.status === 'open' && !isOwner ? (
-              <Pressable style={styles.workerProposalButton} onPress={() => setProposalOpen(true)}>
+            {canPropose ? (
+              <Pressable
+                testID="open-proposal-modal-button"
+                style={styles.workerProposalButton}
+                onPress={() => setProposalOpen(true)}
+              >
                 <Ionicons name="document-text-outline" size={18} color="#fff" />
                 <Text style={styles.workerProposalText}>Submit Proposal</Text>
               </Pressable>
+            ) : userHasActiveProposal ? (
+              <View style={styles.submittedInfo}>
+                <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.submittedInfoText}>
+                  You have submitted a proposal for this request.
+                </Text>
+              </View>
             ) : null}
 
             <View style={styles.sectionHeader}>
@@ -612,8 +747,14 @@ export default function JobBoardScreen() {
                       <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
                       <Text style={styles.acceptedBadgeText}>Accepted</Text>
                     </View>
-                  ) : isOwner && request.status === 'open' ? (
+                  ) : item.status === 'declined' ? (
+                    <View style={styles.declinedBadge}>
+                      <Ionicons name="close-circle-outline" size={16} color={COLORS.muted} />
+                      <Text style={styles.declinedBadgeText}>Declined</Text>
+                    </View>
+                  ) : canAcceptProposal(item) ? (
                     <Pressable
+                      testID={`accept-proposal-button-${item.id}`}
                       style={[styles.acceptButton, saving && styles.disabled]}
                       disabled={saving}
                       onPress={() => void acceptProposal(item.id)}
@@ -655,6 +796,7 @@ export default function JobBoardScreen() {
 
               <View style={styles.composer}>
                 <TextInput
+                  testID="comment-input"
                   style={styles.commentInput}
                   value={comment}
                   onChangeText={setComment}
@@ -663,6 +805,7 @@ export default function JobBoardScreen() {
                   maxLength={2000}
                 />
                 <Pressable
+                  testID="send-comment-button"
                   style={[styles.sendButton, (!comment.trim() || saving) && styles.disabled]}
                   disabled={!comment.trim() || saving}
                   onPress={() => void submitComment()}
@@ -696,6 +839,7 @@ export default function JobBoardScreen() {
 
             <Text style={styles.label}>Labor price (BDT)</Text>
             <TextInput
+              testID="proposal-price-input"
               style={styles.input}
               value={proposalPrice}
               onChangeText={setProposalPrice}
@@ -706,6 +850,7 @@ export default function JobBoardScreen() {
 
             <Text style={styles.label}>Availability</Text>
             <TextInput
+              testID="proposal-availability-input"
               style={styles.input}
               value={proposalAvailability}
               onChangeText={setProposalAvailability}
@@ -714,6 +859,7 @@ export default function JobBoardScreen() {
 
             <Text style={styles.label}>Note</Text>
             <TextInput
+              testID="proposal-note-input"
               style={[styles.input, styles.modalTextArea]}
               value={proposalNote}
               onChangeText={setProposalNote}
@@ -725,6 +871,7 @@ export default function JobBoardScreen() {
             />
 
             <Pressable
+              testID="send-proposal-submit-button"
               style={[styles.primaryButton, saving && styles.disabled]}
               disabled={saving}
               onPress={() => void sendProposal()}
@@ -1050,4 +1197,48 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 17, fontWeight: '900', color: COLORS.text },
   modalSubtitle: { marginTop: 3, fontSize: 10.5, color: COLORS.muted },
+  submittedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: COLORS.purpleSoft,
+    marginBottom: 16,
+  },
+  submittedInfoText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  declinedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#eee',
+    marginTop: 6,
+  },
+  declinedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.muted,
+  },
+  formErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.redSoft,
+    marginBottom: 16,
+  },
+  formErrorText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.red,
+  },
 });

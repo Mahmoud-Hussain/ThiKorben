@@ -4,11 +4,29 @@ import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
+import { FloatingChatWidget } from '@/components/floating-chat-widget';
 import { LogoutModal } from '@/components/logout-modal';
+import { PageQuickSwitcher } from '@/components/page-quick-switcher';
 import { SessionProvider, useSession } from '@/contexts/session-context';
 
 const PUBLIC_PATHS = new Set([
   '/',
+  '/welcome',
+  '/community',
+  '/job-board',
+  '/job-details',
+  '/job-chat',
+  '/chat',
+  '/job-materials',
+  '/shop',
+  '/worker-skill-passport',
+  '/customer-dashboard',
+  '/worker-dashboard',
+  '/worker-profile',
+  '/track-worker',
+  '/service-checkout',
+  '/product-details',
+  '/cart',
   '/auth/login',
   '/auth/signup',
   '/auth/otp-verify',
@@ -93,6 +111,8 @@ function AppNavigator() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
+      <FloatingChatWidget />
+      <PageQuickSwitcher />
       <LogoutModal />
       <StatusBar style="auto" />
     </>
