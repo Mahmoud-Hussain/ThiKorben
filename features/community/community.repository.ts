@@ -40,11 +40,11 @@ function normalizeOffset(offset?: number) {
   return Math.trunc(offset);
 }
 
-// In-memory fallback dataset for offline/presentation mode
-let mockRequests: CommunityRequest[] = [
+// Initial seed dataset for offline/presentation mode
+const initialRequests: CommunityRequest[] = [
   {
     id: 'req-seed-1',
-    customer_id: 'cust-demo-1',
+    customer_id: '00000000-0000-4000-8000-000000000001',
     title: 'Bathroom Tap Leaking & Basin Pipe Joint Repair',
     category: 'plumbing',
     description:
@@ -170,7 +170,7 @@ let mockRequests: CommunityRequest[] = [
   },
 ];
 
-let mockComments: CommunityComment[] = [
+const initialComments: CommunityComment[] = [
   {
     id: 'com-1',
     service_request_id: 'req-seed-1',
@@ -189,7 +189,7 @@ let mockComments: CommunityComment[] = [
   },
 ];
 
-let mockProposals: CommunityProposal[] = [
+const initialProposals: CommunityProposal[] = [
   {
     id: 'prop-1',
     service_request_id: 'req-seed-1',
@@ -203,6 +203,41 @@ let mockProposals: CommunityProposal[] = [
     updated_at: new Date().toISOString(),
   },
 ];
+
+const STORAGE_REQUESTS = 'thikorben_mock_requests_store_v2';
+const STORAGE_PROPOSALS = 'thikorben_mock_proposals_store_v2';
+const STORAGE_COMMENTS = 'thikorben_mock_comments_store_v2';
+
+function getStored<T>(key: string, fallback: T): T {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const data = window.localStorage.getItem(key);
+      if (data) return JSON.parse(data);
+    } catch {}
+  }
+  return fallback;
+}
+
+function setStored<T>(key: string, value: T) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  }
+}
+
+let mockRequests: CommunityRequest[] = getStored(STORAGE_REQUESTS, initialRequests);
+let mockComments: CommunityComment[] = getStored(STORAGE_COMMENTS, initialComments);
+let mockProposals: CommunityProposal[] = getStored(STORAGE_PROPOSALS, initialProposals);
+
+export function resetMockCommunityState() {
+  mockRequests = [...initialRequests];
+  mockComments = [...initialComments];
+  mockProposals = [...initialProposals];
+  setStored(STORAGE_REQUESTS, mockRequests);
+  setStored(STORAGE_COMMENTS, mockComments);
+  setStored(STORAGE_PROPOSALS, mockProposals);
+}
 
 const mockReactions = new Set<string>();
 
@@ -251,6 +286,7 @@ export async function listCommunityRequests(
     }
   }
 
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
   // Filter in-memory fallback dataset
   let filtered = [...mockRequests];
 
@@ -293,6 +329,7 @@ export async function getCommunityRequest(
     }
   }
 
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
   const found = mockRequests.find(item => item.id === serviceRequestId);
   if (found) {
     return found;
@@ -320,6 +357,7 @@ export async function createCommunityRequest(
     }
   }
 
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
   const newReq: CommunityRequest = {
     id: `req-created-${Date.now()}`,
     customer_id: input.customer_id,
@@ -342,6 +380,7 @@ export async function createCommunityRequest(
   };
 
   mockRequests = [newReq, ...mockRequests];
+  setStored(STORAGE_REQUESTS, mockRequests);
   return newReq;
 }
 
@@ -374,6 +413,7 @@ export async function updateCommunityRequest(
       updated_at: new Date().toISOString(),
     } as CommunityRequest;
     mockRequests[index] = updated;
+    setStored(STORAGE_REQUESTS, mockRequests);
     return updated;
   }
 
@@ -400,6 +440,7 @@ export async function cancelCommunityRequest(
   const found = mockRequests.find(item => item.id === serviceRequestId);
   if (found) {
     found.status = 'cancelled';
+    setStored(STORAGE_REQUESTS, mockRequests);
     return serviceRequestId;
   }
 
@@ -427,6 +468,7 @@ export async function listCommunityComments(
     }
   }
 
+  mockComments = getStored(STORAGE_COMMENTS, mockComments);
   return mockComments.filter(
     item => item.service_request_id === serviceRequestId,
   );
@@ -451,6 +493,8 @@ export async function createCommunityComment(
     }
   }
 
+  mockComments = getStored(STORAGE_COMMENTS, mockComments);
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
   const newComment: CommunityComment = {
     id: `com-created-${Date.now()}`,
     service_request_id: input.service_request_id,
@@ -468,6 +512,8 @@ export async function createCommunityComment(
     req.last_activity_at = new Date().toISOString();
   }
 
+  setStored(STORAGE_COMMENTS, mockComments);
+  setStored(STORAGE_REQUESTS, mockRequests);
   return newComment;
 }
 
@@ -490,10 +536,12 @@ export async function updateCommunityComment(
     // Fallback
   }
 
+  mockComments = getStored(STORAGE_COMMENTS, mockComments);
   const comment = mockComments.find(item => item.id === commentId);
   if (comment) {
     if (input.body !== undefined) comment.body = input.body;
     comment.updated_at = new Date().toISOString();
+    setStored(STORAGE_COMMENTS, mockComments);
     return comment;
   }
 
@@ -512,7 +560,10 @@ export async function deleteCommunityComment(commentId: string): Promise<void> {
     // Fallback
   }
 
-  mockComments = mockComments.filter(item => item.id !== commentId);
+  mockComments = getStored(STORAGE_COMMENTS, mockComments).filter(
+    item => item.id !== commentId,
+  );
+  setStored(STORAGE_COMMENTS, mockComments);
 }
 
 export async function getCommunityReaction(
@@ -613,6 +664,34 @@ export async function deleteCommunityReaction(
   }
 }
 
+export async function getCommunityProposal(
+  proposalId: string,
+): Promise<CommunityProposal> {
+  if (!isOfflineOrDemo) {
+    try {
+      const { data, error } = await supabase
+        .from('service_proposals')
+        .select('*')
+        .eq('id', proposalId)
+        .single();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      // Fallback
+    }
+  }
+
+  mockProposals = getStored(STORAGE_PROPOSALS, mockProposals);
+  const found = mockProposals.find(item => item.id === proposalId);
+  if (found) {
+    return found;
+  }
+
+  throw new Error('Proposal not found.');
+}
+
 export async function listCommunityProposals(
   serviceRequestId: string,
 ): Promise<CommunityProposal[]> {
@@ -634,6 +713,7 @@ export async function listCommunityProposals(
     }
   }
 
+  mockProposals = getStored(STORAGE_PROPOSALS, mockProposals);
   return mockProposals.filter(
     item => item.service_request_id === serviceRequestId,
   );
@@ -658,8 +738,35 @@ export async function createCommunityProposal(
     }
   }
 
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
+  mockProposals = getStored(STORAGE_PROPOSALS, mockProposals);
+
+  const req = mockRequests.find(item => item.id === input.service_request_id);
+  if (!req) {
+    throw new Error('Service request not found.');
+  }
+
+  if (req.status !== 'open') {
+    throw new Error('Cannot submit proposals for a request that is not open.');
+  }
+
+  if (req.customer_id === input.worker_id) {
+    throw new Error('Customers cannot submit proposals for their own service requests.');
+  }
+
+  const existingActive = mockProposals.find(
+    p =>
+      p.service_request_id === input.service_request_id &&
+      p.worker_id === input.worker_id &&
+      p.status !== 'withdrawn' &&
+      p.status !== 'declined',
+  );
+  if (existingActive) {
+    throw new Error('You have already submitted an active proposal for this request.');
+  }
+
   const newProp: CommunityProposal = {
-    id: `prop-created-${Date.now()}`,
+    id: `prop-created-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     service_request_id: input.service_request_id,
     worker_id: input.worker_id,
     price_amount: input.price_amount,
@@ -673,11 +780,11 @@ export async function createCommunityProposal(
 
   mockProposals.push(newProp);
 
-  const req = mockRequests.find(item => item.id === input.service_request_id);
-  if (req) {
-    req.proposal_count += 1;
-    req.last_activity_at = new Date().toISOString();
-  }
+  req.proposal_count += 1;
+  req.last_activity_at = new Date().toISOString();
+
+  setStored(STORAGE_PROPOSALS, mockProposals);
+  setStored(STORAGE_REQUESTS, mockRequests);
 
   return newProp;
 }
@@ -703,12 +810,14 @@ export async function updateCommunityProposal(
     }
   }
 
+  mockProposals = getStored(STORAGE_PROPOSALS, mockProposals);
   const prop = mockProposals.find(item => item.id === proposalId);
   if (prop) {
     if (input.price_amount !== undefined) prop.price_amount = input.price_amount;
     if (input.availability_note !== undefined) prop.availability_note = input.availability_note;
     if (input.note !== undefined) prop.note = input.note;
     prop.updated_at = new Date().toISOString();
+    setStored(STORAGE_PROPOSALS, mockProposals);
     return prop;
   }
 
@@ -732,15 +841,20 @@ export async function withdrawCommunityProposal(
     }
   }
 
+  mockProposals = getStored(STORAGE_PROPOSALS, mockProposals);
   const prop = mockProposals.find(item => item.id === proposalId);
   if (prop) {
     prop.status = 'declined';
+    setStored(STORAGE_PROPOSALS, mockProposals);
   }
 
   return proposalId;
 }
 
-export async function acceptCommunityProposal(proposalId: string) {
+export async function acceptCommunityProposal(
+  proposalId: string,
+  actorId?: string,
+) {
   if (!isOfflineOrDemo) {
     try {
       const { data, error } = await supabase.rpc('accept_service_proposal', {
@@ -755,15 +869,58 @@ export async function acceptCommunityProposal(proposalId: string) {
     }
   }
 
+  mockProposals = getStored(STORAGE_PROPOSALS, mockProposals);
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
+
   const prop = mockProposals.find(item => item.id === proposalId);
-  if (prop) {
-    prop.status = 'accepted';
-    const req = mockRequests.find(item => item.id === prop.service_request_id);
-    if (req) {
-      req.status = 'assigned';
-      req.accepted_proposal_id = proposalId;
+  if (!prop) {
+    throw new Error('Proposal not found.');
+  }
+
+  const req = mockRequests.find(item => item.id === prop.service_request_id);
+  if (!req) {
+    throw new Error('Service request not found.');
+  }
+
+  if (actorId) {
+    if (prop.worker_id === actorId) {
+      throw new Error('Workers cannot accept their own proposals.');
+    }
+    if (req.customer_id !== actorId) {
+      throw new Error('Only the customer who created this request can accept a proposal.');
     }
   }
+
+  if (req.status !== 'open') {
+    throw new Error('This service request is no longer open.');
+  }
+
+  if (prop.status !== 'pending') {
+    throw new Error('Only pending proposals can be accepted.');
+  }
+
+  // Atomically accept winning proposal and decline competing pending proposals
+  prop.status = 'accepted';
+  prop.updated_at = new Date().toISOString();
+
+  mockProposals.forEach(otherProp => {
+    if (
+      otherProp.service_request_id === req.id &&
+      otherProp.id !== prop.id &&
+      otherProp.status === 'pending'
+    ) {
+      otherProp.status = 'declined';
+      otherProp.updated_at = new Date().toISOString();
+    }
+  });
+
+  req.status = 'assigned';
+  req.accepted_proposal_id = proposalId;
+  req.last_activity_at = new Date().toISOString();
+  req.updated_at = new Date().toISOString();
+
+  setStored(STORAGE_PROPOSALS, mockProposals);
+  setStored(STORAGE_REQUESTS, mockRequests);
 
   return { success: true };
 }
@@ -787,9 +944,11 @@ export async function advanceCommunityRequestStatus(
     }
   }
 
+  mockRequests = getStored(STORAGE_REQUESTS, mockRequests);
   const req = mockRequests.find(item => item.id === serviceRequestId);
   if (req) {
     req.status = status;
+    setStored(STORAGE_REQUESTS, mockRequests);
   }
 
   return { success: true };

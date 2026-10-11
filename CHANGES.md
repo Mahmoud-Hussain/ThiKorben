@@ -205,6 +205,74 @@ python -m pytest tests/test_community.py -v
 # Run chat tests
 python -m pytest tests/test_chat.py -v
 
+# Run role permissions and proposal workflow tests
+python -m pytest tests/test_role_permissions.py -v
+
 # Run full end-to-end lifecycle visibly in Chrome
 python -m pytest tests/test_full_lifecycle.py -v -s
 ```
+
+---
+
+## 5. Marketplace Role Permissions, Proposal Lifecycle & Request Publishing Audit & Implementation
+
+### A. Root Causes Identified
+1. **Broken "Publish Request" Workflow:**
+   * The `Publish Request` button in `app/job-board.tsx` was performing client-side mock role changes and had mismatched validation logic where web alert popups failed to trigger or trapped asynchronous navigation.
+   * Input state was susceptible to race conditions and multiple clicks without an atomic `disabled={saving}` visual indicator or inline validation messages.
+   * Service request creation did not enforce server-side validation bounds (title length 5–120, description 10–5000, location 2–200, positive numeric budget).
+2. **Ambiguous User Identity & Self-Acceptance Vulnerability:**
+   * In presentation/offline demo mode, customer and worker identities previously defaulted to the same generic user identifier (`cust-demo-1`), creating a scenario where a user could effectively propose to their own requests and accept their own proposals.
+   * The backend/service lacked explicit rejection when a user attempted to submit a proposal on a request they authored.
+3. **Missing Proposal Duplicate & Ineligible State Protection:**
+   * Workers were able to submit multiple pending proposals for the same service request.
+   * Proposals could be submitted for non-open requests (e.g. `assigned`, `ordered`, `completed`, `cancelled`).
+4. **Non-Atomic Proposal Acceptance:**
+   * Proposal acceptance previously did not lock the request row (`FOR UPDATE`) or atomically transition competing proposals to `declined`, leaving open potential race conditions where concurrent workers could be accepted for the same single job.
+5. **Database RLS Policies Lacked Strict Role Verifications:**
+   * Supabase Row Level Security policies previously only validated `auth.uid() = customer_id` without verifying that the authenticated user possesses the active `customer` or `worker` role in `user_roles` and `profiles.active_role`.
+
+---
+
+### B. Business Rules & Safeguards Implemented
+| Rule # | Business Rule | Enforcement Layers |
+| :--- | :--- | :--- |
+| **Rule 1** | Only customers can create and publish service requests. | Database RLS (`service_requests_insert_policy`), Service (`createServiceRequest`), Repository, and Frontend (`job-board.tsx`, `community.tsx`). |
+| **Rule 2** | Customers cannot submit worker proposals. | Database RLS (`service_proposals_insert_policy`), Trigger (`check_proposal_integrity`), Service (`submitServiceProposal`), and UI guards. |
+| **Rule 3** | Workers cannot publish customer job requests. | Database RLS, Service role verification (`requireAuthenticatedActor('customer')`), UI role guard blocking form entry. |
+| **Rule 4** | Customers cannot accept their own jobs as workers or propose to their own requests. | Trigger (`trg_check_proposal_integrity`), Service check (`request.customer_id !== actor.id`), UI conditional rendering. |
+| **Rule 5** | Workers cannot accept their own proposals. | DB RPC `accept_service_proposal` (`actor_id != p_worker_id`), Service (`acceptServiceProposal`), Repository, and UI. |
+| **Rule 6** | Only the customer owner of a job can accept a proposal for that job. | DB RPC `accept_service_proposal` (`actor_id = v_customer_id`), Service verification (`request.customer_id === actor.id`), UI. |
+| **Rule 7** | A worker cannot submit multiple active proposals for the same job. | DB unique partial constraint / trigger, Service query check, Repository check, UI replacement with "You have submitted a proposal" banner. |
+| **Rule 8** | Proposals can only be submitted for `open` service requests. | Trigger + Service check (`request.status === 'open'`), UI button hidden on non-open requests. |
+| **Rule 9** | Acceptance is atomic: winning proposal becomes `accepted`, request becomes `assigned`, and competing pending proposals are marked `declined`. | Supabase transactional stored procedure with `FOR UPDATE` row lock; mirrored in repository in-memory fallback. |
+| **Rule 10** | Strict Request Lifecycle transitions: `open` -> `assigned` -> `ordered` -> `completed` / `cancelled`. | DB constraints and `advanceServiceRequestStatus` validation. |
+
+---
+
+### C. Database Migration & Security Safeguards
+* **File:** `supabase/migrations/20261011190000_enforce_strict_marketplace_roles.sql`
+  * **RLS Policies:** Tightened `service_requests` and `service_proposals` to cross-reference `user_roles` and `profiles.active_role`.
+  * **Trigger `check_proposal_integrity()`:** Enforces that `worker_id != customer_id`, the request is currently `open`, and active duplicate proposals from the same worker are blocked.
+  * **Stored Procedure `accept_service_proposal(p_proposal_id uuid)`:**
+    * Acquires exclusive lock (`SELECT ... FOR UPDATE`) on the request.
+    * Verifies `auth.uid() = request.customer_id` and `auth.uid() != proposal.worker_id`.
+    * Atomically updates winning proposal to `accepted`, request to `assigned`, and all competing proposals to `declined`.
+
+---
+
+### D. Automated Test Verification Results
+All 8 minimum acceptance criteria scenarios were implemented and verified with automated Selenium/pytest suites:
+
+| Scenario / Test | Expected Result | Actual Result |
+| :--- | :--- | :--- |
+| `test_01_customer_publishes_valid_request` | Success; job is persisted & rendered with detail | :white_check_mark: PASSED |
+| `test_02_worker_attempts_to_publish_rejected` | Blocked server/UI side; alert shown | :white_check_mark: PASSED |
+| `test_03_publish_request_form_invalid_data_shows_errors` | Validation errors shown; request blocked | :white_check_mark: PASSED |
+| `test_04_customer_cannot_submit_proposal_on_own_job` | Propose button hidden & API call rejected | :white_check_mark: PASSED |
+| `test_05_worker_submits_proposal_and_customer_accepts` | End-to-end success; job marked `assigned` | :white_check_mark: PASSED |
+| `test_06_worker_cannot_accept_own_proposal` | Accept button hidden & API call rejected | :white_check_mark: PASSED |
+| `test_07_customer_cannot_accept_another_customers_job` | Non-owner cannot accept; blocked | :white_check_mark: PASSED |
+| `test_08_proposal_rejected_on_assigned_job` | Propose button hidden & API rejects | :white_check_mark: PASSED |
+| `tests/test_community.py` (Full Suite) | 4/4 community lifecycle tests pass | :white_check_mark: PASSED |
+

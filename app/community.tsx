@@ -3,6 +3,7 @@ import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -269,7 +270,11 @@ export default function CommunityScreen() {
               style={styles.createButton}
               onPress={() => {
                 if (role !== 'customer') {
-                  void setRole('customer');
+                  Alert.alert(
+                    'Customer Role Required',
+                    'Only customers can post service requests. Please switch to Customer mode to create a request.',
+                  );
+                  return;
                 }
                 router.push({
                   pathname: '/job-board',

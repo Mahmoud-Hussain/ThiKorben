@@ -20,6 +20,7 @@ import {
   switchActiveRole,
   updateMyProfile,
 } from '@/features/auth/auth.service';
+import { setActiveActor } from '@/features/community/community.service';
 
 import type {
   AppProfile,
@@ -91,16 +92,19 @@ function getErrorMessage(error: unknown) {
 }
 
 const PRESENTATION_USER_ID = '00000000-0000-4000-8000-000000000001';
+const PRESENTATION_WORKER_ID = 'worker-demo-1';
 
 function createPresentationIdentity(
   phone: string,
   displayName?: string,
+  activeRole: AppRole = 'customer',
 ): AuthIdentity {
   const now = new Date().toISOString();
   const safeName = displayName?.trim() || 'Demo User';
+  const targetId = activeRole === 'worker' ? PRESENTATION_WORKER_ID : PRESENTATION_USER_ID;
 
   const user = {
-    id: PRESENTATION_USER_ID,
+    id: targetId,
     aud: 'authenticated',
     role: 'authenticated',
     phone,
@@ -129,8 +133,8 @@ function createPresentationIdentity(
     session,
     user,
     profile: {
-      id: PRESENTATION_USER_ID,
-      active_role: 'customer',
+      id: targetId,
+      active_role: activeRole,
       avatar_path: null,
       created_at: now,
       display_name: safeName,
@@ -160,10 +164,20 @@ function createPresentationIdentity(
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [authState, setAuthState] = useState<AuthState>({
-    status: PRESENTATION_MODE ? 'anonymous' : 'loading',
-    identity: null,
-    error: null,
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    if (PRESENTATION_MODE) {
+      return {
+        status: 'authenticated',
+        identity: createPresentationIdentity('+8801700000000', 'Demo User', 'customer'),
+        error: null,
+      };
+    }
+
+    return {
+      status: 'loading',
+      identity: null,
+      error: null,
+    };
   });
 
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -392,13 +406,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             ? current.identity.roles
             : [...current.identity.roles, nextRole];
 
+          const targetId =
+            nextRole === 'worker'
+              ? PRESENTATION_WORKER_ID
+              : PRESENTATION_USER_ID;
+
           return {
             status: 'authenticated',
             identity: {
               ...current.identity,
+              user: {
+                ...current.identity.user,
+                id: targetId,
+              },
               roles,
               profile: {
                 ...current.identity.profile,
+                id: targetId,
                 active_role: nextRole,
                 updated_at: new Date().toISOString(),
               },
@@ -693,6 +717,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const identity = authState.identity;
+
+  useEffect(() => {
+    if (identity) {
+      setActiveActor({
+        id: identity.user.id,
+        role: identity.profile.active_role,
+        roles: identity.roles,
+      });
+    } else {
+      setActiveActor(null);
+    }
+  }, [identity]);
 
   const value = useMemo<SessionContextValue>(
     () => ({

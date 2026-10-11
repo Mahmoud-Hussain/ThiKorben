@@ -85,7 +85,7 @@ export default function JobBoardScreen() {
     requestId?: string;
   }>();
 
-  const { role, user, profile, setRole } = useSession();
+  const { role, user, profile } = useSession();
 
   const createMode = params.mode === 'create';
 
@@ -104,6 +104,7 @@ export default function JobBoardScreen() {
   const [scheduleNote, setScheduleNote] = useState('As soon as possible');
 
   const [comment, setComment] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposalPrice, setProposalPrice] = useState('');
@@ -111,13 +112,38 @@ export default function JobBoardScreen() {
   const [proposalNote, setProposalNote] = useState('');
 
   const isOwner = Boolean(
-    (user?.id && request?.customer_id === user.id) ||
-      request?.customer_id === '00000000-0000-4000-8000-000000000001',
+    user?.id && request?.customer_id === user.id,
   );
-  const canAccept = Boolean(
-    request?.status === 'open' &&
-      (isOwner || role === 'customer' || !role || request?.customer_id?.startsWith('cust-demo')),
+
+  const userHasActiveProposal = Boolean(
+    user?.id &&
+      proposals.some(
+        p =>
+          p.worker_id === user.id &&
+          p.status !== 'withdrawn' &&
+          p.status !== 'declined',
+      ),
   );
+
+  const canPropose = Boolean(
+    role === 'worker' &&
+      request?.status === 'open' &&
+      !isOwner &&
+      !userHasActiveProposal,
+  );
+
+  const canAcceptProposal = useCallback(
+    (item: CommunityProposal) =>
+      Boolean(
+        request?.status === 'open' &&
+          isOwner &&
+          role === 'customer' &&
+          item.status === 'pending' &&
+          item.worker_id !== user?.id,
+      ),
+    [isOwner, request?.status, role, user?.id],
+  );
+
   const acceptedProposal = useMemo(
     () => proposals.find(item => item.status === 'accepted') ?? null,
     [proposals],
@@ -167,35 +193,85 @@ export default function JobBoardScreen() {
   }, [loadDetails]);
 
   const submitRequest = async () => {
-    if (role !== 'customer') {
-      void setRole('customer');
-    }
-
-    const numericBudget = Number(budget);
-
-    if (
-      !title.trim() ||
-      !description.trim() ||
-      !location.trim() ||
-      !budget.trim() ||
-      !Number.isFinite(numericBudget)
-    ) {
-      Alert.alert('Complete the form', 'Add a title, description, location, and valid budget.');
+    if (saving) {
       return;
     }
+
+    if (role !== 'customer') {
+      Alert.alert(
+        'Permission denied',
+        'Only customers can create and publish job requests.',
+      );
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    const trimmedDesc = description.trim();
+    const trimmedLoc = location.trim();
+    const numericBudget = Number(budget);
+
+    if (trimmedTitle.length < 5) {
+      const msg = 'Title must contain at least 5 characters.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid title', msg);
+      }
+      return;
+    }
+
+    if (trimmedDesc.length < 10) {
+      const msg = 'Description must contain at least 10 characters.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid description', msg);
+      }
+      return;
+    }
+
+    if (trimmedLoc.length < 2) {
+      const msg = 'Location must contain at least 2 characters.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid location', msg);
+      }
+      return;
+    }
+
+    if (!budget.trim() || !Number.isFinite(numericBudget) || numericBudget <= 0) {
+      const msg = 'Budget must be greater than zero.';
+      setFormError(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Invalid budget', msg);
+      }
+      return;
+    }
+
+    setFormError(null);
 
     setSaving(true);
 
     try {
       const created = await createServiceRequest({
-        title,
+        title: trimmedTitle,
         category,
-        description,
-        locationLabel: location,
+        description: trimmedDesc,
+        locationLabel: trimmedLoc,
         budgetAmount: numericBudget,
-        scheduleNote,
-        customerId: user?.id || '00000000-0000-4000-8000-000000000001',
+        scheduleNote: scheduleNote.trim() || undefined,
       });
+
+      Alert.alert(
+        'Request Published',
+        'Your service request has been published successfully.',
+      );
 
       router.replace({
         pathname: '/job-board',
@@ -221,11 +297,6 @@ export default function JobBoardScreen() {
     try {
       await addServiceRequestComment({
         serviceRequestId: request.id,
-        authorId:
-          user?.id ||
-          (role === 'worker'
-            ? 'worker-demo-1'
-            : '00000000-0000-4000-8000-000000000001'),
         body: comment,
       });
 
@@ -243,26 +314,39 @@ export default function JobBoardScreen() {
       return;
     }
 
+    if (role !== 'worker') {
+      Alert.alert('Permission denied', 'Only workers can submit proposals.');
+      return;
+    }
+
+    if (isOwner) {
+      Alert.alert(
+        'Invalid action',
+        'Customers cannot submit proposals for their own requests.',
+      );
+      return;
+    }
+
     const price = Number(proposalPrice);
 
     if (!Number.isFinite(price) || price <= 0) {
-      Alert.alert('Invalid price', 'Enter a valid labor price.');
+      Alert.alert('Invalid price', 'Enter a valid labor price greater than zero.');
+      return;
+    }
+
+    if (!proposalAvailability.trim()) {
+      Alert.alert('Availability required', 'Enter your availability note.');
       return;
     }
 
     setSaving(true);
 
     try {
-      if (role !== 'worker') {
-        await setRole('worker');
-      }
-
       await submitServiceProposal({
         serviceRequestId: request.id,
         priceAmount: price,
-        availabilityNote: proposalAvailability,
-        note: proposalNote,
-        workerId: user?.id || 'worker-demo-1',
+        availabilityNote: proposalAvailability.trim(),
+        note: proposalNote.trim() || undefined,
       });
 
       setProposalOpen(false);
@@ -279,6 +363,14 @@ export default function JobBoardScreen() {
 
   const acceptProposal = async (proposalId: string) => {
     if (!request || saving) {
+      return;
+    }
+
+    if (!isOwner || role !== 'customer') {
+      Alert.alert(
+        'Permission denied',
+        'Only the customer who created this request can accept a proposal.',
+      );
       return;
     }
 
@@ -437,6 +529,13 @@ export default function JobBoardScreen() {
                   </Text>
                 </View>
 
+                {formError ? (
+                  <View testID="form-error-container" style={styles.formErrorCard}>
+                    <Ionicons name="alert-circle" size={18} color={COLORS.red} />
+                    <Text testID="form-error-text" style={styles.formErrorText}>{formError}</Text>
+                  </View>
+                ) : null}
+
                 <Pressable
                   testID="submit-service-request-button"
                   style={[styles.primaryButton, saving && styles.disabled]}
@@ -584,22 +683,22 @@ export default function JobBoardScreen() {
               </View>
             ) : null}
 
-            {request.status === 'open' && !isOwner ? (
+            {canPropose ? (
               <Pressable
                 testID="open-proposal-modal-button"
                 style={styles.workerProposalButton}
-                onPress={() => {
-                  if (role !== 'worker') {
-                    void setRole('worker');
-                  }
-                  setProposalOpen(true);
-                }}
+                onPress={() => setProposalOpen(true)}
               >
                 <Ionicons name="document-text-outline" size={18} color="#fff" />
-                <Text style={styles.workerProposalText}>
-                  {role === 'worker' ? 'Submit Proposal' : 'Submit Proposal as Worker'}
-                </Text>
+                <Text style={styles.workerProposalText}>Submit Proposal</Text>
               </Pressable>
+            ) : userHasActiveProposal ? (
+              <View style={styles.submittedInfo}>
+                <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.submittedInfoText}>
+                  You have submitted a proposal for this request.
+                </Text>
+              </View>
             ) : null}
 
             <View style={styles.sectionHeader}>
@@ -648,7 +747,12 @@ export default function JobBoardScreen() {
                       <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
                       <Text style={styles.acceptedBadgeText}>Accepted</Text>
                     </View>
-                  ) : canAccept ? (
+                  ) : item.status === 'declined' ? (
+                    <View style={styles.declinedBadge}>
+                      <Ionicons name="close-circle-outline" size={16} color={COLORS.muted} />
+                      <Text style={styles.declinedBadgeText}>Declined</Text>
+                    </View>
+                  ) : canAcceptProposal(item) ? (
                     <Pressable
                       testID={`accept-proposal-button-${item.id}`}
                       style={[styles.acceptButton, saving && styles.disabled]}
@@ -1093,4 +1197,48 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 17, fontWeight: '900', color: COLORS.text },
   modalSubtitle: { marginTop: 3, fontSize: 10.5, color: COLORS.muted },
+  submittedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: COLORS.purpleSoft,
+    marginBottom: 16,
+  },
+  submittedInfoText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  declinedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#eee',
+    marginTop: 6,
+  },
+  declinedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.muted,
+  },
+  formErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.redSoft,
+    marginBottom: 16,
+  },
+  formErrorText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.red,
+  },
 });
