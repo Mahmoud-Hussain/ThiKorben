@@ -6,18 +6,15 @@ import { AppState, Platform } from 'react-native';
 
 import type { Database } from '../types/database.types';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const fallbackUrl = 'https://example.supabase.co';
+const fallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
 
-if (!supabaseUrl) {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_URL. Add it to your .env.local file.',
-  );
-}
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || fallbackUrl;
+const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || fallbackKey;
 
-if (!supabasePublishableKey) {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Add it to your .env.local file.',
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL) {
+  console.warn(
+    '[ThiKorben] EXPO_PUBLIC_SUPABASE_URL not set in .env.local. Using fallback offline configuration.',
   );
 }
 
