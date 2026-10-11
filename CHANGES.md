@@ -394,5 +394,41 @@ Previously on the front page (`app/index.tsx`), new users could not locate a cle
   * `/auth/role-select`
 * **Session Dismissal Persistence**: When the user taps the `(X)` close button on the floating switcher container, the dismissal state is saved to `sessionStorage` (`thikorben_pages_dismissed`), ensuring it remains hidden across subsequent screen navigations during that session.
 
+---
+
+## 10. Upgraded Chat System: Role Switching, AI Component Recommendations, In-Chat Cart & Cross-Widget Synchronization
+
+### Summary of Requirements & Enhancements
+1. **Customer / Worker Role Switcher**:
+   * Added a segmented toggle control at the top of `/chat` (`testID="demo-role-customer"`, `testID="demo-role-worker"`).
+   * Supports seamless role-switching for interactive demonstrations while strictly preserving existing messages, state, and conversations.
+   * Role state is client-side demo state (`thikorben_chat_demo_role_v1`) decoupled from server authentication rules.
+2. **Deterministic Component & Product Extraction**:
+   * Engineered `extractComponentRecommendations(messageText, conversationId, messageId)` in `services/chat-sync-service.ts`.
+   * Automatically identifies components, parts, and materials mentioned in worker messages (e.g., *"We need a 20A double-pole circuit breaker and 2.5mm electrical cable for this installation"*).
+   * Expanded product catalog (`constants/shop-data.ts`) with `circuit-breaker-20a` (20A Double-Pole Circuit Breaker), `water-pump-half-hp` (0.5 HP Household Water Pump), and aliases for `electrical-wire` (`2.5mm electrical cable`, etc.).
+   * Handles multi-product messages, specifications, and aliases while preventing unrelated false matches.
+3. **In-Chat Product Recommendation Panel**:
+   * Built `ChatProductRecommendationGroup` (`components/chat-product-recommendation.tsx`) natively inside the conversation stream.
+   * Displays product icons, brands, specs, unit prices in BDT (৳), stock status, quantity adjustment, and match rationale.
+   * Emits contextual AI Assistant announcements when recommendations are generated.
+4. **Customer Review & Approval Flow**:
+   * Enforced strict marketplace business rules: workers cannot approve items on behalf of customers (`Worker cannot approve` guard).
+   * Customers have explicit controls: **Approve**, **Reject**, **Change Product**, and **Details**.
+   * Status updates are immediately reflected (`Pending Customer Review`, `Approved`, `Rejected`, `Alternative Requested`, `In Demo Cart`) with contextual marketplace system events.
+5. **In-Chat Demo Cart**:
+   * Created `InChatCartModal` (`components/in-chat-cart-modal.tsx`) and header cart counter/amount button (`header-cart-btn`).
+   * Only approved products can be added to the demo cart.
+   * Calculates line totals, quantities, and subtotals accurately. Supports quantity increment/decrement, item removal, and empty state.
+   * Returning to chat preserves conversation and cart contents seamlessly.
+6. **Cross-Interface State Synchronization**:
+   * Engineered `services/chat-sync-service.ts` as the single source of truth for conversation and message state.
+   * Both full-screen `/chat` and `FloatingChatWidget` subscribe via `subscribeToChatSync`.
+   * Sending a message in `/chat` instantly updates recent previews and message threads in `FloatingChatWidget`, and vice-versa.
+   * Conversations, recommendations, and cart state stay synchronized across all windows and components.
+7. **Automated Verification**:
+   * Created `tests/test_chat_recommendations_and_sync.py` with 5 automated end-to-end tests validating role switching, keyword detection, customer approval rules, the in-chat demo cart, and bidirectional sync.
+
+
 
 

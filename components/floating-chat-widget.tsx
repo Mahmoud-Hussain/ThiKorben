@@ -16,28 +16,23 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSession } from '@/contexts/session-context';
+import {
+  ChatConversation,
+  ChatMessage,
+  addMessageToConversation,
+  generateSeqId,
+  getCurrentFormattedTime,
+  getDemoRole,
+  loadConversationsFromStorage,
+  saveConversationsToStorage,
+  subscribeToChatSync,
+  updateRecommendationDecision,
+} from '@/services/chat-sync-service';
+import { ChatProductRecommendationGroup } from '@/components/chat-product-recommendation';
 
-export interface ChatMessage {
-  id: string;
-  sender: 'me' | 'other';
-  text: string;
-  time: string;
-  type?: 'text' | 'location' | 'image' | 'system';
-  status?: 'sent' | 'delivered' | 'read';
-}
+export type { ChatConversation, ChatMessage };
 
-export interface ChatConversation {
-  id: string;
-  recipientId: string;
-  recipientName: string;
-  recipientRole: string;
-  jobTitle: string;
-  unreadCount: number;
-  lastMessage: string;
-  lastTime: string;
-  avatarColor: string;
-  messages: ChatMessage[];
-}
+
 
 export interface ProWorkerItem {
   recipientId: string;
@@ -111,106 +106,6 @@ export function openFloatingWorkerChat(worker: {
   }
 }
 
-const STORAGE_KEY = 'thikorben_floating_chat_conversations_v2';
-
-const INITIAL_CONVERSATIONS: ChatConversation[] = [
-  {
-    id: 'conv-rahim',
-    recipientId: 'worker-demo-1',
-    recipientName: 'Rahim Uddin',
-    recipientRole: 'Verified Plumber • 4.9 ★',
-    jobTitle: 'Plumbing Leak Fix (Dhanmondi 27)',
-    unreadCount: 1,
-    lastMessage: 'ঠিক আছে, আমি আর কয়েক মিনিটের মধ্যে পৌঁছাব ইনশাল্লাহ।',
-    lastTime: '11:44 AM',
-    avatarColor: '#10b981',
-    messages: [
-      {
-        id: 'msg-1',
-        sender: 'other',
-        text: 'আসসালামু আলাইকুম! আমি আপনার রিকোয়েস্ট পেয়েছি, ধানমন্ডি ২৭ নম্বর রোডের দিকে আসছি।',
-        time: '11:42 AM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: 'msg-2',
-        sender: 'me',
-        text: 'ওয়ালাইকুম আসসালাম ভাই। মেইন গেইট খোলা আছে, ৩ তলায় উঠুন।',
-        time: '11:43 AM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: 'msg-3',
-        sender: 'other',
-        text: 'ঠিক আছে, আমি আর কয়েক মিনিটের মধ্যে পৌঁছাব ইনশাল্লাহ। কোনো নির্দিষ্ট টুল লাগবে কি?',
-        time: '11:44 AM',
-        type: 'text',
-        status: 'delivered',
-      },
-    ],
-  },
-  {
-    id: 'conv-kamal',
-    recipientId: 'worker-demo-2',
-    recipientName: 'Kamal Hossain',
-    recipientRole: 'Electrician • 4.8 ★',
-    jobTitle: 'Main Breaker Tripping (Mirpur 10)',
-    unreadCount: 0,
-    lastMessage: 'সার্কিট ব্রেকারের ছবি দেখতে পেয়েছি, স্পেয়ার পার্টস নিয়ে আসছি।',
-    lastTime: 'Yesterday',
-    avatarColor: '#f59e0b',
-    messages: [
-      {
-        id: 'msg-k1',
-        sender: 'other',
-        text: 'আসসালামু আলাইকুম, মেইন সুইচের তারে কোনো পোড়া গন্ধ পেয়েছেন?',
-        time: '3:15 PM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: 'msg-k2',
-        sender: 'me',
-        text: 'জী হালকা গন্ধ আছে, মাইক্রোওয়েভ চালালেই ট্রিপ করছে।',
-        time: '3:18 PM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: 'msg-k3',
-        sender: 'other',
-        text: 'সার্কিট ব্রেকারের ছবি দেখতে পেয়েছি, স্পেয়ার পার্টস নিয়ে আসছি।',
-        time: '3:20 PM',
-        type: 'text',
-        status: 'read',
-      },
-    ],
-  },
-  {
-    id: 'conv-support',
-    recipientId: 'support-1',
-    recipientName: 'ThiKorben Support',
-    recipientRole: 'Customer Help Desk',
-    jobTitle: 'Order & Safety Inquiries',
-    unreadCount: 0,
-    lastMessage: 'আমাদের হেল্পলাইনে যোগাযোগ করার জন্য ধন্যবাদ। যেকোনো সমস্যায় আমরা আছি।',
-    lastTime: 'Oct 10',
-    avatarColor: '#15157d',
-    messages: [
-      {
-        id: 'msg-s1',
-        sender: 'other',
-        text: 'ঠিককরবেনে স্বাগতম! আপনার সেবায় কোনো সমস্যা হলে জানান।',
-        time: '10:00 AM',
-        type: 'text',
-        status: 'read',
-      },
-    ],
-  },
-];
-
 const QUICK_CHIPS = [
   { label: 'কতক্ষণ লাগবে ভাই?', reply: 'আর ৫-৭ মিনিটের মধ্যে পৌঁছে যাচ্ছি ভাই।' },
   { label: 'দরজার সামনে আছি', reply: 'জী আমি মেইন গেইটে ঢুকছি।' },
@@ -219,45 +114,13 @@ const QUICK_CHIPS = [
   { label: 'Call on arrival', reply: 'Sure, I will call as soon as I arrive.' },
 ];
 
-function getStoredConversations(): ChatConversation[] {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const data = window.localStorage.getItem(STORAGE_KEY);
-      if (data) return JSON.parse(data);
-    } catch {}
-  }
-  return INITIAL_CONVERSATIONS;
-}
-
-function saveConversations(convs: ChatConversation[]) {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(convs));
-    } catch {}
-  }
-}
-
-let msgSequenceCounter = 200;
-function generateMsgId(prefix: string) {
-  msgSequenceCounter += 1;
-  return `${prefix}-${msgSequenceCounter}`;
-}
-
-function getCurrentFormattedTime() {
-  const d = new Date();
-  const h = d.getHours() % 12 || 12;
-  const m = d.getMinutes().toString().padStart(2, '0');
-  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-  return `${h}:${m} ${ampm}`;
-}
-
 export function FloatingChatWidget() {
   const router = useRouter();
   const pathname = usePathname();
   const { role } = useSession();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [conversations, setConversations] = useState<ChatConversation[]>(getStoredConversations);
+  const [conversations, setConversations] = useState<ChatConversation[]>(loadConversationsFromStorage);
   const [selectedConvId, setSelectedConvId] = useState<string>('conv-rahim');
   const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
   const [inputVal, setInputVal] = useState('');
@@ -265,12 +128,30 @@ export function FloatingChatWidget() {
 
   const flatListRef = useRef<FlatList>(null);
 
-  const activeConv = conversations.find(c => c.id === selectedConvId) || conversations[0];
+  const activeConv =
+    conversations.find(c => c.id === selectedConvId) ||
+    conversations[0] || {
+      id: 'conv-rahim',
+      recipientId: 'worker-demo-1',
+      recipientName: 'Rahim Uddin',
+      recipientRole: 'Verified Plumber • 4.9 ★',
+      jobTitle: 'Plumbing Leak Fix (Dhanmondi 27)',
+      unreadCount: 0,
+      lastMessage: '',
+      lastTime: '',
+      avatarColor: '#10b981',
+      messages: [],
+      recommendations: [],
+    };
   const totalUnread = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
 
+  // Subscribe to live synchronized conversation updates across screens and tabs
   useEffect(() => {
-    saveConversations(conversations);
-  }, [conversations]);
+    const unsubscribe = subscribeToChatSync((updated) => {
+      setConversations(updated);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (isOpen && activeTab === 'chat') {
@@ -278,7 +159,7 @@ export function FloatingChatWidget() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 150);
     }
-  }, [isOpen, activeTab, selectedConvId, activeConv.messages.length, isTyping]);
+  }, [isOpen, activeTab, selectedConvId, activeConv.messages?.length, isTyping]);
 
   // Dynamically listen to new chat requests with any worker across screens
   useEffect(() => {
@@ -289,22 +170,21 @@ export function FloatingChatWidget() {
       if (!detail || !detail.workerName) return;
 
       const { workerId, workerName, workerRole, jobTitle, initialMessage } = detail;
+      const currentConvs = loadConversationsFromStorage();
 
-      setConversations(prev => {
-        const existing = prev.find(
-          c =>
-            (workerId && c.recipientId === workerId) ||
-            c.recipientName.toLowerCase() === workerName.toLowerCase()
-        );
-        if (existing) {
-          setSelectedConvId(existing.id);
-          return prev;
-        }
+      const existing = currentConvs.find(
+        c =>
+          (workerId && c.recipientId === workerId) ||
+          c.recipientName.toLowerCase() === workerName.toLowerCase()
+      );
 
-        const newId = `conv-${workerId || generateMsgId('w')}`;
+      if (existing) {
+        setSelectedConvId(existing.id);
+      } else {
+        const newId = `conv-${workerId || generateSeqId('w')}`;
         const newConv: ChatConversation = {
           id: newId,
-          recipientId: workerId || `worker-${generateMsgId('w')}`,
+          recipientId: workerId || `worker-${generateSeqId('w')}`,
           recipientName: workerName,
           recipientRole: workerRole || 'Verified Specialist',
           jobTitle: jobTitle || 'Direct Consultation',
@@ -312,10 +192,13 @@ export function FloatingChatWidget() {
           lastMessage: initialMessage || `Chat started with ${workerName}`,
           lastTime: getCurrentFormattedTime(),
           avatarColor: '#10b981',
+          recommendations: [],
           messages: [
             {
-              id: generateMsgId('init'),
-              sender: 'other',
+              id: generateSeqId('init'),
+              sender: 'worker',
+              senderRole: 'worker',
+              senderName: workerName,
               text:
                 initialMessage ||
                 `আসসালামু আলাইকুম! আমি ${workerName}। আপনার সার্ভিসের বিষয়ে সাহায্য করতে প্রস্তুত।`,
@@ -325,9 +208,10 @@ export function FloatingChatWidget() {
             },
           ],
         };
+        const updated = [newConv, ...currentConvs];
+        saveConversationsToStorage(updated);
         setSelectedConvId(newId);
-        return [newConv, ...prev];
-      });
+      }
 
       setActiveTab('chat');
       setIsOpen(true);
@@ -340,7 +224,8 @@ export function FloatingChatWidget() {
   }, []);
 
   const handleStartProChat = (pro: ProWorkerItem) => {
-    const existing = conversations.find(
+    const currentConvs = loadConversationsFromStorage();
+    const existing = currentConvs.find(
       c => c.recipientId === pro.recipientId || c.recipientName === pro.recipientName
     );
 
@@ -360,10 +245,13 @@ export function FloatingChatWidget() {
       lastMessage: pro.greeting,
       lastTime: getCurrentFormattedTime(),
       avatarColor: pro.avatarColor,
+      recommendations: [],
       messages: [
         {
-          id: generateMsgId('pro-init'),
-          sender: 'other',
+          id: generateSeqId('pro-init'),
+          sender: 'worker',
+          senderRole: 'worker',
+          senderName: pro.recipientName,
           text: pro.greeting,
           time: getCurrentFormattedTime(),
           type: 'text',
@@ -372,7 +260,8 @@ export function FloatingChatWidget() {
       ],
     };
 
-    setConversations(prev => [newConv, ...prev]);
+    const updated = [newConv, ...currentConvs];
+    saveConversationsToStorage(updated);
     setSelectedConvId(newId);
     setActiveTab('chat');
   };
@@ -380,168 +269,132 @@ export function FloatingChatWidget() {
   const handleSelectConv = (convId: string) => {
     setSelectedConvId(convId);
     setActiveTab('chat');
-    // Clear unread
-    setConversations(prev =>
-      prev.map(c => (c.id === convId ? { ...c, unreadCount: 0 } : c)),
-    );
+    // Clear unread in persistent storage
+    const currentConvs = loadConversationsFromStorage();
+    const updated = currentConvs.map(c => (c.id === convId ? { ...c, unreadCount: 0 } : c));
+    saveConversationsToStorage(updated);
   };
 
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputVal).trim();
     if (!text) return;
 
-    const newMsg: ChatMessage = {
-      id: generateMsgId('msg'),
-      sender: 'me',
+    setInputVal('');
+    const demoRole = getDemoRole();
+    const senderName = demoRole === 'customer' ? 'You (Customer)' : activeConv.recipientName;
+
+    addMessageToConversation(
+      activeConv.id,
+      demoRole,
       text,
-      time: getCurrentFormattedTime(),
-      type: 'text',
-      status: 'sent',
-    };
-
-    const updatedMessages = [...activeConv.messages, newMsg];
-
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeConv.id
-          ? {
-              ...c,
-              messages: updatedMessages,
-              lastMessage: text,
-              lastTime: newMsg.time,
-            }
-          : c,
-      ),
+      senderName,
+      'text'
     );
 
-    setInputVal('');
+    // If customer sent message, simulate pro worker reply
+    if (demoRole === 'customer') {
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        let replyText = 'জী বুঝতে পেরেছি, আমি প্রস্তুত আছি।';
+        if (text.includes('কতক্ষণ')) {
+          replyText = 'আর ৫ মিনিটের মধ্যে পৌঁছে যাব ভাই।';
+        } else if (text.includes('Flat') || text.includes('flat')) {
+          replyText = 'ধন্যবাদ, আমি লিফট দিয়ে উঠছি।';
+        } else if (text.includes('ব্রেকার') || text.includes('breaker')) {
+          replyText = 'ঠিক আছে ভাই, 20A double-pole circuit breaker লাগবে।';
+        }
 
-    // Trigger simulated reply
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const replyMsg: ChatMessage = {
-        id: generateMsgId('reply'),
-        sender: 'other',
-        text: text.includes('কতক্ষণ')
-          ? 'আর ৫ মিনিটের মধ্যে পৌঁছে যাব ভাই।'
-          : text.includes('Flat')
-          ? 'ধন্যবাদ, আমি লিফট দিয়ে উঠছি।'
-          : 'জী বুঝতে পেরেছি, আমি প্রস্তুত আছি।',
-        time: getCurrentFormattedTime(),
-        type: 'text',
-        status: 'delivered',
-      };
-
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeConv.id
-            ? {
-                ...c,
-                messages: [...c.messages, replyMsg],
-                lastMessage: replyMsg.text,
-                lastTime: replyMsg.time,
-              }
-            : c,
-        ),
-      );
-    }, 1200);
+        addMessageToConversation(
+          activeConv.id,
+          'worker',
+          replyText,
+          activeConv.recipientName,
+          'text'
+        );
+      }, 1200);
+    }
   };
 
   const handleSendLocation = () => {
-    const newMsg: ChatMessage = {
-      id: generateMsgId('loc'),
-      sender: 'me',
-      text: '📍 Shared Location: Road 27, House 42, Dhanmondi, Dhaka',
-      time: getCurrentFormattedTime(),
-      type: 'location',
-      status: 'sent',
-    };
-
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeConv.id
-          ? {
-              ...c,
-              messages: [...c.messages, newMsg],
-              lastMessage: newMsg.text,
-              lastTime: newMsg.time,
-            }
-          : c,
-      ),
+    const demoRole = getDemoRole();
+    const senderName = demoRole === 'customer' ? 'You (Customer)' : activeConv.recipientName;
+    addMessageToConversation(
+      activeConv.id,
+      demoRole,
+      '📍 Shared Location: Road 27, House 42, Dhanmondi, Dhaka',
+      senderName,
+      'location'
     );
 
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const replyMsg: ChatMessage = {
-        id: generateMsgId('reply'),
-        sender: 'other',
-        text: 'লোকেশন পেয়েছি, ম্যাপ ধরে এগিয়ে আসছি।',
-        time: getCurrentFormattedTime(),
-        type: 'text',
-      };
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeConv.id
-            ? {
-                ...c,
-                messages: [...c.messages, replyMsg],
-                lastMessage: replyMsg.text,
-                lastTime: replyMsg.time,
-              }
-            : c,
-        ),
-      );
-    }, 1100);
+    if (demoRole === 'customer') {
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        addMessageToConversation(
+          activeConv.id,
+          'worker',
+          'লোকেশন পেয়েছি, ম্যাপ ধরে এগিয়ে আসছি।',
+          activeConv.recipientName,
+          'text'
+        );
+      }, 1100);
+    }
   };
 
   const handleSendPhoto = () => {
-    const newMsg: ChatMessage = {
-      id: generateMsgId('img'),
-      sender: 'me',
-      text: '📸 Attached: Photo of damaged plumbing pipe & basin joint',
-      time: getCurrentFormattedTime(),
-      type: 'image',
-      status: 'sent',
-    };
-
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeConv.id
-          ? {
-              ...c,
-              messages: [...c.messages, newMsg],
-              lastMessage: newMsg.text,
-              lastTime: newMsg.time,
-            }
-          : c,
-      ),
+    const demoRole = getDemoRole();
+    const senderName = demoRole === 'customer' ? 'You (Customer)' : activeConv.recipientName;
+    addMessageToConversation(
+      activeConv.id,
+      demoRole,
+      '📸 Attached: Photo of damaged plumbing pipe & basin joint',
+      senderName,
+      'image'
     );
 
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const replyMsg: ChatMessage = {
-        id: generateMsgId('reply'),
-        sender: 'other',
-        text: 'ছবি দেখেছি, টেফলন টেপ ও ওয়্যাশার আমার কাছে আছে। চিন্তা করবেন না।',
-        time: getCurrentFormattedTime(),
-        type: 'text',
-      };
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeConv.id
-            ? {
-                ...c,
-                messages: [...c.messages, replyMsg],
-                lastMessage: replyMsg.text,
-                lastTime: replyMsg.time,
-              }
-            : c,
-        ),
-      );
-    }, 1300);
+    if (demoRole === 'customer') {
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        addMessageToConversation(
+          activeConv.id,
+          'worker',
+          'ছবি দেখেছি, টেফলন টেপ ও ওয়্যাশার আমার কাছে আছে। চিন্তা করবেন না।',
+          activeConv.recipientName,
+          'text'
+        );
+      }, 1300);
+    }
+  };
+
+  const handleApprove = (recId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'approved');
+  };
+
+  const handleReject = (recId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'rejected');
+  };
+
+  const handleChangeProduct = (recId: string, newProductId: string) => {
+    updateRecommendationDecision(
+      activeConv.id,
+      recId,
+      'alternative_requested',
+      undefined,
+      newProductId
+    );
+  };
+
+  const handleAddToCart = (recId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'added_to_cart');
+  };
+
+  const handleQuantityChange = (recId: string, newQty: number) => {
+    const rec = activeConv.recommendations?.find(r => r.id === recId);
+    if (rec) {
+      updateRecommendationDecision(activeConv.id, recId, rec.status, newQty);
+    }
   };
 
   const handleCall = () => {
@@ -558,6 +411,7 @@ export function FloatingChatWidget() {
     router.push({
       pathname: '/chat',
       params: {
+        conversationId: activeConv.id,
         recipientName: activeConv.recipientName,
         recipientRole: activeConv.recipientRole,
         jobTitle: activeConv.jobTitle,
@@ -811,7 +665,22 @@ export function FloatingChatWidget() {
                   keyExtractor={item => item.id}
                   contentContainerStyle={styles.messagesContent}
                   renderItem={({ item }) => {
-                    const isMe = item.sender === 'me';
+                    if (item.type === 'system' || item.senderRole === 'system') {
+                      return (
+                        <View style={styles.systemMsgWrapper} testID={`floating-system-msg-${item.id}`}>
+                          <View style={styles.systemMsgBubble}>
+                            <Text style={styles.systemMsgText}>{item.text}</Text>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    const currentDemo = getDemoRole();
+                    const isMe =
+                      item.sender === 'me' ||
+                      (currentDemo === 'customer' && item.senderRole === 'customer') ||
+                      (currentDemo === 'worker' && item.senderRole === 'worker');
+
                     return (
                       <View
                         style={[
@@ -881,15 +750,28 @@ export function FloatingChatWidget() {
                     );
                   }}
                   ListFooterComponent={
-                    isTyping ? (
-                      <View style={styles.typingContainer}>
-                        <View style={styles.typingBubble}>
-                          <Text style={styles.typingText}>
-                            {activeConv.recipientName} is typing...
-                          </Text>
+                    <>
+                      {activeConv.recommendations && activeConv.recommendations.length > 0 && (
+                        <ChatProductRecommendationGroup
+                          recommendations={activeConv.recommendations}
+                          demoRole={getDemoRole()}
+                          onApprove={handleApprove}
+                          onReject={handleReject}
+                          onChangeProduct={handleChangeProduct}
+                          onAddToCart={handleAddToCart}
+                          onQuantityChange={handleQuantityChange}
+                        />
+                      )}
+                      {isTyping && (
+                        <View style={styles.typingContainer}>
+                          <View style={styles.typingBubble}>
+                            <Text style={styles.typingText}>
+                              {activeConv.recipientName} is typing...
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                    ) : null
+                      )}
+                    </>
                   }
                 />
 
@@ -1470,5 +1352,26 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: '#9ca3af',
     opacity: 0.6,
+  },
+  systemMsgWrapper: {
+    marginVertical: 6,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  systemMsgBubble: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    maxWidth: '94%',
+  },
+  systemMsgText: {
+    fontSize: 11,
+    color: '#1e40af',
+    lineHeight: 15,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

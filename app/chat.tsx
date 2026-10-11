@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -14,190 +14,200 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-interface Message {
-  id: string;
-  sender: 'me' | 'other';
-  text: string;
-  time: string;
-  type?: 'text' | 'location' | 'image' | 'system';
-  status?: 'sent' | 'delivered' | 'read';
-}
+import {
+  addMessageToConversation,
+  ChatConversation,
+  ChatMessage,
+  DemoRole,
+  getCartCount,
+  getCartSubtotal,
+  getDemoRole,
+  loadConversationsFromStorage,
+  setDemoRole as persistDemoRole,
+  subscribeToChatSync,
+  updateRecommendationDecision,
+} from '@/services/chat-sync-service';
+import { ChatProductRecommendationGroup } from '@/components/chat-product-recommendation';
+import { InChatCartModal } from '@/components/in-chat-cart-modal';
 
-const QUICK_CHIPS = [
-  { label: 'কতক্ষণ লাগবে ভাই?', reply: 'আর ৫-৭ মিনিটের মধ্যে পৌঁছে যাচ্ছি ভাই।' },
-  { label: 'দরজার সামনে আছি', reply: 'জী আমি মেইন গেইটে ঢুকছি।' },
-  { label: 'গেইটের বেল বাজান', reply: 'ঠিক আছে, বেল বাজাচ্ছি।' },
-  { label: 'Plat / Flat number?', reply: 'Flat 4B, 4th floor.' },
-  { label: 'Call me on arrival', reply: 'Sure, I will call as soon as I arrive.' },
+const CUSTOMER_CHIPS = [
+  'কতক্ষণ লাগবে ভাই?',
+  'দরজার সামনে আছি',
+  'গেইটের বেল বাজান',
+  'Flat 4B, 4th floor.',
+  'Call me on arrival',
+  'ঠিক আছে ভাই, পার্টস অনুমোদন করছি।',
+  'কার্টে যোগ করে দিয়েছি।',
 ];
 
-let msgSequence = 10;
-function createMessageId(prefix: string) {
-  msgSequence += 1;
-  return `${prefix}_${msgSequence}`;
-}
-
-function getCurrentFormattedTime() {
-  const d = new Date();
-  const h = d.getHours() % 12 || 12;
-  const m = d.getMinutes().toString().padStart(2, '0');
-  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-  return `${h}:${m} ${ampm}`;
-}
+const WORKER_CHIPS = [
+  'We need a 20A double-pole circuit breaker and 2.5mm electrical cable for this installation.',
+  'We need a replacement water pump.',
+  'PVC pipe 1/2 inch and brass angle valve required.',
+  'Teflon tape and rubber washer set needed for pipe joints.',
+  '16A modular switch and copper wire.',
+  'কাজ শুরু করেছি, পার্টস রেডি থাকলে সুবিধা হবে।',
+];
 
 export default function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
+    conversationId?: string;
     recipientName?: string;
     recipientRole?: string;
     jobTitle?: string;
     userRole?: string;
   }>();
 
-  const recipientName = params.recipientName || 'Rahim Uddin';
-  const recipientRole = params.recipientRole || 'Plumber • 4.9 ★';
-  const jobTitle = params.jobTitle || 'Plumbing Leak Fix (Dhanmondi 27)';
-  const isWorker = params.userRole === 'worker';
-
+  const [demoRole, setDemoRoleState] = useState<DemoRole>(getDemoRole);
+  const [conversations, setConversations] = useState<ChatConversation[]>(loadConversationsFromStorage);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(getCartCount);
+  const [cartSubtotal, setCartSubtotal] = useState(getCartSubtotal);
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'm1',
-      sender: 'other',
-      text: 'আসসালামু আলাইকুম! আমি আপনার রিকোয়েস্ট পেয়েছি, ধানমন্ডি ২৭ নম্বর রোডের দিকে আসছি।',
-      time: '11:42 AM',
-      type: 'text',
-      status: 'read',
-    },
-    {
-      id: 'm2',
-      sender: 'me',
-      text: 'ওয়ালাইকুম আসসালাম ভাই। মেইন গেইট খোলা আছে, ৩ তলায় উঠুন।',
-      time: '11:43 AM',
-      type: 'text',
-      status: 'read',
-    },
-    {
-      id: 'm3',
-      sender: 'other',
-      text: 'ঠিক আছে, আমি আর কয়েক মিনিটের মধ্যে পৌঁছাব ইনশাল্লাহ। কোনো নির্দিষ্ট টুল লাগবে কি?',
-      time: '11:44 AM',
-      type: 'text',
-      status: 'read',
-    },
-  ]);
 
   const flatListRef = useRef<FlatList>(null);
 
+  const recipientParamName = params.recipientName;
+  const conversationParamId = params.conversationId;
+  const activeConv =
+    conversations.find(
+      c =>
+        (conversationParamId && c.id === conversationParamId) ||
+        (recipientParamName &&
+          c.recipientName.toLowerCase() === recipientParamName.toLowerCase())
+    ) ||
+    conversations[0] || {
+      id: 'conv-rahim',
+      recipientId: 'worker-demo-1',
+      recipientName: 'Rahim Uddin',
+      recipientRole: 'Verified Plumber • 4.9 ★',
+      jobTitle: 'Plumbing Leak Fix (Dhanmondi 27)',
+      unreadCount: 0,
+      lastMessage: '',
+      lastTime: '',
+      avatarColor: '#10b981',
+      messages: [],
+      recommendations: [],
+    };
+
+  const recipientName = activeConv.recipientName;
+  const recipientRole = activeConv.recipientRole;
+  const jobTitle = params.jobTitle || activeConv.jobTitle;
+
+  const refreshCart = useCallback(() => {
+    setCartCount(getCartCount());
+    setCartSubtotal(getCartSubtotal());
+  }, []);
+
+  // Subscribe to reactive sync across components & storage
   useEffect(() => {
-    // Scroll to bottom when messages update
+    const unsubscribe = subscribeToChatSync((updatedConvs) => {
+      setConversations(updatedConvs);
+      refreshCart();
+    });
+    return unsubscribe;
+  }, [refreshCart]);
+
+  useEffect(() => {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
-    }, 150);
-  }, [messages, isTyping]);
+    }, 120);
+  }, [activeConv.messages.length, activeConv.recommendations.length, isTyping]);
+
+  const handleRoleSwitch = (newRole: DemoRole) => {
+    setDemoRoleState(newRole);
+    persistDemoRole(newRole);
+  };
 
   const handleSend = (customText?: string) => {
     const textToSend = (customText || inputVal).trim();
     if (!textToSend) return;
 
-    const currentTime = getCurrentFormattedTime();
-
-    const newMsg: Message = {
-      id: createMessageId('msg'),
-      sender: 'me',
-      text: textToSend,
-      time: currentTime,
-      type: 'text',
-      status: 'sent',
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
     if (!customText) setInputVal('');
 
-    // Simulate other participant typing & auto-replying
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
+    const senderName =
+      demoRole === 'customer' ? 'You (Customer)' : activeConv.recipientName;
 
-      // Context-aware auto reply
-      let replyText = 'জী ভাই, বুঝতে পেরেছি। আমি ঠিক সময়ে পৌঁছে যাব।';
-      const matchedChip = QUICK_CHIPS.find((c) => c.label === textToSend);
-      if (matchedChip) {
-        replyText = matchedChip.reply;
-      } else if (textToSend.toLowerCase().includes('location') || textToSend.includes('কোথায়')) {
-        replyText = 'আমি ধানমন্ডি ২৭ এর মোড়ে আছি, জ্যাম কম আছে।';
-      } else if (textToSend.toLowerCase().includes('bill') || textToSend.includes('টাকা') || textToSend.includes('price')) {
-        replyText = 'কাজের পরিদর্শন শেষে ফিক্সড রেট অনুযায়ী ৳৫00 চার্জ হবে।';
-      }
+    addMessageToConversation(
+      activeConv.id,
+      demoRole,
+      textToSend,
+      senderName,
+      'text'
+    );
 
-      const replyMsg: Message = {
-        id: createMessageId('reply'),
-        sender: 'other',
-        text: replyText,
-        time: getCurrentFormattedTime(),
-        type: 'text',
-      };
+    // If customer sent a message, simulate a short worker reply if appropriate
+    if (demoRole === 'customer') {
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        let replyText = 'জী ভাই, বুঝতে পেরেছি। আমি ঠিক সময়ে পৌঁছে যাব।';
+        if (textToSend.includes('কতক্ষণ')) {
+          replyText = 'আর ৫-৭ মিনিটের মধ্যে পৌঁছে যাচ্ছি ভাই।';
+        } else if (textToSend.includes('অনুমোদন') || textToSend.includes('কার্ট')) {
+          replyText = 'ধন্যবাদ ভাই! অনুমোদিত পার্টসগুলো দিয়ে কাজ এগিয়ে নিচ্ছি।';
+        }
 
-      setMessages((prev) => [...prev, replyMsg]);
-    }, 1400);
+        addMessageToConversation(
+          activeConv.id,
+          'worker',
+          replyText,
+          activeConv.recipientName,
+          'text'
+        );
+      }, 1200);
+    }
   };
 
   const handleSendLocation = () => {
-    const currentTime = getCurrentFormattedTime();
-    const locMsg: Message = {
-      id: createMessageId('loc'),
-      sender: 'me',
-      text: '📍 Live Location Shared: House 42, Road 11/A, Dhanmondi, Dhaka',
-      time: currentTime,
-      type: 'location',
-      status: 'sent',
-    };
-    setMessages((prev) => [...prev, locMsg]);
-
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: createMessageId('reply'),
-          sender: 'other',
-          text: 'লোকেশন পেয়েছি ভাই, গুগল ম্যাপ ফলো করে আসছি।',
-          time: getCurrentFormattedTime(),
-          type: 'text',
-        },
-      ]);
-    }, 1200);
+    addMessageToConversation(
+      activeConv.id,
+      demoRole,
+      '📍 Shared Location: Road 27, House 42, Dhanmondi, Dhaka',
+      demoRole === 'customer' ? 'You (Customer)' : activeConv.recipientName,
+      'location'
+    );
   };
 
   const handleSendPhoto = () => {
-    const currentTime = getCurrentFormattedTime();
-    const imgMsg: Message = {
-      id: createMessageId('img'),
-      sender: 'me',
-      text: '📸 Attached: Photo of pipe leak under the sink',
-      time: currentTime,
-      type: 'image',
-      status: 'sent',
-    };
-    setMessages((prev) => [...prev, imgMsg]);
+    addMessageToConversation(
+      activeConv.id,
+      demoRole,
+      '📸 Attached Photo: Breaker panel / pipe joint',
+      demoRole === 'customer' ? 'You (Customer)' : activeConv.recipientName,
+      'image'
+    );
+  };
 
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: createMessageId('reply'),
-          sender: 'other',
-          text: 'ছবি দেখেছি, প্রয়োজনীয় টেফলন টেপ ও রেঞ্চ আমার সাথে আছে। চিন্তা করবেন না।',
-          time: getCurrentFormattedTime(),
-          type: 'text',
-        },
-      ]);
-    }, 1300);
+  const handleApprove = (recId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'approved');
+    refreshCart();
+  };
+
+  const handleReject = (recId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'rejected');
+    refreshCart();
+  };
+
+  const handleChangeProduct = (recId: string, newProductId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'alternative_requested', undefined, newProductId);
+    refreshCart();
+  };
+
+  const handleAddToCart = (recId: string) => {
+    updateRecommendationDecision(activeConv.id, recId, 'added_to_cart');
+    refreshCart();
+  };
+
+  const handleQuantityChange = (recId: string, newQty: number) => {
+    const rec = activeConv.recommendations.find(r => r.id === recId);
+    if (rec) {
+      updateRecommendationDecision(activeConv.id, recId, rec.status, newQty);
+    }
+    refreshCart();
   };
 
   const handleCall = () => {
@@ -213,23 +223,42 @@ export default function ChatScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.push(isWorker ? '/worker-dashboard' : '/track-worker');
+      router.push(demoRole === 'worker' ? '/worker-dashboard' : '/customer-dashboard');
     }
   };
 
-  const renderMessageItem = ({ item }: { item: Message }) => {
-    const isMe = item.sender === 'me';
+  const renderMessageItem = ({ item }: { item: ChatMessage }) => {
+    // System message
+    if (item.type === 'system' || item.senderRole === 'system') {
+      return (
+        <View style={styles.systemMsgWrapper} testID={`system-msg-${item.id}`}>
+          <View style={styles.systemMsgBubble}>
+            <Text style={styles.systemMsgText}>{item.text}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    const isMe =
+      (demoRole === 'customer' && item.senderRole === 'customer') ||
+      (demoRole === 'worker' && item.senderRole === 'worker');
 
     return (
       <View
         style={[
           styles.msgRow,
           isMe ? styles.msgRowMe : styles.msgRowOther,
-        ]}>
+        ]}
+      >
         {!isMe && (
-          <View style={styles.avatarMini}>
+          <View
+            style={[
+              styles.avatarMini,
+              { backgroundColor: item.senderRole === 'worker' ? '#ea580c' : '#15157d' },
+            ]}
+          >
             <Text style={styles.avatarMiniText}>
-              {recipientName.charAt(0)}
+              {item.senderName ? item.senderName.charAt(0) : 'W'}
             </Text>
           </View>
         )}
@@ -240,17 +269,23 @@ export default function ChatScreen() {
             isMe ? styles.bubbleMe : styles.bubbleOther,
             item.type === 'location' && styles.bubbleLocation,
             item.type === 'image' && styles.bubbleImage,
-          ]}>
+          ]}
+        >
+          {/* Sender Role Tag */}
+          <Text style={[styles.senderTag, isMe ? styles.senderTagMe : styles.senderTagOther]}>
+            {item.senderRole === 'customer' ? 'Customer' : 'Worker'} • {item.senderName || (isMe ? 'You' : recipientName)}
+          </Text>
+
           {item.type === 'location' && (
             <View style={styles.badgeLocationRow}>
-              <Ionicons name="location" size={16} color="#ffffff" />
-              <Text style={styles.badgeLocationText}>GPS Pin</Text>
+              <Ionicons name="location" size={15} color="#ffffff" />
+              <Text style={styles.badgeLocationText}>GPS Location Pin</Text>
             </View>
           )}
 
           {item.type === 'image' && (
             <View style={styles.badgeImageRow}>
-              <MaterialCommunityIcons name="image" size={16} color="#ffffff" />
+              <MaterialCommunityIcons name="image" size={15} color="#ffffff" />
               <Text style={styles.badgeImageText}>Photo Attachment</Text>
             </View>
           )}
@@ -259,7 +294,8 @@ export default function ChatScreen() {
             style={[
               styles.msgText,
               isMe ? styles.msgTextMe : styles.msgTextOther,
-            ]}>
+            ]}
+          >
             {item.text}
           </Text>
 
@@ -268,14 +304,15 @@ export default function ChatScreen() {
               style={[
                 styles.timeText,
                 isMe ? styles.timeTextMe : styles.timeTextOther,
-              ]}>
+              ]}
+            >
               {item.time}
             </Text>
             {isMe && (
               <Ionicons
                 name="checkmark-done"
                 size={14}
-                color="#60a5fa"
+                color="#93c5fd"
                 style={styles.checkIcon}
               />
             )}
@@ -285,19 +322,95 @@ export default function ChatScreen() {
     );
   };
 
+  const activeChips = demoRole === 'worker' ? WORKER_CHIPS : CUSTOMER_CHIPS;
+
   return (
     <KeyboardAvoidingView
       style={styles.safeArea}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* ── Top Header Bar ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      {/* ── Demo Role Switcher & In-Chat Cart Bar ── */}
+      <View style={[styles.topControlBar, { paddingTop: Math.max(insets.top, 10) }]}>
+        <View style={styles.roleSegmentedControl}>
+          <TouchableOpacity
+            testID="demo-role-customer"
+            style={[
+              styles.roleTab,
+              demoRole === 'customer' && styles.roleTabActiveCustomer,
+            ]}
+            onPress={() => handleRoleSwitch('customer')}
+            activeOpacity={0.85}
+            accessibilityLabel="Switch to Customer Mode"
+          >
+            <Ionicons
+              name="person"
+              size={13}
+              color={demoRole === 'customer' ? '#ffffff' : '#15157d'}
+            />
+            <Text
+              style={[
+                styles.roleTabText,
+                demoRole === 'customer' && styles.roleTabTextActive,
+              ]}
+            >
+              Customer Mode
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            testID="demo-role-worker"
+            style={[
+              styles.roleTab,
+              demoRole === 'worker' && styles.roleTabActiveWorker,
+            ]}
+            onPress={() => handleRoleSwitch('worker')}
+            activeOpacity={0.85}
+            accessibilityLabel="Switch to Worker Mode"
+          >
+            <Ionicons
+              name="construct"
+              size={13}
+              color={demoRole === 'worker' ? '#ffffff' : '#ea580c'}
+            />
+            <Text
+              style={[
+                styles.roleTabText,
+                demoRole === 'worker' && styles.roleTabTextActive,
+              ]}
+            >
+              Worker Mode
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* In-Chat Cart Shortcut */}
+        <TouchableOpacity
+          testID="header-cart-btn"
+          style={styles.headerCartBtn}
+          onPress={() => setIsCartOpen(true)}
+          activeOpacity={0.85}
+          accessibilityLabel="Open in-chat cart"
+        >
+          <Ionicons name="cart" size={17} color="#4338a8" />
+          {cartCount > 0 && (
+            <View testID="header-cart-badge" style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartCount}</Text>
+            </View>
+          )}
+          <Text style={styles.cartBtnAmount}>৳{cartSubtotal.toLocaleString()}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Chat Header Bar ── */}
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity
             style={styles.backBtn}
             onPress={handleBack}
             activeOpacity={0.7}
-            accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={24} color="#15157d" />
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={22} color="#15157d" />
           </TouchableOpacity>
 
           <View style={styles.headerInfoCol}>
@@ -320,16 +433,18 @@ export default function ChatScreen() {
               style={styles.headerActionBtn}
               onPress={handleCall}
               activeOpacity={0.8}
-              accessibilityLabel="Call via phone">
-              <Ionicons name="call" size={18} color="#15157d" />
+              accessibilityLabel="Call via phone"
+            >
+              <Ionicons name="call" size={17} color="#15157d" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.headerActionBtn}
               onPress={() => router.push('/track-worker')}
               activeOpacity={0.8}
-              accessibilityLabel="Track on map">
-              <Ionicons name="map" size={18} color="#F7941D" />
+              accessibilityLabel="Track on map"
+            >
+              <Ionicons name="map" size={17} color="#F7941D" />
             </TouchableOpacity>
           </View>
         </View>
@@ -342,17 +457,18 @@ export default function ChatScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/track-worker')}
-            style={styles.trackPill}>
+            style={styles.trackPill}
+          >
             <Text style={styles.trackPillText}>Live Track</Text>
             <Ionicons name="chevron-forward" size={12} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Message Thread ── */}
+      {/* ── Message Thread & Recommendations ── */}
       <FlatList
         ref={flatListRef}
-        data={messages}
+        data={activeConv.messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessageItem}
         contentContainerStyle={[
@@ -361,38 +477,73 @@ export default function ChatScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={
-          isTyping ? (
-            <View style={styles.typingContainer}>
-              <View style={styles.avatarMini}>
-                <Text style={styles.avatarMiniText}>
-                  {recipientName.charAt(0)}
-                </Text>
+          <>
+            {/* Inline AI Component Recommendations Panel */}
+            {activeConv.recommendations && activeConv.recommendations.length > 0 && (
+              <ChatProductRecommendationGroup
+                recommendations={activeConv.recommendations}
+                demoRole={demoRole}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onChangeProduct={handleChangeProduct}
+                onAddToCart={handleAddToCart}
+                onQuantityChange={handleQuantityChange}
+              />
+            )}
+
+            {isTyping && (
+              <View style={styles.typingContainer}>
+                <View style={styles.avatarMini}>
+                  <Text style={styles.avatarMiniText}>
+                    {recipientName.charAt(0)}
+                  </Text>
+                </View>
+                <View style={styles.typingBubble}>
+                  <View style={styles.typingDot} />
+                  <View style={[styles.typingDot, styles.typingDotDelay1]} />
+                  <View style={[styles.typingDot, styles.typingDotDelay2]} />
+                  <Text style={styles.typingText}>
+                    {recipientName.split(' ')[0]} is typing...
+                  </Text>
+                </View>
               </View>
-              <View style={styles.typingBubble}>
-                <View style={styles.typingDot} />
-                <View style={[styles.typingDot, styles.typingDotDelay1]} />
-                <View style={[styles.typingDot, styles.typingDotDelay2]} />
-                <Text style={styles.typingText}>{recipientName.split(' ')[0]} is typing...</Text>
-              </View>
-            </View>
-          ) : null
+            )}
+          </>
         }
       />
 
       {/* ── Quick Suggestions Bar ── */}
       <View style={styles.quickChipsWrapper}>
+        <View style={styles.quickChipsHeader}>
+          <Text style={styles.chipsRoleLabel}>
+            {demoRole === 'worker'
+              ? '🛠️ Worker quick mentions (test AI detection):'
+              : '👤 Customer quick replies:'}
+          </Text>
+        </View>
         <FlatList
           horizontal
-          data={QUICK_CHIPS}
-          keyExtractor={(item) => item.label}
+          data={activeChips}
+          keyExtractor={(item) => item}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.quickChipsContent}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.quickChip}
-              onPress={() => handleSend(item.label)}
-              activeOpacity={0.75}>
-              <Text style={styles.quickChipText}>{item.label}</Text>
+              style={[
+                styles.quickChip,
+                demoRole === 'worker' && styles.quickChipWorker,
+              ]}
+              onPress={() => handleSend(item)}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.quickChipText,
+                  demoRole === 'worker' && styles.quickChipTextWorker,
+                ]}
+              >
+                {item}
+              </Text>
             </TouchableOpacity>
           )}
         />
@@ -403,27 +554,34 @@ export default function ChatScreen() {
         style={[
           styles.inputContainer,
           { paddingBottom: Math.max(insets.bottom, 12) },
-        ]}>
+        ]}
+      >
         <TouchableOpacity
           style={styles.attachBtn}
           onPress={handleSendPhoto}
           activeOpacity={0.7}
-          accessibilityLabel="Attach photo">
-          <Ionicons name="camera-outline" size={22} color="#64748b" />
+          accessibilityLabel="Attach photo"
+        >
+          <Ionicons name="camera-outline" size={21} color="#64748b" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.attachBtn}
           onPress={handleSendLocation}
           activeOpacity={0.7}
-          accessibilityLabel="Share current location">
-          <Ionicons name="location-outline" size={22} color="#64748b" />
+          accessibilityLabel="Share current location"
+        >
+          <Ionicons name="location-outline" size={21} color="#64748b" />
         </TouchableOpacity>
 
         <TextInput
           testID="chat-input"
           style={styles.textInput}
-          placeholder="Message Rahim (English বা বাংলা)..."
+          placeholder={
+            demoRole === 'worker'
+              ? "Type part mention (e.g., 'We need a 20A double-pole circuit breaker and 2.5mm electrical cable')..."
+              : `Reply as Customer to ${recipientName}...`
+          }
           placeholderTextColor="#94a3b8"
           value={inputVal}
           onChangeText={setInputVal}
@@ -440,14 +598,22 @@ export default function ChatScreen() {
           onPress={() => handleSend()}
           disabled={inputVal.trim().length === 0}
           activeOpacity={0.8}
-          accessibilityLabel="Send message">
+          accessibilityLabel="Send message"
+        >
           <Ionicons
             name="send"
-            size={18}
+            size={17}
             color={inputVal.trim().length > 0 ? '#ffffff' : '#94a3b8'}
           />
         </TouchableOpacity>
       </View>
+
+      {/* ── In-Chat Demo Cart Drawer / Modal ── */}
+      <InChatCartModal
+        visible={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        onCartUpdated={refreshCart}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -457,39 +623,101 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  topControlBar: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 8,
+  },
+  roleSegmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    padding: 3,
+    flex: 1,
+    maxWidth: 290,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  roleTabActiveCustomer: {
+    backgroundColor: '#15157d',
+    shadowColor: '#15157d',
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  roleTabActiveWorker: {
+    backgroundColor: '#ea580c',
+    shadowColor: '#ea580c',
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  roleTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  roleTabTextActive: {
+    color: '#ffffff',
+  },
+  headerCartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#f3e8ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+  },
+  cartBadge: {
+    backgroundColor: '#7c3aed',
+    borderRadius: 999,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  cartBtnAmount: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#6b21a8',
+  },
   header: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-      web: {
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-      },
-    }),
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 4,
   },
   headerInfoCol: {
     flex: 1,
@@ -500,32 +728,32 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerName: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0f172a',
   },
   onlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ecfdf5',
+    gap: 4,
+    backgroundColor: '#dcfce7',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
-    gap: 4,
+    borderRadius: 999,
   },
   onlineDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10b981',
+    backgroundColor: '#16a760',
   },
   onlineText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#059669',
+    color: '#15803d',
   },
   headerRole: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#64748b',
     marginTop: 1,
   },
@@ -535,54 +763,51 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   serviceContextBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f3ff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e7ff',
     gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   serviceContextText: {
-    flex: 1,
-    fontSize: 12,
+    fontSize: 11.5,
+    color: '#334155',
     fontWeight: '600',
-    color: '#1e293b',
+    flex: 1,
   },
   trackPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 3,
     backgroundColor: '#15157d',
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    gap: 2,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   trackPillText: {
-    color: '#ffffff',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
+    color: '#ffffff',
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingTop: 12,
   },
   msgRow: {
     flexDirection: 'row',
-    marginBottom: 12,
     alignItems: 'flex-end',
-    gap: 8,
+    marginBottom: 10,
   },
   msgRowMe: {
     justifyContent: 'flex-end',
@@ -593,29 +818,21 @@ const styles = StyleSheet.create({
   avatarMini: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e0e7ff',
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 6,
   },
   avatarMiniText: {
+    color: '#ffffff',
     fontSize: 12,
-    fontWeight: '700',
-    color: '#15157d',
+    fontWeight: '800',
   },
   bubble: {
-    maxWidth: '78%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    maxWidth: '82%',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 16,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-      },
-      default: {
-        elevation: 1,
-      },
-    }),
   },
   bubbleMe: {
     backgroundColor: '#15157d',
@@ -631,52 +848,63 @@ const styles = StyleSheet.create({
     backgroundColor: '#0284c7',
   },
   bubbleImage: {
-    backgroundColor: '#4338ca',
+    backgroundColor: '#059669',
+  },
+  senderTag: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  senderTagMe: {
+    color: '#bfdbfe',
+  },
+  senderTagOther: {
+    color: '#64748b',
   },
   badgeLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     marginBottom: 4,
   },
   badgeLocationText: {
-    fontSize: 11,
     color: '#ffffff',
+    fontSize: 11,
     fontWeight: '700',
   },
   badgeImageRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     marginBottom: 4,
   },
   badgeImageText: {
-    fontSize: 11,
     color: '#ffffff',
+    fontSize: 11,
     fontWeight: '700',
   },
   msgText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12.5,
+    lineHeight: 18,
   },
   msgTextMe: {
     color: '#ffffff',
   },
   msgTextOther: {
-    color: '#1e293b',
+    color: '#0f172a',
   },
   msgFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: 4,
     gap: 4,
+    marginTop: 3,
   },
   timeText: {
-    fontSize: 10,
+    fontSize: 9.5,
   },
   timeTextMe: {
-    color: '#cbd5e1',
+    color: '#93c5fd',
   },
   timeTextOther: {
     color: '#94a3b8',
@@ -684,39 +912,54 @@ const styles = StyleSheet.create({
   checkIcon: {
     marginLeft: 2,
   },
+  systemMsgWrapper: {
+    alignItems: 'center',
+    marginVertical: 6,
+    paddingHorizontal: 16,
+  },
+  systemMsgBubble: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  systemMsgText: {
+    fontSize: 11,
+    color: '#334155',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   typingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-    marginBottom: 8,
+    marginVertical: 4,
   },
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
     gap: 4,
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
   typingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#94a3b8',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#64748b',
   },
   typingDotDelay1: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   typingDotDelay2: {
-    opacity: 0.3,
+    opacity: 0.4,
   },
   typingText: {
     fontSize: 11,
-    color: '#64748b',
+    color: '#475569',
     marginLeft: 4,
     fontStyle: 'italic',
   },
@@ -726,56 +969,76 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9',
     paddingVertical: 6,
   },
+  quickChipsHeader: {
+    paddingHorizontal: 14,
+    marginBottom: 4,
+  },
+  chipsRoleLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#64748b',
+  },
   quickChipsContent: {
     paddingHorizontal: 12,
-    gap: 8,
+    gap: 6,
   },
   quickChip: {
     backgroundColor: '#f1f5f9',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  quickChipWorker: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+  },
   quickChipText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#334155',
+  },
+  quickChipTextWorker: {
+    color: '#c2410c',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    gap: 8,
   },
   attachBtn: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 14,
+    minHeight: 38,
+    maxHeight: 80,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    fontSize: 12.5,
     color: '#0f172a',
-    maxHeight: 100,
   },
   sendBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#f1f5f9',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#cbd5e1',
     alignItems: 'center',
     justifyContent: 'center',
   },
