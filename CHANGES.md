@@ -1,9 +1,10 @@
 # Detailed Change Log & Implementation Manifest
 
 **Repository:** `Mahmoud-Hussain/ThiKorben`  
-**Pull Request:** [#19 (feature/live-chat-and-ux-bugfixes -> dev)](https://github.com/Mahmoud-Hussain/ThiKorben/pull/19)  
+**Pull Request (Fork):** [#1 (feature/live-chat-and-ux-bugfixes -> dev)](https://github.com/rajee99/ThiKorben-1/pull/1)  
+**Upstream Compare:** [compare/dev...rajee99:ThiKorben-1:feature/live-chat-and-ux-bugfixes](https://github.com/Mahmoud-Hussain/ThiKorben/compare/dev...rajee99:ThiKorben-1:feature/live-chat-and-ux-bugfixes?expand=1)  
 **Author:** rajee99  
-**Status:** All CI checks passing (21/21 Expo Doctor, 0 TypeScript errors, 0 ESLint warnings, 29/29 static routes built)
+**Status:** All checks passing (0 TypeScript errors, 0 ESLint warnings, 15/15 Pytest tests passing)
 
 ---
 
@@ -275,4 +276,54 @@ All 8 minimum acceptance criteria scenarios were implemented and verified with a
 | `test_07_customer_cannot_accept_another_customers_job` | Non-owner cannot accept; blocked | :white_check_mark: PASSED |
 | `test_08_proposal_rejected_on_assigned_job` | Propose button hidden & API rejects | :white_check_mark: PASSED |
 | `tests/test_community.py` (Full Suite) | 4/4 community lifecycle tests pass | :white_check_mark: PASSED |
+
+---
+
+## 6. Floating Chat Widget, Recent Chat History & Navigation Integration
+
+### A. Floating Chat Widget (`components/floating-chat-widget.tsx`)
+* **Component Architecture**: Built a dedicated, reusable floating chat widget mounted globally in `app/_layout.tsx` so both customers and workers have immediate access from any screen.
+* **Floating Trigger Button**:
+  * Positioned on the bottom-right corner (`bottom: 24, right: 18`) with elevation and pulse styling.
+  * Real-time unread badge displaying pending message count.
+* **Recent Chat History & Multi-Conversation Drawer**:
+  * Tabbed switcher between **Live Chat** and **Recent History**.
+  * Multi-conversation support tracking distinct customer/worker threads:
+    * **Rahim Uddin** (Verified Plumber • *Plumbing Leak Fix*)
+    * **Kamal Hossain** (Electrician • *Main Breaker Tripping*)
+    * **ThiKorben Support Desk** (*Order & Safety Inquiries*)
+  * Displays last message preview, relative timestamps, and unread badges.
+* **Full In-Widget Messaging Capabilities**:
+  * Instant custom text sending with delivery timestamps and double-check read receipts (`✓✓`).
+  * **Bilingual Quick Chips**: One-tap replies in Bengali and English (*"কতক্ষণ লাগবে ভাই?"*, *"দরজার সামনে আছি"*, *"গেইটের বেল বাজান"*, *"Flat number?"*, *"Call on arrival"*).
+  * **Rich Attachments**: 📍 Send live GPS Pin cards; 📸 Send photo attachments.
+  * **Simulated Automated Response Engine**: Generates realistic typing indicators (*"Rahim is typing..."*) and contextual worker replies.
+  * **Direct Phone Dialer**: Tap the phone icon to dial the worker or customer directly (`tel:...`).
+  * **Fullscreen Expansion**: One-click expand button transitions smoothly into the dedicated `/chat` screen.
+  * **Persistent Storage**: All sent messages, photo cards, and location pins are saved to `localStorage` (`thikorben_floating_chat_conversations_v2`), preserving conversations across page reloads.
+
+### B. Customer Dashboard Direct Shortcuts (`app/customer-dashboard.tsx`)
+* Added a responsive 2x3 quick-action grid on `/customer-dashboard` providing 1-click access to:
+  * 📍 **Live Tracking** (`/track-worker`): Interactive Leaflet map, GPS route, 12m ETA countdown.
+  * 🛒 **Hardware Shop** (`/shop`): Sanitary, electrical & repair supplies catalog.
+  * 📦 **Materials & Parts** (`/job-materials`): Smart product recommendations & customer material approval.
+  * 💬 **Live Chat** (`/chat`): Direct worker messaging & photo sharing.
+  * 👥 **Community** (`/community`): Browse active requests and quotes.
+  * 🔧 **Worker Mode** (`/role-selection`): Switch roles securely.
+
+### C. Layout & Navigation Hierarchy (`app/_layout.tsx`, `components/page-quick-switcher.tsx`)
+* Mounted `<FloatingChatWidget />` globally in `AppNavigator`.
+* Repositioned the Dev Page Switcher to bottom-left (`bottom: 24, left: 18`) to eliminate crowding and give the floating chat button prime visibility.
+
+### D. Automated Test Verification
+New test suite added in `tests/test_floating_chat.py`:
+```bash
+python -m pytest tests/test_floating_chat.py -v
+```
+| Test Scenario | Description | Result |
+| :--- | :--- | :--- |
+| `test_floating_chat_button_renders_globally` | Verifies floating chat FAB renders on the screen | :white_check_mark: PASSED |
+| `test_floating_chat_opens_and_sends_message` | Opens chat drawer, types message, and verifies rendered in thread | :white_check_mark: PASSED |
+| `test_floating_chat_recent_history_switching` | Opens Recent History tab, displays conversations, and switches recipient | :white_check_mark: PASSED |
+
 
