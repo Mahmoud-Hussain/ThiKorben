@@ -280,37 +280,40 @@ export default function CommunityScreen() {
             )}
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filters}
-          >
-            {CATEGORIES.map(item => {
-              const selected = item.value === category;
+          <View style={styles.filtersWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filtersScroll}
+              contentContainerStyle={styles.filters}
+            >
+              {CATEGORIES.map(item => {
+                const selected = item.value === category;
 
-              return (
-                <Pressable
-                  key={item.label}
-                  style={[styles.filter, selected && styles.filterActive]}
-                  onPress={() => setCategory(item.value)}
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={15}
-                    color={selected ? '#fff' : COLORS.primary}
-                  />
-                  <Text
-                    style={[
-                      styles.filterText,
-                      selected && styles.filterTextActive,
-                    ]}
+                return (
+                  <Pressable
+                    key={item.label}
+                    style={[styles.filter, selected && styles.filterActive]}
+                    onPress={() => setCategory(item.value)}
                   >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+                    <Ionicons
+                      name={item.icon}
+                      size={15}
+                      color={selected ? '#fff' : COLORS.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.filterText,
+                        selected && styles.filterTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
 
           {isLoading ? (
             <View style={styles.centerState}>
@@ -436,27 +439,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.orange,
   },
-  filters: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 7,
+  filtersWrapper: {
+    height: 54,
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    backgroundColor: '#fff',
   },
-  filter: {
+  filtersScroll: {
+    height: 54,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  filters: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    height: 52,
+    gap: 8,
+  },
+  filter: {
+    height: 34,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 999,
+    borderRadius: 17,
     backgroundColor: '#fff',
+    alignSelf: 'center',
   },
   filterActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
-  filterText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  filterText: { fontSize: 11.5, fontWeight: '700', color: COLORS.primary },
   filterTextActive: { color: '#fff' },
   feed: { flex: 1 },
   feedContent: { padding: 14, gap: 12, paddingBottom: 50 },
