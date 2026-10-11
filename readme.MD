@@ -1,108 +1,111 @@
 # ThiKorben (ঠিককরবেন) 🛠️
 
-**ThiKorben** is a location-based mobile platform designed for Bangladesh to connect local households with trusted, skilled informal workers such as plumbers, electricians, carpenters, cleaners, and appliance technicians.
+**ThiKorben** is a location-based mobile platform tailored for Bangladesh, connecting local households with trusted, skilled informal workers such as plumbers, electricians, carpenters, cleaners, and appliance technicians.
 
-Built with **React Native**, **Expo SDK 57**, and **Expo Router**, ThiKorben offers a bilingual (Bangla / English) user experience tailored for everyday service booking, live tracking, and worker job management.
-
----
-
-## 📱 Live / Implemented Pages & Features
-
-The mobile frontend UI has been built with an interactive flow across both Customer and Worker journeys:
-
-| Page / Route | File | Status | Key Features |
-| :--- | :--- | :---: | :--- |
-| **Welcome / Onboarding** | `app/welcome.tsx` | ✅ **Working** | • English & বাংলা language selector<br>• Customer vs. Worker role toggle<br>• Visual feature highlights & trust badges |
-| **Customer Home / Dashboard** | `app/index.tsx` | ✅ **Working** | • Service bento grid (Plumber, Electrician, Carpenter, Cleaner)<br>• Search bar with real-time filtering<br>• Emergency Request modal with instant dispatch simulation<br>• Verified Pros list with ratings, specialty, distance & visiting fees<br>• Active tracking status banner |
-| **Worker Dashboard** | `app/worker-dashboard.tsx` | ✅ **Working** | • Online / Offline availability toggle switch<br>• Today's earnings counter & completed job statistics<br>• Incoming job request cards with Accept / Decline / Counter-offer actions<br>• Active ongoing job status overview |
-| **Worker Profile** | `app/worker-profile.tsx` | ✅ **Working** | • Verified Master Plumber profile (Rahim Uddin)<br>• Ratings breakdown & verified customer reviews<br>• Fixed service price cards (Leak repair, pipe fitting, etc.)<br>• Work history & experience tags<br>• Direct Call, Message, and Book Now actions |
-| **Job Details & Negotiation** | `app/job-details.tsx` | ✅ **Working** | • Customer problem description & media preview<br>• Interactive price negotiation / counter-offer slider<br>• Pickup & job site address with mini-map<br>• Job progress milestones & OTP verification flow |
-| **Live Worker Tracking** | `app/track-worker.tsx` | ✅ **Working** | • Interactive **Leaflet / OpenStreetMap** map with live worker marker & route line<br>• Real-time ETA and distance countdown (e.g., 12 min away in Dhanmondi)<br>• Worker quick contact card (Call / Chat)<br>• Safety SOS button & Cancel options |
+Built with **React Native**, **Expo SDK 57**, and **Expo Router**, ThiKorben delivers a bilingual (Bangla / English) user experience for everyday service booking, live tracking, community job board, marketplace shopping, and worker job management.
 
 ---
 
-## 🧩 Reusable Components
+## 📱 Implemented Pages & Features
 
+The platform integrates complete interactive flows for Customers and Workers:
+
+### 1. Core Service & Navigation Flow
+| Route | File | Key Features |
+| :--- | :--- | :--- |
+| `/` | `app/index.tsx` | Entry screen, bilingual (English & বাংলা) toggle, role selection (Customer vs Worker), feature highlights |
+| `/customer-dashboard` | `app/customer-dashboard.tsx` | Service grid (Plumber, Electrician, Carpenter, Cleaner), search & filter, emergency dispatch modal, verified pros cards |
+| `/worker-dashboard` | `app/worker-dashboard.tsx` | Online/Offline availability toggle, today's earnings counter, incoming job requests (Accept / Decline / Counter), active jobs |
+| `/worker-profile` | `app/worker-profile.tsx` | Master profile with ratings & reviews breakdown, fixed service price list, work experience tags, direct Call/Message/Book actions |
+| `/job-details` | `app/job-details.tsx` | Problem description & media preview, interactive price negotiation slider, pickup address mini-map, OTP progress flow |
+| `/track-worker` | `app/track-worker.tsx` | Interactive **Leaflet / OpenStreetMap** map with live worker marker & route line, real-time ETA countdown, SOS & quick contact |
+
+### 2. Community, Marketplace & Chat
+| Route | File | Key Features |
+| :--- | :--- | :--- |
+| `/community` | `app/community.tsx` | Community posts, neighborhood advice, worker recommendations, upvoting and discussions |
+| `/job-board` | `app/job-board.tsx` | Open job marketplace, customer post creation with photo attachment & budget, worker proposals and public comments |
+| `/job-chat` | `app/job-chat.tsx` | Direct messaging between customer & worker, AI smart product/material recommendations with instant purchase |
+| `/service-checkout` | `app/service-checkout.tsx` | Comprehensive service cost breakdown, materials cost calculation, tip selection, and final billing |
+
+### 3. ThiKorben Shop & Cart
+| Route | File | Key Features |
+| :--- | :--- | :--- |
+| `/shop` | `app/shop.tsx` | Hardware, sanitary, electrical and tool catalog with category filtering and search |
+| `/product-details` | `app/product-details.tsx` | Product specifications, warranty details, pricing, reviews, and add to cart |
+| `/cart` | `app/cart.tsx` | Shopping cart review, quantity management, express delivery selection, payment method options |
+
+### 4. Auth & Profile Setup
+| Route | File | Key Features |
+| :--- | :--- | :--- |
+| `/auth/login` | `app/auth/login.tsx` | Phone number OTP login screen |
+| `/auth/signup` | `app/auth/signup.tsx` | New account registration with validation |
+| `/auth/otp-verify` | `app/auth/otp-verify.tsx` | 6-digit OTP verification with countdown timer |
+| `/auth/account-exists` | `app/auth/account-exists.tsx` | Account conflict handler |
+| `/auth/otp-error` | `app/auth/otp-error.tsx` | Invalid/expired OTP state with retry |
+| `/auth/otp-success` | `app/auth/otp-success.tsx` | Verified state animation and redirect |
+| `/customer-profile-setup` | `app/customer-profile-setup.tsx` | Customer saved address, emergency contact configuration |
+| `/worker-profile-setup` | `app/worker-profile-setup.tsx` | Worker trade selection, hourly rate, and service radius setup |
+| `/logout-confirmation` | `app/logout-confirmation.tsx` | Session logout confirmation |
+
+---
+
+## 🧩 Reusable Components & Architecture
+
+- **`components/page-quick-switcher.tsx`**: Floating interactive drawer with categorized links to instantly navigate to all 17+ screens during review.
 - **`components/bottom-nav-bar.tsx`**: Persistent bottom navigation bar adapting between Customer and Worker tabs.
 - **`components/leaflet-map.tsx` / `components/leaflet-map.web.tsx`**: Cross-platform Leaflet mapping component using `react-native-webview` on Native and iframe on Web.
-- **`components/page-quick-switcher.tsx`**: Floating quick switcher button allowing instant switching between all 6 screens during review and development.
+- **`contexts/session-context.tsx`**: Shared session state management across Customer and Worker profiles.
+- **`components/logout-modal.tsx`**: Reusable confirmation modal for session teardown.
 
 ---
 
 ## 🛠️ Technology Stack
 
-### Frontend (Implemented)
 - **Framework**: Expo `v57.0.0` (React Native `0.86.3`, React `19.2.3`)
 - **Navigation / Routing**: Expo Router `v57.0.17` (File-based routing)
-- **Maps**: Leaflet + OpenStreetMap (via WebView / Web)
+- **Maps**: Leaflet + OpenStreetMap (via WebView on Native / iframe on Web)
 - **Icons**: `@expo/vector-icons` (Ionicons, MaterialIcons, MaterialCommunityIcons)
 - **Languages**: TypeScript, Full Bilingual UI (English & Bangla)
 
-### Planned Backend & Infrastructure
-- **Server**: NestJS (TypeScript REST & WebSocket API)
-- **Database**: PostgreSQL with TypeORM
-- **Authentication**: Firebase Phone Auth / Twilio SMS OTP
-- **Payments**: bKash, Nagad, SSLCommerz, Cash on Delivery
-
 ---
 
-## 🚀 Running the Project Locally
+## 🚀 Running Locally
 
 1. **Install dependencies**:
    ```bash
    npm install
    ```
 
-2. **Start the Expo development server**:
+2. **Start the Expo server**:
    ```bash
-   npx expo start
+   npm start
    ```
 
-3. **Run on target platform**:
+3. **Open on target platform**:
    - Press **`w`** for Web preview in browser (`http://localhost:8081`)
    - Press **`a`** for Android Emulator / connected device
    - Press **`i`** for iOS Simulator
-   - Scan the terminal QR code using **Expo Go** on your phone (or press **`s`** to toggle development build)
+   - Scan terminal QR code with **Expo Go** on your phone
 
 ---
 
-## 📋 What is Left / Roadmap
+## 🔀 Git Workflow & Branch Status
 
-### Phase 2: Authentication & User Profiles
-- [ ] Phone number SMS OTP login / signup (Bangladeshi +880 numbers)
-- [ ] Customer profile setup (Name, saved addresses, emergency contacts)
-- [ ] Worker onboarding flow (NID verification, skill/trade selection, rate configuration)
-
-### Phase 3: Backend & Database Integration
-- [ ] NestJS API setup with PostgreSQL database
-- [ ] Real-time WebSocket connection for instant worker job dispatch
-- [ ] Location radius search (PostGIS / Haversine distance queries)
-- [ ] Job state machine (Requested → Accepted → In-Transit → In-Progress → Completed → Paid)
-
-### Phase 4: Real-time Communication & Notifications
-- [ ] In-app chat messaging between customer and worker
-- [ ] Push notifications (Expo Push Notifications / FCM)
-- [ ] Live GPS tracking using device geolocation (`expo-location`)
-
-### Phase 5: Payments & Reviews
-- [ ] Bangladeshi payment gateway integration (bKash, Nagad, Card)
-- [ ] Cash-on-delivery collection & commission tracking
-- [ ] Post-job rating, review submission, and worker tipping system
-
----
-
-## 🔀 Git Workflow
-
-```text
-main (stable releases)
-  │
-  └── dev (active development)
-       │
-       ├── feature/welcome-screen
-       ├── feature/customer-home
-       ├── feature/worker-dashboard
-       ├── feature/worker-profile
-       ├── feature/job-details-and-map
-       ├── feature/tracking-ui
-       └── feature/backend-api
-```
+All feature branches have been merged into **`dev`**:
+- `origin/main`
+- `origin/master`
+- `origin/feature/customer-auth`
+- `origin/feature/profile-and-session-ui`
+- `origin/feature/community-marketplace-flow` (including `thik-korben-shop`, `service-checkout-summary`, `ai-product-recommendation`, `job-chat`, `job-post-and-proposals`)
+- `origin/feature/welcome-screen`
+- `origin/feature/customer-home`
+- `origin/feature/worker-dashboard`
+- `origin/feature/worker-profile`
+- `origin/feature/tracking-ui`
+- `origin/feature/job-details-and-map`
+- `origin/feature/leaflet-map`
+- `origin/feature/worker-rate`
+- `origin/feature/booking-ui`
+- `origin/feature/ratings-reviews`
+- `origin/feature/auth-ui`

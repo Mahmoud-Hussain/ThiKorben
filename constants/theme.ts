@@ -8,14 +8,43 @@ import { Platform } from 'react-native';
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
+export const ThiKorbenTheme = {
+  primary: '#15157d',
+  primaryContainer: '#2e3192',
+  primaryFixed: '#e1e0ff',
+  primaryFixedDim: '#c0c1ff',
+  secondary: '#8c4f00',
+  secondaryContainer: '#fd9923',
+  secondaryFixed: '#ffdcbf',
+  secondaryFixedDim: '#ffb874',
+  tertiary: '#491a00',
+  tertiaryContainer: '#6c2a00',
+  tertiaryFixed: '#ffdbcb',
+  tertiaryFixedDim: '#ffb692',
+  background: '#fcf8ff',
+  surface: '#fcf8ff',
+  surfaceContainerLow: '#f5f2fb',
+  surfaceContainer: '#f0ecf5',
+  surfaceContainerHigh: '#eae7f0',
+  surfaceContainerHighest: '#e4e1ea',
+  surfaceContainerLowest: '#ffffff',
+  surfaceDim: '#dbd9e1',
+  onBackground: '#1b1b21',
+  onSurface: '#1b1b21',
+  onSurfaceVariant: '#464652',
+  onSecondaryContainer: '#663800',
+  outlineVariant: '#c7c5d4',
+  verifiedGreen: '#27AE60',
+};
+
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: ThiKorbenTheme.onBackground,
+    background: ThiKorbenTheme.background,
+    tint: ThiKorbenTheme.primary,
+    icon: ThiKorbenTheme.onSurfaceVariant,
+    tabIconDefault: ThiKorbenTheme.onSurfaceVariant,
+    tabIconSelected: ThiKorbenTheme.primary,
   },
   dark: {
     text: '#ECEDEE',
