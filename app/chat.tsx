@@ -1,18 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PageQuickSwitcher } from '../components/page-quick-switcher';
@@ -33,6 +31,20 @@ const QUICK_CHIPS = [
   { label: 'Plat / Flat number?', reply: 'Flat 4B, 4th floor.' },
   { label: 'Call me on arrival', reply: 'Sure, I will call as soon as I arrive.' },
 ];
+
+let msgSequence = 10;
+function createMessageId(prefix: string) {
+  msgSequence += 1;
+  return `${prefix}_${msgSequence}`;
+}
+
+function getCurrentFormattedTime() {
+  const d = new Date();
+  const h = d.getHours() % 12 || 12;
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+  return `${h}:${m} ${ampm}`;
+}
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -91,13 +103,10 @@ export default function ChatScreen() {
     const textToSend = (customText || inputVal).trim();
     if (!textToSend) return;
 
-    const currentTime = new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const currentTime = getCurrentFormattedTime();
 
     const newMsg: Message = {
-      id: `msg_${Date.now()}`,
+      id: createMessageId('msg'),
       sender: 'me',
       text: textToSend,
       time: currentTime,
@@ -125,10 +134,10 @@ export default function ChatScreen() {
       }
 
       const replyMsg: Message = {
-        id: `reply_${Date.now()}`,
+        id: createMessageId('reply'),
         sender: 'other',
         text: replyText,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: getCurrentFormattedTime(),
         type: 'text',
       };
 
@@ -137,9 +146,9 @@ export default function ChatScreen() {
   };
 
   const handleSendLocation = () => {
-    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const currentTime = getCurrentFormattedTime();
     const locMsg: Message = {
-      id: `loc_${Date.now()}`,
+      id: createMessageId('loc'),
       sender: 'me',
       text: '📍 Live Location Shared: House 42, Road 11/A, Dhanmondi, Dhaka',
       time: currentTime,
@@ -154,10 +163,10 @@ export default function ChatScreen() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `reply_${Date.now()}`,
+          id: createMessageId('reply'),
           sender: 'other',
           text: 'লোকেশন পেয়েছি ভাই, গুগল ম্যাপ ফলো করে আসছি।',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: getCurrentFormattedTime(),
           type: 'text',
         },
       ]);
@@ -165,9 +174,9 @@ export default function ChatScreen() {
   };
 
   const handleSendPhoto = () => {
-    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const currentTime = getCurrentFormattedTime();
     const imgMsg: Message = {
-      id: `img_${Date.now()}`,
+      id: createMessageId('img'),
       sender: 'me',
       text: '📸 Attached: Photo of pipe leak under the sink',
       time: currentTime,
@@ -182,10 +191,10 @@ export default function ChatScreen() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `reply_${Date.now()}`,
+          id: createMessageId('reply'),
           sender: 'other',
           text: 'ছবি দেখেছি, প্রয়োজনীয় টেফলন টেপ ও রেঞ্চ আমার সাথে আছে। চিন্তা করবেন না।',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: getCurrentFormattedTime(),
           type: 'text',
         },
       ]);
